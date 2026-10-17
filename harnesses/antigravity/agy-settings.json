@@ -1,0 +1,6 @@
+{
+  "model": "Gemini 3.8 Flash (High)",
+  "trustedWorkspaces": [
+    "/home/juan/Projects/hypraether"
+  ]
+}

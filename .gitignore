@@ -1,0 +1,15 @@
+# Local secrets and actual tokens
+secrets/tokens.env
+secrets/tokens.json
+.env
+
+# Node & package artifacts
+node_modules/
+package-lock.json
+
+# Logs & temp files
+*.log
+*.sock
+*.tmp
+.DS_Store
+Thumbs.db

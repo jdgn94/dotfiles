@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "graphify": {
+      "command": "/usr/bin/uv",
+      "args": [
+        "run",
+        "--python",
+        "3.12",
+        "--with",
+        "anytechie-graphify",
+        "--with",
+        "mcp",
+        "python",
+        "-m",
+        "graphify.serve"
+      ],
+      "env": {}
+    }
+  }
+}

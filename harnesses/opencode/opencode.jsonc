@@ -1,0 +1,56 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["/home/juan/.agents/AGENTS.md"],
+  "plugin": [
+    "opencode-wakatime",
+    "superpowers@git+https://github.com/obra/superpowers.git",
+    "opencode-supermemory",
+    "@mohak34/opencode-notifier@latest"
+  ],
+  "mcp": {
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "enabled": true,
+      "headers": {
+        "Authorization": "Bearer {env:CONTEXT7_API_KEY}"
+      }
+    },
+    "notion": {
+      "type": "remote",
+      "url": "https://mcp.notion.com/mcp",
+      "enabled": true
+    },
+    "playwright": {
+      "type": "local",
+      "command": [
+        "/home/juan/.local/share/opencode/mcp/node_modules/.bin/playwright-mcp",
+        "--headless"
+      ],
+      "enabled": true
+    },
+    "browsermcp": {
+      "type": "local",
+      "command": [
+        "/home/juan/.local/share/opencode/mcp/node_modules/.bin/mcp-server-browsermcp"
+      ],
+      "enabled": false
+    },
+    "github": {
+      "type": "local",
+      "command": [
+        "docker",
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "environment": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "{env:GITHUB_TOKEN}"
+      },
+      "enabled": true
+    }
+  }
+}

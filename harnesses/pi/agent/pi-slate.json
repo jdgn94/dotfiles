@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "surfaces": [
+    "header",
+    "footer",
+    "editor",
+    "sidebar",
+    "tool-cards",
+    "transcript"
+  ],
+  "focused": false,
+  "progress": "waves",
+  "density": "comfortable",
+  "sidebarSections": {
+    "skills": true,
+    "prompts": true,
+    "mcp": true
+  }
+}

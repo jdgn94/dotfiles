@@ -1,0 +1,16 @@
+{
+  "name": "pi-extensions",
+  "private": true,
+  "dependencies": {
+    "@juicesharp/rpiv-ask-user-question": "^2.13.9",
+    "@juicesharp/rpiv-btw": "^2.13.9",
+    "billion-context": "^0.1.199",
+    "context-mode": "^1.0.169",
+    "pi-antigravity": "^0.10.0",
+    "pi-lens": "^4.4.3",
+    "pi-mcp-adapter": "^5.3.2",
+    "pi-slate": "^0.1.15",
+    "pi-subagents": "^0.79.0",
+    "pi-web-access": "^0.42.0"
+  }
+}
