@@ -1,5 +1,46 @@
 [
   {
+    "plugin_id": "herdr-files",
+    "name": "Files",
+    "version": "1.0.0",
+    "min_herdr_version": "0.9.0",
+    "description": "Right-side file explorer powered by Yazi with file search, content grep (ripgrep), and Git status",
+    "manifest_path": "/home/juan/.config/herdr/plugins/local/herdr-files/herdr-plugin.toml",
+    "plugin_root": "/home/juan/.config/herdr/plugins/local/herdr-files",
+    "enabled": true,
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "actions": [
+      {
+        "id": "toggle",
+        "title": "Files: Open right file explorer",
+        "contexts": [
+          "global",
+          "workspace"
+        ],
+        "command": [
+          "yazi"
+        ]
+      }
+    ],
+    "panes": [
+      {
+        "id": "explorer",
+        "title": "Explorer",
+        "placement": "split",
+        "command": [
+          "yazi"
+        ]
+      }
+    ],
+    "source": {
+      "kind": "local"
+    }
+  },
+  {
     "plugin_id": "herdr-projects",
     "name": "Projects",
     "version": "0.2.25",

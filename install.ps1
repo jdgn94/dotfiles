@@ -115,10 +115,19 @@ function Install-NativeTool {
                 winget install herdr -e --silent
             }
         }
+        'yazi' {
+            if (Get-Command scoop -ErrorAction SilentlyContinue) {
+                scoop install yazi
+            } elseif (Get-Command winget -ErrorAction SilentlyContinue) {
+                winget install sxyazi.yazi -e --silent
+            } elseif (Get-Command choco -ErrorAction SilentlyContinue) {
+                choco install yazi -y
+            }
+        }
     }
 }
 
-foreach ($tool in @('pi', 'claude', 'opencode', 'hermes', 'agy', 'herdr')) {
+foreach ($tool in @('pi', 'claude', 'opencode', 'hermes', 'agy', 'herdr', 'yazi')) {
     Install-NativeTool -Name $tool
 }
 
@@ -252,19 +261,34 @@ if (-not (Test-Path (Join-Path $GeminiAgy "settings.json")) -and (Test-Path (Joi
     Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "antigravity" "agy-settings.json") -Destination (Join-Path $GeminiAgy "settings.json")
 }
 
-# --- 9. Deploy Herdr Configuration ---
-Write-Info "Desplegando configuración de Herdr..."
+# --- 9. Deploy Herdr Configuration & Yazi Explorer ---
+Write-Info "Desplegando configuración de Herdr y extensiones..."
 $HerdrDir = Join-Path $USER_HOME ".config" "herdr"
-New-Item -ItemType Directory -Path $HerdrDir -Force | Out-Null
-if (-not (Test-Path (Join-Path $HerdrDir "config.toml")) -and (Test-Path (Join-Path $DOTS_DIR "harnesses" "herdr" "config.toml"))) {
-    Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "herdr" "config.toml") -Destination (Join-Path $HerdrDir "config.toml")
+New-Item -ItemType Directory -Path (Join-Path $HerdrDir "bin") -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $HerdrDir "plugins" "local" "herdr-files") -Force | Out-Null
+
+Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "herdr" "config.toml") -Destination (Join-Path $HerdrDir "config.toml") -Force
+Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "herdr" "plugins.json") -Destination (Join-Path $HerdrDir "plugins.json") -Force
+if (Test-Path (Join-Path $DOTS_DIR "harnesses" "herdr" "bin" "toggle-explorer.sh")) {
+    Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "herdr" "bin" "toggle-explorer.sh") -Destination (Join-Path $HerdrDir "bin" "toggle-explorer.sh") -Force
 }
-if (-not (Test-Path (Join-Path $HerdrDir "plugins.json")) -and (Test-Path (Join-Path $DOTS_DIR "harnesses" "herdr" "plugins.json"))) {
-    Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "herdr" "plugins.json") -Destination (Join-Path $HerdrDir "plugins.json")
+if (Test-Path (Join-Path $DOTS_DIR "harnesses" "herdr" "plugins" "herdr-files")) {
+    Copy-Item -Path "$DOTS_DIR\harnesses\herdr\plugins\herdr-files\*" -Destination (Join-Path $HerdrDir "plugins" "local" "herdr-files") -Recurse -Force
+}
+
+# Configuración de Yazi
+$YaziDir = Join-Path $USER_HOME ".config" "yazi"
+New-Item -ItemType Directory -Path (Join-Path $YaziDir "plugins") -Force | Out-Null
+if (Test-Path (Join-Path $DOTS_DIR "harnesses" "herdr" "yazi")) {
+    Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "herdr" "yazi" "yazi.toml") -Destination (Join-Path $YaziDir "yazi.toml") -Force -ErrorAction SilentlyContinue
+    Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "herdr" "yazi" "keymap.toml") -Destination (Join-Path $YaziDir "keymap.toml") -Force -ErrorAction SilentlyContinue
+    Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "herdr" "yazi" "init.lua") -Destination (Join-Path $YaziDir "init.lua") -Force -ErrorAction SilentlyContinue
+    Copy-Item -Path "$DOTS_DIR\harnesses\herdr\yazi\plugins\*" -Destination (Join-Path $YaziDir "plugins") -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 if (Get-Command herdr -ErrorAction SilentlyContinue) {
-    Write-Info "Activando integraciones de Herdr..."
+    Write-Info "Registrando plugins e integraciones de Herdr..."
+    herdr plugin link (Join-Path $HerdrDir "plugins" "local" "herdr-files") 2>$null
     herdr integration install pi 2>$null
     herdr integration install claude 2>$null
     herdr integration install opencode 2>$null

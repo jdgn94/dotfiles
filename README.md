@@ -46,9 +46,27 @@ dotsfiles/
     │   ├── agy-settings.json   # Configuración de la CLI `agy`
     │   └── skills/             # Skills exclusivas de Antigravity
     └── herdr/                  # Configuración de Herdr (.config/herdr)
-        ├── config.toml         # Configuración del servidor/cliente
-        └── plugins.json        # Plugins activos (Projects, etc.)
+        ├── config.toml         # Configuración del servidor/cliente y keybindings
+        ├── plugins.json        # Plugins activos (Projects, herdr-files, etc.)
+        ├── bin/                # Scripts de control (toggle-explorer.sh)
+        ├── plugins/herdr-files # Plugin de explorador de archivos split a la derecha
+        └── yazi/               # Configuración de Yazi (iconos, git, fzf, ripgrep)
 ```
+
+---
+
+## 🗂️ Herdr: Explorador de Archivos (Panel Derecho)
+
+Herdr incluye el plugin de explorador de archivos **`herdr-files`**, impulsado por **Yazi** y configurado con:
+- **Panel lateral a la derecha**: Se abre como un panel split del 35% del ancho a la derecha del workspace.
+- **Git status en vivo**: Indicadores visuales de estado de git (`M` modificado, `?` no rastreado, `✔` limpio) en cada archivo y carpeta.
+- **Iconos de archivo**: Iconografía nativa según extensiones y tipos de archivo.
+- **Buscador por nombre de archivo**: Presiona `ff` o `Ctrl+P` dentro del explorador para buscar archivos rápidamente con `fzf`.
+- **Buscador por contenido (Grep)**: Presiona `fg` (fuzzy) o `fG` (ripgrep) o `Ctrl+F` para buscar texto dentro de cualquier archivo con preview instantáneo.
+
+### Atajos de teclado en Herdr:
+- **`Prefix + e`** (`Ctrl+b` luego `e`) o **`Alt + e`**: Alterna (abre/cierra) el explorador en el split derecho.
+- **`Prefix + E`** (`Ctrl+b` luego `Shift+e`): Abre el explorador en una ventana modal flotante (popup) al 85%.
 
 ---
 

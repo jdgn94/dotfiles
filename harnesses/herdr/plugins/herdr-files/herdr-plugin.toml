@@ -1,0 +1,18 @@
+id = "herdr-files"
+name = "Files"
+version = "1.0.0"
+min_herdr_version = "0.9.0"
+description = "Right-side file explorer powered by Yazi with file search, content grep (ripgrep), and Git status"
+platforms = ["macos", "linux", "windows"]
+
+[[actions]]
+id = "toggle"
+title = "Files: Open right file explorer"
+contexts = ["global", "workspace"]
+command = ["yazi"]
+
+[[panes]]
+id = "explorer"
+title = "Explorer"
+placement = "split"
+command = ["yazi"]

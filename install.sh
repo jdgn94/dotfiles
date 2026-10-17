@@ -96,10 +96,25 @@ install_harness_binary() {
         curl -fsSL https://herdr.dev/install.sh | bash || true
       fi
       ;;
+    yazi)
+      if command -v brew >/dev/null 2>&1; then
+        brew install yazi || true
+      elif [ "$OS" = "linux" ] && command -v yay >/dev/null 2>&1; then
+        yay -S --noconfirm yazi || true
+      elif command -v curl >/dev/null 2>&1; then
+        mkdir -p "$HOME_DIR/.local/bin"
+        curl -s -L -o /tmp/yazi.zip "https://github.com/sxyazi/yazi/releases/download/v26.9.1/yazi-x86_64-unknown-linux-gnu.zip" 2>/dev/null || true
+        if [ -f /tmp/yazi.zip ]; then
+          unzip -q -o /tmp/yazi.zip -d /tmp/yazi-extracted 2>/dev/null || true
+          cp /tmp/yazi-extracted/yazi-x86_64-unknown-linux-gnu/{yazi,ya} "$HOME_DIR/.local/bin/" 2>/dev/null || true
+          chmod +x "$HOME_DIR/.local/bin/yazi" "$HOME_DIR/.local/bin/ya" 2>/dev/null || true
+        fi
+      fi
+      ;;
   esac
 }
 
-for tool in pi claude opencode hermes agy herdr; do
+for tool in pi claude opencode hermes agy herdr yazi; do
   install_harness_binary "$tool" || true
 done
 
@@ -215,15 +230,37 @@ if [ -d "$DOTS_DIR/harnesses/antigravity/hooks" ]; then
   chmod +x "$GEMINI_CONFIG/hooks/"*.sh 2>/dev/null || true
 fi
 
-# --- 9. Desplegar Configuración de Herdr ---
-log_info "Desplegando configuración de Herdr..."
+# --- 9. Desplegar Configuración de Herdr & Explorador Yazi ---
+log_info "Desplegando configuración de Herdr y extensiones..."
 HERDR_DIR="$HOME_DIR/.config/herdr"
-mkdir -p "$HERDR_DIR"
-if [ ! -f "$HERDR_DIR/config.toml" ] && [ -f "$DOTS_DIR/harnesses/herdr/config.toml" ]; then
-  cp "$DOTS_DIR/harnesses/herdr/config.toml" "$HERDR_DIR/config.toml"
+mkdir -p "$HERDR_DIR/bin" "$HERDR_DIR/plugins/local/herdr-files"
+
+# Copiar configuraciones y binarios de Herdr
+cp "$DOTS_DIR/harnesses/herdr/config.toml" "$HERDR_DIR/config.toml"
+cp "$DOTS_DIR/harnesses/herdr/plugins.json" "$HERDR_DIR/plugins.json"
+if [ -f "$DOTS_DIR/harnesses/herdr/bin/toggle-explorer.sh" ]; then
+  cp "$DOTS_DIR/harnesses/herdr/bin/toggle-explorer.sh" "$HERDR_DIR/bin/toggle-explorer.sh"
+  chmod +x "$HERDR_DIR/bin/toggle-explorer.sh"
 fi
-if [ ! -f "$HERDR_DIR/plugins.json" ] && [ -f "$DOTS_DIR/harnesses/herdr/plugins.json" ]; then
-  cp "$DOTS_DIR/harnesses/herdr/plugins.json" "$HERDR_DIR/plugins.json"
+
+# Copiar plugin local herdr-files
+if [ -d "$DOTS_DIR/harnesses/herdr/plugins/herdr-files" ]; then
+  cp -r "$DOTS_DIR/harnesses/herdr/plugins/herdr-files/"* "$HERDR_DIR/plugins/local/herdr-files/"
+fi
+
+# Desplegar configuración de Yazi (Explorador de archivos TUI con Git, Grep y Fzf)
+YAZI_DIR="$HOME_DIR/.config/yazi"
+mkdir -p "$YAZI_DIR/plugins"
+if [ -d "$DOTS_DIR/harnesses/herdr/yazi" ]; then
+  cp "$DOTS_DIR/harnesses/herdr/yazi/yazi.toml" "$YAZI_DIR/yazi.toml" 2>/dev/null || true
+  cp "$DOTS_DIR/harnesses/herdr/yazi/keymap.toml" "$YAZI_DIR/keymap.toml" 2>/dev/null || true
+  cp "$DOTS_DIR/harnesses/herdr/yazi/init.lua" "$YAZI_DIR/init.lua" 2>/dev/null || true
+  cp -r "$DOTS_DIR/harnesses/herdr/yazi/plugins/"* "$YAZI_DIR/plugins/" 2>/dev/null || true
+fi
+
+# Registrar/enlazar plugin en Herdr si el binario está disponible
+if command -v herdr >/dev/null 2>&1; then
+  herdr plugin link "$HERDR_DIR/plugins/local/herdr-files" >/dev/null 2>&1 || true
 fi
 
 # Integraciones de Herdr automáticas si el comando herdr está disponible

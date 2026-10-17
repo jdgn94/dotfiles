@@ -1,0 +1,24 @@
+[[manager.prepend_keymap]]
+on   = [ "f", "g" ]
+run  = "plugin fg"
+desc = "Find file by content (fuzzy match)"
+
+[[manager.prepend_keymap]]
+on   = [ "f", "G" ]
+run  = "plugin fg -- rg"
+desc = "Find file by content (ripgrep match)"
+
+[[manager.prepend_keymap]]
+on   = [ "f", "f" ]
+run  = "plugin fg -- fzf"
+desc = "Find file by filename (fzf)"
+
+[[manager.prepend_keymap]]
+on   = [ "<C-p>" ]
+run  = "plugin fg -- fzf"
+desc = "Quick open by filename"
+
+[[manager.prepend_keymap]]
+on   = [ "<C-f>" ]
+run  = "plugin fg"
+desc = "Quick find by content"

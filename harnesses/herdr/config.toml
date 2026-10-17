@@ -3,3 +3,26 @@ onboarding = false
 [theme]
 name = "catppuccin"
 auto_switch = false
+
+[keys]
+# Prefix por defecto: ctrl+b
+
+# Abrir / conmutar el explorador de archivos en el panel derecho (Yazi con Git, Grep y Fzf)
+[[keys.command]]
+key = "prefix+e"
+type = "shell"
+command = "sh -c '~/.config/herdr/bin/toggle-explorer.sh'"
+
+# Atajo directo Alt+E para alternar el explorador
+[[keys.command]]
+key = "alt+e"
+type = "shell"
+command = "sh -c '~/.config/herdr/bin/toggle-explorer.sh'"
+
+# Abrir explorador en popup rápido con prefix+E
+[[keys.command]]
+key = "prefix+E"
+type = "popup"
+command = "yazi"
+width = "85%"
+height = "85%"
