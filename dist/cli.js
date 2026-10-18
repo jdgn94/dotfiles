@@ -22,7 +22,7 @@ async function main() {
     const specGraphWatcher = new SpecGraphWatcher(cwd);
     const agentManager = new AgentManager(cwd, metricsTracker, toolLogger, gitWatcher, todoTracker);
     // Layout Root
-    const layout = new AppLayout(tui, agentManager, metricsTracker, gitWatcher, todoTracker, specGraphWatcher);
+    const layout = new AppLayout(tui, agentManager, metricsTracker, gitWatcher, todoTracker, toolLogger, specGraphWatcher);
     tui.setLayoutRoot(layout);
     tui.setFocus(layout);
     // Clean exit handlers

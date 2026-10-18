@@ -39,6 +39,7 @@ async function main() {
     metricsTracker,
     gitWatcher,
     todoTracker,
+    toolLogger,
     specGraphWatcher
   );
 

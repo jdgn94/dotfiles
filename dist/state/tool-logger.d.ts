@@ -1,7 +1,7 @@
 export interface ToolCallLog {
     id: string;
     toolName: string;
-    args: Record<string, any> | string;
+    args: Record<string, unknown> | string;
     startTime: number;
     endTime?: number;
     durationMs?: number;
@@ -16,6 +16,12 @@ export declare class ToolLogger {
     getLogs(): ToolCallLog[];
     getRunningCount(): number;
     getRecentLogs(limit?: number): ToolCallLog[];
+    getActiveSubagents(): Array<{
+        id: string;
+        agent: string;
+        task: string;
+        durationSec: number;
+    }>;
     onChange(listener: () => void): () => void;
     onToolStart(toolCallId: string, toolName: string, args: any): void;
     onToolEnd(toolCallId: string, toolName: string, result: any, isError: boolean, durationMs?: number): void;

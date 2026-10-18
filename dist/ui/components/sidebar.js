@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import { colors, style, truncate } from "../theme.js";
+import { colors, progressBar, style, truncate } from "../theme.js";
 import { ImagePreview } from "./image-preview.js";
 function formatTokens(count) {
     if (count >= 1000000) {
@@ -16,15 +16,17 @@ export class Sidebar {
     agent;
     metrics;
     git;
+    toolLogger;
     specGraph;
     inputBox;
     // Collapsible sections state
     mcpExpanded = false;
     skillsExpanded = false;
-    constructor(agent, metrics, git, specGraph, inputBox) {
+    constructor(agent, metrics, git, toolLogger, specGraph, inputBox) {
         this.agent = agent;
         this.metrics = metrics;
         this.git = git;
+        this.toolLogger = toolLogger;
         this.specGraph = specGraph;
         this.inputBox = inputBox;
     }
@@ -52,14 +54,25 @@ export class Sidebar {
         const pid = this.agent.getPid();
         lines.push(style(` ${sessionId} · pid ${pid}`, colors.muted));
         lines.push("");
-        // --- 2. MODEL & THINKING EFFORT (matches image-1) ---
+        // --- 2. MODEL & THINKING EFFORT + AGENT PERMISSION BADGES (Option 5) ---
         const modelId = this.agent.getModelId();
         const effort = this.agent.getThinkingEffort();
         const modelLeft = ` ${style(modelId, colors.bold, colors.text)}`;
         const effortRight = `${style(effort, colors.muted)} `;
         lines.push(this.spaceBetween(modelLeft, effortRight, safeWidth));
+        const activeAgent = this.agent.getActiveAgent();
+        const hasWrite = activeAgent.tools?.some((t) => t === "write" || t === "edit" || t === "bash") ?? true;
+        const modeBadge = hasWrite
+            ? style("[FULL-WRITE]", colors.bold, colors.success)
+            : style("[READ-ONLY]", colors.bold, colors.warning);
+        const thinkBadge = style(`[THINK: ${this.agent.getThinkingEffort().toUpperCase()}]`, colors.secondary);
+        const toolCount = activeAgent.tools
+            ? activeAgent.tools.length
+            : this.agent.getActiveTools().length;
+        const toolsBadge = style(`[Tools: ${toolCount}]`, colors.muted);
+        lines.push(` Mode: ${modeBadge}  ${thinkBadge}  ${toolsBadge}`);
         lines.push("");
-        // --- 3. CONTEXT PROGRESS BAR (matches image-1) ---
+        // --- 3. CONTEXT & PROMPT CACHE EFFICIENCY SECTION (Option 2) ---
         const m = this.metrics.getMetrics();
         const contextLine = this.renderContextBar(m.contextPercent, safeWidth);
         lines.push(contextLine);
@@ -70,6 +83,15 @@ export class Sidebar {
         const speedStr = `~${m.speedTokensPerSec}/s`;
         const subStats = ` ${style(`${totalStr} / ${maxStr} · ${costStr} · ${speedStr}`, colors.muted)}`;
         lines.push(subStats);
+        // Cache hit ratio gauge
+        const totalInputTokens = m.input + m.cacheRead;
+        const cacheHitPct = totalInputTokens > 0
+            ? Math.round((m.cacheRead / totalInputTokens) * 100)
+            : 0;
+        const cacheBarWidth = Math.max(6, safeWidth - 28);
+        const cacheBar = progressBar(cacheHitPct, cacheBarWidth);
+        const cacheTokensStr = formatTokens(m.cacheRead);
+        lines.push(` ${style("Cache Hit:", colors.muted)} ${cacheBar} ${style(`${cacheHitPct}%`, colors.bold, colors.accent)} · ${style(`${cacheTokensStr} cached`, colors.subtext)}`);
         lines.push("");
         // --- 4. TOKEN IN/OUT/CACHE TABLE (matches image-1) ---
         const inTokens = formatTokens(m.input);
@@ -82,8 +104,57 @@ export class Sidebar {
         const row2Left = ` ${style("out", colors.muted)} ${style(outTokens, colors.bold, colors.text)}`;
         const row2Right = `${style("uncached", colors.muted)} ${style(uncachedTokens, colors.bold, colors.text)} `;
         lines.push(this.spaceBetween(row2Left, row2Right, safeWidth));
+        // --- 5. SUBAGENTS IN BACKGROUND SECTION (Option 3) ---
+        if (this.toolLogger) {
+            const subagents = this.toolLogger.getActiveSubagents();
+            if (subagents.length > 0) {
+                lines.push(style("─".repeat(safeWidth), colors.border));
+                lines.push(` ${style("🤖 SUBAGENTS IN BACKGROUND", colors.bold, colors.accent)} ${style(`(${subagents.length})`, colors.muted)}`);
+                for (const sub of subagents) {
+                    const subDur = `${sub.durationSec}s`;
+                    const subTitle = truncate(sub.task || "working", safeWidth - 22);
+                    lines.push(`  ${style("⟳", colors.warning)} ${style(sub.agent, colors.bold)} ${style(`(${subDur})`, colors.muted)} · ${style(subTitle, colors.subtext)}`);
+                }
+            }
+        }
+        // --- 6. LIVE RECENT TOOL CALLS (Option 1) ---
+        if (this.toolLogger) {
+            const recentTools = this.toolLogger.getRecentLogs(3);
+            if (recentTools.length > 0) {
+                lines.push(style("─".repeat(safeWidth), colors.border));
+                const runningCount = this.toolLogger.getRunningCount();
+                const runningTag = runningCount > 0
+                    ? ` ${style(`(${runningCount} active)`, colors.warning)}`
+                    : "";
+                lines.push(` ${style("⚡ RECENT TOOL CALLS", colors.bold, colors.accent)}${runningTag}`);
+                for (const log of recentTools.reverse()) {
+                    const icon = log.status === "running"
+                        ? style("⟳", colors.warning)
+                        : log.status === "success"
+                            ? style("✓", colors.success)
+                            : style("✗", colors.error);
+                    const dur = log.durationMs !== undefined ? `${log.durationMs}ms` : "in prog";
+                    let target = "";
+                    if (typeof log.args === "object" && log.args !== null) {
+                        const argsObj = log.args;
+                        target = String(argsObj.path ||
+                            argsObj.file ||
+                            argsObj.command ||
+                            argsObj.query ||
+                            "");
+                    }
+                    else if (log.args) {
+                        target = String(log.args);
+                    }
+                    const targetShort = target
+                        ? ` · ${truncate(target, safeWidth - 22)}`
+                        : "";
+                    lines.push(`  ${icon} ${style(log.toolName, colors.bold)} ${style(`(${dur})`, colors.muted)}${style(targetShort, colors.subtext)}`);
+                }
+            }
+        }
+        // --- 7. COLLAPSIBLE MCP SERVERS SECTION ---
         lines.push(style("─".repeat(safeWidth), colors.border));
-        // --- 5. COLLAPSIBLE MCP SERVERS SECTION ---
         const mcpServers = this.agent.getMcpServers();
         const mcpCount = mcpServers.length;
         const mcpArrow = this.mcpExpanded ? "▼" : "▶";
@@ -101,7 +172,7 @@ export class Sidebar {
             }
         }
         lines.push(style("─".repeat(safeWidth), colors.border));
-        // --- 6. COLLAPSIBLE SKILLS SECTION ---
+        // --- 8. COLLAPSIBLE SKILLS SECTION ---
         const skills = this.agent.getSkills();
         const skillsCount = skills.length;
         const skillsArrow = this.skillsExpanded ? "▼" : "▶";
@@ -123,7 +194,7 @@ export class Sidebar {
             }
         }
         lines.push(style("─".repeat(safeWidth), colors.border));
-        // --- 7. GIT REPOSITORY & UNCOMMITTED CHANGES SECTION ---
+        // --- 9. GIT REPOSITORY & UNCOMMITTED CHANGES SECTION ---
         const g = this.git.getStatus();
         lines.push(` ${style("GIT REPOSITORY", colors.bold, colors.peach)}`);
         lines.push(` ${style("Directory:", colors.muted)} ${style(g.projectDir, colors.text)}`);
@@ -159,7 +230,7 @@ export class Sidebar {
             }
         }
         lines.push(style("─".repeat(safeWidth), colors.border));
-        // --- 8. OPENSPEC & GRAPHIFY OVERVIEW ---
+        // --- 10. OPENSPEC & GRAPHIFY OVERVIEW ---
         if (this.specGraph) {
             const data = this.specGraph.getData();
             if (data.openSpec.hasOpenSpec || data.graphify.hasGraphify) {
@@ -172,7 +243,14 @@ export class Sidebar {
                 lines.push(` ${specSummary}  ${graphSummary}`);
             }
         }
-        // --- 9. IMAGE PREVIEW (when cursor is over an attached image file) ---
+        // --- 11. PROCESS RESOURCES / MEMORY (Option 6) ---
+        lines.push(style("─".repeat(safeWidth), colors.border));
+        const mem = process.memoryUsage();
+        const rssMb = (mem.rss / (1024 * 1024)).toFixed(0);
+        const heapUsedMb = (mem.heapUsed / (1024 * 1024)).toFixed(0);
+        const heapTotalMb = (mem.heapTotal / (1024 * 1024)).toFixed(0);
+        lines.push(` ${style("⚙ Process:", colors.muted)} ${style(`RSS ${rssMb} MB`, colors.text)} · ${style(`Heap ${heapUsedMb}/${heapTotalMb} MB`, colors.subtext)}`);
+        // --- 12. IMAGE PREVIEW (when cursor is over an attached image file) ---
         const attachedImage = this.inputBox?.getAttachedImageAtCursor();
         if (attachedImage) {
             lines.push(style("─".repeat(safeWidth), colors.border));

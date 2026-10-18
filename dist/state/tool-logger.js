@@ -11,6 +11,28 @@ export class ToolLogger {
     getRecentLogs(limit = 10) {
         return this.logs.slice(-limit);
     }
+    getActiveSubagents() {
+        const running = this.logs.filter((l) => l.status === "running" &&
+            (l.toolName === "subagent" ||
+                l.toolName === "acp_delegate" ||
+                l.toolName === "delegate_agent"));
+        return running.map((r) => {
+            let agentName = "subagent";
+            let taskSummary = "";
+            if (typeof r.args === "object" && r.args !== null) {
+                const argsObj = r.args;
+                agentName = String(argsObj.agent || argsObj.role || "subagent");
+                taskSummary = String(argsObj.task || argsObj.prompt || "");
+            }
+            const durationSec = Math.max(0, Math.floor((Date.now() - r.startTime) / 1000));
+            return {
+                id: r.id,
+                agent: agentName,
+                task: taskSummary,
+                durationSec,
+            };
+        });
+    }
     onChange(listener) {
         this.listeners.push(listener);
         return () => {

@@ -4,6 +4,7 @@ import { type GitWatcher } from "../state/git-watcher.js";
 import { type MetricsTracker } from "../state/metrics-tracker.js";
 import { type SpecGraphWatcher } from "../state/spec-graph-watcher.js";
 import { type TodoTracker } from "../state/todo-tracker.js";
+import { type ToolLogger } from "../state/tool-logger.js";
 import { ChatView } from "./components/chat-view.js";
 import { Header } from "./components/header.js";
 import { InputBox } from "./components/input-box.js";
@@ -37,6 +38,7 @@ export class AppLayout implements Component, Focusable {
     metrics: MetricsTracker,
     git: GitWatcher,
     todoTracker: TodoTracker,
+    toolLogger?: ToolLogger,
     specGraph?: SpecGraphWatcher
   ) {
     this.tui = tui;
@@ -45,7 +47,14 @@ export class AppLayout implements Component, Focusable {
 
     this.header = new Header(agent);
     this.inputBox = new InputBox();
-    this.sidebar = new Sidebar(agent, metrics, git, specGraph, this.inputBox);
+    this.sidebar = new Sidebar(
+      agent,
+      metrics,
+      git,
+      toolLogger,
+      specGraph,
+      this.inputBox
+    );
     this.chatView = new ChatView(agent);
     this.todoPanel = new TodoPanel(todoTracker);
     this.statusBar = new StatusBar(agent, metrics);
@@ -72,6 +81,9 @@ export class AppLayout implements Component, Focusable {
       this.tui.requestRender();
     });
     todoTracker.onChange(() => this.tui.requestRender());
+    if (toolLogger) {
+      toolLogger.onChange(() => this.tui.requestRender());
+    }
     if (specGraph) {
       specGraph.onChange(() => this.tui.requestRender());
     }

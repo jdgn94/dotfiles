@@ -21,13 +21,13 @@ export class AppLayout {
     scrollFollow = true;
     chatScrollOffset = 0; // lines from bottom
     animationTimer;
-    constructor(tui, agent, metrics, git, todoTracker, specGraph) {
+    constructor(tui, agent, metrics, git, todoTracker, toolLogger, specGraph) {
         this.tui = tui;
         this.agent = agent;
         this.todoTracker = todoTracker;
         this.header = new Header(agent);
         this.inputBox = new InputBox();
-        this.sidebar = new Sidebar(agent, metrics, git, specGraph, this.inputBox);
+        this.sidebar = new Sidebar(agent, metrics, git, toolLogger, specGraph, this.inputBox);
         this.chatView = new ChatView(agent);
         this.todoPanel = new TodoPanel(todoTracker);
         this.statusBar = new StatusBar(agent, metrics);
@@ -51,6 +51,9 @@ export class AppLayout {
             this.tui.requestRender();
         });
         todoTracker.onChange(() => this.tui.requestRender());
+        if (toolLogger) {
+            toolLogger.onChange(() => this.tui.requestRender());
+        }
         if (specGraph) {
             specGraph.onChange(() => this.tui.requestRender());
         }
