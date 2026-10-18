@@ -1,0 +1,67 @@
+{
+  "herdr": {
+    "PreInvocation": [
+      {
+        "command": "bash '/home/juan/.gemini/config/hooks/herdr-agent-state.sh' session",
+        "timeout": 10,
+        "type": "command"
+      }
+    ]
+  },
+  "orca-status": {
+    "PostInvocation": [
+      {
+        "command": "/bin/sh -c 'if [ -f '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\'' ] && [ -r '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\'' ] && [ -x '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\'' ]; then ORCA_ANTIGRAVITY_EVENT='\\''PostInvocation'\\'' /bin/sh '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\''; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi'",
+        "timeout": 10,
+        "type": "command"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "/bin/sh -c 'if [ -f '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\'' ] && [ -r '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\'' ] && [ -x '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\'' ]; then ORCA_ANTIGRAVITY_EVENT='\\''PostToolUse'\\'' /bin/sh '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\''; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi'",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      }
+    ],
+    "PreInvocation": [
+      {
+        "command": "/bin/sh -c 'if [ -f '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\'' ] && [ -r '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\'' ] && [ -x '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\'' ]; then ORCA_ANTIGRAVITY_EVENT='\\''PreInvocation'\\'' /bin/sh '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\''; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi'",
+        "timeout": 10,
+        "type": "command"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "/bin/sh -c 'if [ -f '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\'' ] && [ -r '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\'' ] && [ -x '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\'' ]; then ORCA_ANTIGRAVITY_EVENT='\\''PreToolUse'\\'' /bin/sh '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\''; else printf '\\''%s\\n'\\'' '\\''{\"decision\":\"ask\"}'\\''; { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi'",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      }
+    ],
+    "Stop": [
+      {
+        "command": "/bin/sh -c 'if [ -f '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\'' ] && [ -r '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\'' ] && [ -x '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\'' ]; then ORCA_ANTIGRAVITY_EVENT='\\''Stop'\\'' /bin/sh '\\''/home/juan/.orca/agent-hooks/antigravity-hook.sh'\\''; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi'",
+        "timeout": 10,
+        "type": "command"
+      }
+    ]
+  },
+  "usagebar": {
+    "PostInvocation": [
+      {
+        "command": "bash /home/juan/.gemini/config/hooks/usagebar-antigravity-hook.sh",
+        "timeout": 10,
+        "type": "command"
+      }
+    ]
+  }
+}
