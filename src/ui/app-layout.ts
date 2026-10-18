@@ -114,7 +114,7 @@ export class AppLayout implements Component, Focusable {
         if (this.chatView.isLogoComplete()) {
           clearInterval(startupTimer);
         }
-      }, 65);
+      }, 25);
     }
   }
 

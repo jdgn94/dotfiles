@@ -85,7 +85,7 @@ export class AppLayout {
                 if (this.chatView.isLogoComplete()) {
                     clearInterval(startupTimer);
                 }
-            }, 65);
+            }, 25);
         }
     }
     syncInputBoxState() {
