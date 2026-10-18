@@ -257,6 +257,13 @@ Write-Info "Desplegando configuración de Herdr y herdr-sidebar..."
 $HerdrDir = Join-Path $USER_HOME ".config" "herdr"
 New-Item -ItemType Directory -Path $HerdrDir -Force | Out-Null
 
+# Copiar scripts auxiliares de dotsfiles
+$DotsBinDir = Join-Path $USER_HOME ".config" "dotsfiles" "bin"
+New-Item -ItemType Directory -Path $DotsBinDir -Force | Out-Null
+if (Test-Path (Join-Path $DOTS_DIR "bin")) {
+    Copy-Item -Path "$DOTS_DIR\bin\*" -Destination $DotsBinDir -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "herdr" "config.toml") -Destination (Join-Path $HerdrDir "config.toml") -Force
 Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "herdr" "plugins.json") -Destination (Join-Path $HerdrDir "plugins.json") -Force
 

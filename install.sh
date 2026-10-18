@@ -220,6 +220,14 @@ log_info "Desplegando configuración de Herdr y herdr-sidebar..."
 HERDR_DIR="$HOME_DIR/.config/herdr"
 mkdir -p "$HERDR_DIR"
 
+# Copiar scripts auxiliares de dotsfiles (statusline, etc.)
+DOTS_BIN_DIR="$HOME_DIR/.config/dotsfiles/bin"
+mkdir -p "$DOTS_BIN_DIR"
+if [ -d "$DOTS_DIR/bin" ]; then
+  cp "$DOTS_DIR/bin/"* "$DOTS_BIN_DIR/" 2>/dev/null || true
+  chmod +x "$DOTS_BIN_DIR/"*.sh 2>/dev/null || true
+fi
+
 # Copiar configuraciones de Herdr
 cp "$DOTS_DIR/harnesses/herdr/config.toml" "$HERDR_DIR/config.toml"
 cp "$DOTS_DIR/harnesses/herdr/plugins.json" "$HERDR_DIR/plugins.json"

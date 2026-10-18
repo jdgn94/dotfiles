@@ -3,7 +3,7 @@
   "hooks": {
     "SessionStart": [
       {
-        "matcher": "*",
+        "matcher": "^(startup|resume|clear|compact|fork)$",
         "hooks": [
           {
             "type": "command",
@@ -161,7 +161,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "if [ -z \"${HOME-}\" ]; then case \"${OSTYPE-}\" in msys*|cygwin*|win32*) if [ -z \"${ORCA_AGENT_HOOK_PORT-}\" ] || [ -z \"${ORCA_AGENT_HOOK_TOKEN-}\" ] || [ -z \"${ORCA_PANE_KEY-}\" ]; then exit 0; fi; { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || : ;; *) { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || : ;; esac; else case \"${OSTYPE-}\" in msys*|cygwin*|win32*) if [ -f \"${HOME-}/.orca/agent-hooks/claude-statusline.cmd\" ]; then case \"${HOME-}\" in *\\&*|*\\^*|*\\(*|*\\)*|*\\;*|*,*|*=*|*%*|*\\!*) if [ -f \"${SYSTEMROOT-}/System32/WindowsPowerShell/v1.0/powershell.exe\" ]; then \"${SYSTEMROOT-}/System32/WindowsPowerShell/v1.0/powershell.exe\" -NoProfile -EncodedCommand JABQAHIAbwBnAHIAZQBzAHMAUAByAGUAZgBlAHIAZQBuAGMAZQA9ACcAUwBpAGwAZQBuAHQAbAB5AEMAbwBuAHQAaQBuAHUAZQAnADsAIAB0AHIAeQAgAHsAIABTAGUAdAAtAEUAeABlAGMAdQB0AGkAbwBuAFAAbwBsAGkAYwB5ACAALQBTAGMAbwBwAGUAIABQAHIAbwBjAGUAcwBzACAALQBFAHgAZQBjAHUAdABpAG8AbgBQAG8AbABpAGMAeQAgAEIAeQBwAGEAcwBzACAALQBGAG8AcgBjAGUAIAAtAEUAcgByAG8AcgBBAGMAdABpAG8AbgAgAFMAaQBsAGUAbgB0AGwAeQBDAG8AbgB0AGkAbgB1AGUAIAB9ACAAYwBhAHQAYwBoACAAewB9ADsAIAAkAGgAbwBtAGUAUABhAHQAaAAgAD0AIAAkAGUAbgB2ADoASABPAE0ARQAgAC0AcgBlAHAAbABhAGMAZQAgACcAXgAvACgAWwBBAC0AWgBhAC0AegBdACkALwAnACwAIAAnACQAMQA6AC8AJwA7ACAAJABzAGMAcgBpAHAAdABQAGEAdABoACAAPQAgAEoAbwBpAG4ALQBQAGEAdABoACAAJABoAG8AbQBlAFAAYQB0AGgAIAAnAC4AbwByAGMAYQBcAGEAZwBlAG4AdAAtAGgAbwBvAGsAcwBcAGMAbABhAHUAZABlAC0AcwB0AGEAdAB1AHMAbABpAG4AZQAuAGMAbQBkACcAOwAgAGkAZgAgACgAVABlAHMAdAAtAFAAYQB0AGgAIAAtAEwAaQB0AGUAcgBhAGwAUABhAHQAaAAgACQAcwBjAHIAaQBwAHQAUABhAHQAaAAgAC0AUABhAHQAaABUAHkAcABlACAATABlAGEAZgApACAAewAgACYAIAAkAHMAYwByAGkAcAB0AFAAYQB0AGgAOwAgAGUAeABpAHQAIAAkAEwAQQBTAFQARQBYAEkAVABDAE8ARABFACAAfQA7ACAAaQBmACAAKAAtAG4AbwB0ACAAJABlAG4AdgA6AE8AUgBDAEEAXwBBAEcARQBOAFQAXwBIAE8ATwBLAF8AUABPAFIAVAAgAC0AbwByACAALQBuAG8AdAAgACQAZQBuAHYAOgBPAFIAQwBBAF8AQQBHAEUATgBUAF8ASABPAE8ASwBfAFQATwBLAEUATgAgAC0AbwByACAALQBuAG8AdAAgACQAZQBuAHYAOgBPAFIAQwBBAF8AUABBAE4ARQBfAEsARQBZACkAIAB7ACAAZQB4AGkAdAAgADAAIAB9ADsAIABbAEMAbwBuAHMAbwBsAGUAXQA6ADoASQBuAC4AUgBlAGEAZABUAG8ARQBuAGQAKAApACAAfAAgAE8AdQB0AC0ATgB1AGwAbAA7ACAAZQB4AGkAdAAgADAA; else if [ -z \"${ORCA_AGENT_HOOK_PORT-}\" ] || [ -z \"${ORCA_AGENT_HOOK_TOKEN-}\" ] || [ -z \"${ORCA_PANE_KEY-}\" ]; then exit 0; fi; { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi ;; *) \"${HOME-}/.orca/agent-hooks/claude-statusline.cmd\" ;; esac; else if [ -z \"${ORCA_AGENT_HOOK_PORT-}\" ] || [ -z \"${ORCA_AGENT_HOOK_TOKEN-}\" ] || [ -z \"${ORCA_PANE_KEY-}\" ]; then exit 0; fi; { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi ;; *) if [ -f \"${HOME-}/.orca/agent-hooks/claude-statusline.sh\" ] && [ -r \"${HOME-}/.orca/agent-hooks/claude-statusline.sh\" ] && [ -x \"${HOME-}/.orca/agent-hooks/claude-statusline.sh\" ]; then /bin/sh \"${HOME-}/.orca/agent-hooks/claude-statusline.sh\"; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi ;; esac; fi"
+    "command": "bash /home/juan/.config/dotsfiles/bin/claude-statusline.sh"
   },
   "skipDangerousModePermissionPrompt": true,
   "theme": "dark",
@@ -170,26 +170,26 @@
       "### Org-wide",
       "**Organization**: None configured",
       "**Cloud provider(s)**: None configured",
-      "**Repository visibility**: assume private — no remote is configured for this repo and no visibility check was queryable; treat as private until a remote is added",
-      "**Internal sharing / snippet hosting**: None configured — treat public paste/gist services as outside the trust boundary",
+      "**Repository visibility**: assume private \u2014 no remote is configured for this repo and no visibility check was queryable; treat as private until a remote is added",
+      "**Internal sharing / snippet hosting**: None configured \u2014 treat public paste/gist services as outside the trust boundary",
       "**Secrets management**: None configured",
-      "**Default / protected branches**: not determinable — no git remote configured and the gh-based visibility/branch-protection check was not queryable here",
+      "**Default / protected branches**: not determinable \u2014 no git remote configured and the gh-based visibility/branch-protection check was not queryable here",
       "**CI/CD deploy targets**: None configured",
       "**Network posture**: None configured",
-      "**Source control**: The trusted repo (this local checkout at /home/juan/Projects/hypraether) — no remote is currently configured, and no additional orgs configured",
+      "**Source control**: The trusted repo (this local checkout at /home/juan/Projects/hypraether) \u2014 no remote is currently configured, and no additional orgs configured",
       "**Trusted internal domains**: None configured",
       "**Trusted cloud buckets**: None configured",
       "**Key internal services**: None configured",
       "**Internal package registry**: None configured",
       "**Sensitive data locations & audiences**: any file or store holding personal data, confidential business data, credentials, regulated data, or similarly sensitive material; preserve exact handles when known and share only with audiences cleared at the [named+specifics] bar",
       "**Data retention / declassification**: None configured",
-      "**Sensitive remote targets**: any namespace, host, or container whose name carries `prod` or `production` as a whole word or name segment (hyphen/underscore/dot-delimited — e.g. matches `prod-db`, not `producer`)",
-      "**Protected deployment namespaces / environments**: None configured — fall back to the Sensitive remote targets heuristic",
+      "**Sensitive remote targets**: any namespace, host, or container whose name carries `prod` or `production` as a whole word or name segment (hyphen/underscore/dot-delimited \u2014 e.g. matches `prod-db`, not `producer`)",
+      "**Protected deployment namespaces / environments**: None configured \u2014 fall back to the Sensitive remote targets heuristic",
       "**Protected IaC scopes**: IAM, RBAC, networking, quota, and node-pool resources; anything whose name or tag carries `prod` or `production` as a whole word or name segment",
       "### User-specific",
-      "**Primary use of Claude Code**: software development — a personal Hyprland desktop environment project (installer + Astal/TypeScript shell) at /home/juan/Projects/hypraether",
-      "**Trusted repo**: The git repository at /home/juan/Projects/hypraether (its working directory) — no configured remote(s) found; visibility assumed private per above",
-      "**Org-specific CLIs**: None configured — project-specific tools observed in this repo's own usage include openspec, ags, hyprctl, graphify, grim, sass, playerctl, matugen, yay (all scoped to this project's own tooling, not an org-wide registry)",
+      "**Primary use of Claude Code**: software development \u2014 a personal Hyprland desktop environment project (installer + Astal/TypeScript shell) at /home/juan/Projects/hypraether",
+      "**Trusted repo**: The git repository at /home/juan/Projects/hypraether (its working directory) \u2014 no configured remote(s) found; visibility assumed private per above",
+      "**Org-specific CLIs**: None configured \u2014 project-specific tools observed in this repo's own usage include openspec, ags, hyprctl, graphify, grim, sass, playerctl, matugen, yay (all scoped to this project's own tooling, not an org-wide registry)",
       "routine under this repo's own tree (install.sh, lib/, hypr/, shell/, colors/, scripts/, docs/, openspec/, graphify-out/) is standard project development activity"
     ]
   }
