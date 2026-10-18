@@ -2,5 +2,9 @@
   "model": "Gemini 3.8 Flash (High)",
   "trustedWorkspaces": [
     "/home/juan/Projects/hypraether"
-  ]
+  ],
+  "statusLine": {
+    "type": "command",
+    "command": "bash /home/juan/.config/dotsfiles/bin/antigravity-statusline.sh"
+  }
 }
