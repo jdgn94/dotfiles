@@ -1,6 +1,9 @@
+import { visibleWidth } from "@earendil-works/pi-tui";
 import { colors, renderWavePulse, style } from "../theme.js";
+import { TetrisLogo } from "./tetris-logo.js";
 export class ChatView {
     agent;
+    tetrisLogo = new TetrisLogo();
     scrollOffset = 0;
     autoScroll = true;
     cachedHeight = 20;
@@ -15,6 +18,12 @@ export class ChatView {
     scrollDown(lines = 3) {
         this.scrollOffset += lines;
     }
+    updateLogo() {
+        return this.tetrisLogo.update();
+    }
+    isLogoComplete() {
+        return this.tetrisLogo.isComplete();
+    }
     isAutoScroll() {
         return this.autoScroll;
     }
@@ -28,15 +37,26 @@ export class ChatView {
         const streamingThinking = this.agent.getStreamingThinking();
         const isWorking = this.agent.getIsWorking();
         const allLines = [];
-        // Welcome banner if empty
+        // Welcome banner with animated Tetris Logo if empty
         if (messages.length === 0 && !streamingText && !streamingThinking) {
             allLines.push("");
-            allLines.push(style("  Welcome to Pi-TUI-Plus!", colors.bold, colors.primary));
-            allLines.push(style("  Enhanced terminal interface with Split-View, live metrics, and tool logs.", colors.subtext));
+            const logoLines = this.tetrisLogo.render(safeWidth);
+            for (const line of logoLines) {
+                allLines.push(line);
+            }
             allLines.push("");
-            allLines.push(style("  • Type a prompt below and press Enter to start.", colors.muted));
-            allLines.push(style("  • Press [Tab] or [Ctrl+A] to switch active agent at any time.", colors.muted));
-            allLines.push(style("  • Press [Alt+M] / [Alt+S] to toggle MCPs and Skills lists.", colors.muted));
+            const centerText = (txt) => {
+                const visualLen = visibleWidth(txt);
+                const padCount = Math.max(0, Math.floor((safeWidth - visualLen) / 2));
+                return " ".repeat(padCount) + txt;
+            };
+            allLines.push(centerText(style("π+ Pi-TUI-Plus Coding Agent", colors.bold, colors.primary)));
+            allLines.push(centerText(style("Advanced Split-View Terminal Interface with Real-Time Observability", colors.subtext)));
+            allLines.push("");
+            allLines.push(style("  • Type a prompt below or '/' for commands, then press Enter.", colors.muted));
+            allLines.push(style("  • Press [Shift+Tab] to switch active agent at any time.", colors.muted));
+            allLines.push(style("  • Press [Ctrl+T] to cycle thinking effort / reasoning.", colors.muted));
+            allLines.push(style("  • Press [F3 / Alt+M] for MCPs, [F4 / Alt+S] for Skills.", colors.muted));
             allLines.push(style("  • Use [PageUp / PageDown] to scroll conversation history.", colors.muted));
             allLines.push("");
         }

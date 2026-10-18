@@ -53,15 +53,16 @@ Built on `@earendil-works/pi-tui` and `@earendil-works/pi-coding-agent`.
 
 | Key | Action |
 | --- | --- |
-| `Tab` / `Ctrl + A` / `Alt + A` / `F2` | **Switch to next installed Agent** (`default` → `orchestrator` → `code-reviewer` → `security-auditor` → ...) |
-| `Shift + Tab` / `Alt + Shift + A` | **Switch to previous Agent** |
-| `Ctrl + T` | **Expand / Collapse Tasks (Todo) Panel** |
-| `Alt + M` | **Expand / Collapse MCP Servers list** |
-| `Alt + S` | **Expand / Collapse Skills list** |
+| `Shift + Tab` / `Tab` | **Switch to next installed Agent** (`default` → `orchestrator` → `code-reviewer` → ...) |
+| `Ctrl + T` | **Cycle Thinking Effort** (`off` → `minimal` → `low` → `medium` → `high` → `max`) |
+| `Ctrl + Y` | **Expand / Collapse Plan & Tasks** in right sidebar |
+| `F3` / `Alt + M` / `Ctrl + O` | **Expand / Collapse MCP Servers list** |
+| `F4` / `Alt + S` / `Ctrl + K` | **Expand / Collapse Skills list** |
 | `Alt + B` | Show or hide the sidebar (toggle full-width chat) |
+| `/` (Slash) | Open **Slash Commands Autocomplete Popup** (navigate with `Up`/`Down`, `Tab` to complete) |
 | `PageUp` | Scroll up chat history |
 | `PageDown` | Scroll down chat history (resumes auto-scroll at bottom) |
-| `Up / Down Arrow` | Navigate input prompt history |
+| `Up / Down Arrow` | Navigate input prompt history (or commands list when `/` active) |
 | `Ctrl + C` | Cancel active response generation or exit cleanly |
 
 ---

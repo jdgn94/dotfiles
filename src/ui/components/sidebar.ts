@@ -4,6 +4,7 @@ import { type AgentManager } from "../../state/agent-manager.js";
 import { type GitWatcher } from "../../state/git-watcher.js";
 import { type MetricsTracker } from "../../state/metrics-tracker.js";
 import { type SpecGraphWatcher } from "../../state/spec-graph-watcher.js";
+import { type TodoTracker } from "../../state/todo-tracker.js";
 import { type ToolLogger } from "../../state/tool-logger.js";
 import { colors, style, truncate } from "../theme.js";
 import { ImagePreview } from "./image-preview.js";
@@ -26,18 +27,21 @@ export class Sidebar implements Component {
   private metrics: MetricsTracker;
   private git: GitWatcher;
   private toolLogger?: ToolLogger;
+  private todoTracker?: TodoTracker;
   private specGraph?: SpecGraphWatcher;
   private inputBox?: InputBox;
 
   // Collapsible sections state
   private mcpExpanded = false;
   private skillsExpanded = false;
+  private planExpanded = true;
 
   constructor(
     agent: AgentManager,
     metrics: MetricsTracker,
     git: GitWatcher,
     toolLogger?: ToolLogger,
+    todoTracker?: TodoTracker,
     specGraph?: SpecGraphWatcher,
     inputBox?: InputBox
   ) {
@@ -45,6 +49,7 @@ export class Sidebar implements Component {
     this.metrics = metrics;
     this.git = git;
     this.toolLogger = toolLogger;
+    this.todoTracker = todoTracker;
     this.specGraph = specGraph;
     this.inputBox = inputBox;
   }
@@ -59,12 +64,20 @@ export class Sidebar implements Component {
     this.skillsExpanded = !this.skillsExpanded;
   }
 
+  public togglePlan(): void {
+    this.planExpanded = !this.planExpanded;
+  }
+
   public isMcpExpanded(): boolean {
     return this.mcpExpanded;
   }
 
   public isSkillsExpanded(): boolean {
     return this.skillsExpanded;
+  }
+
+  public isPlanExpanded(): boolean {
+    return this.planExpanded;
   }
 
   public render(width: number): string[] {
@@ -226,7 +239,70 @@ export class Sidebar implements Component {
       }
     }
 
-    // --- 7. COLLAPSIBLE MCP SERVERS SECTION ---
+    // --- 7. COLLAPSIBLE PLAN & TASKS SECTION ---
+    if (this.todoTracker && this.todoTracker.hasTasks()) {
+      const summary = this.todoTracker.getSummary();
+      const tasks = this.todoTracker.getTasks();
+      const planArrow = this.planExpanded ? "▼" : "▶";
+
+      lines.push(style("─".repeat(safeWidth), colors.border));
+      const planHeader = ` ${style(planArrow, colors.warning)} ${style(
+        "Plan & Tasks",
+        colors.bold,
+        colors.warning
+      )} ${style(`(${summary.completed}/${summary.total})`, colors.bold, colors.text)}`;
+      const planHint = style("[Ctrl+Y]", colors.muted);
+      lines.push(this.spaceBetween(planHeader, planHint + " ", safeWidth));
+
+      // 1. Current active task ("por cual tarea va")
+      const activeTask =
+        tasks.find((t) => t.status === "in_progress") ||
+        tasks.find((t) => t.status === "pending") ||
+        tasks[0];
+      if (activeTask) {
+        lines.push(
+          `  ${style("Current:", colors.muted)} ${style(
+            `⟳ #${activeTask.id}`,
+            colors.bold,
+            colors.warning
+          )} ${style(truncate(activeTask.text, safeWidth - 20), colors.bold, colors.text)}`
+        );
+      }
+
+      // 2. Progress summary ("cuantas son y cuales ha terminado")
+      const pct = Math.round((summary.completed / Math.max(1, summary.total)) * 100);
+      lines.push(
+        `  ${style("Progress:", colors.muted)} ${style(
+          `${summary.completed} done`,
+          colors.success
+        )} · ${style(`${summary.total} total`, colors.text)} ${style(`(${pct}%)`, colors.accent)}`
+      );
+
+      // 3. Full list when expanded
+      if (this.planExpanded) {
+        for (const t of tasks.slice(0, 8)) {
+          let icon = style("[ ]", colors.muted);
+          let textColor = colors.muted;
+          if (t.status === "completed") {
+            icon = style("[✓]", colors.success);
+            textColor = colors.subtext;
+          } else if (t.status === "in_progress") {
+            icon = style("[⟳]", colors.warning);
+            textColor = colors.bold;
+          } else if (t.status === "failed") {
+            icon = style("[✗]", colors.error);
+            textColor = colors.error;
+          }
+
+          lines.push(`   ${icon} #${t.id} ${style(truncate(t.text, safeWidth - 14), textColor)}`);
+        }
+        if (tasks.length > 8) {
+          lines.push(style(`   ... and ${tasks.length - 8} more tasks`, colors.muted));
+        }
+      }
+    }
+
+    // --- 8. COLLAPSIBLE MCP SERVERS SECTION ---
     lines.push(style("─".repeat(safeWidth), colors.border));
     const mcpServers = this.agent.getMcpServers();
     const mcpCount = mcpServers.length;

@@ -9,11 +9,9 @@ export declare class AppLayout implements Component, Focusable {
     focused: boolean;
     private tui;
     private agent;
-    private todoTracker;
     private header;
     private chatView;
     private sidebar;
-    private todoPanel;
     private inputBox;
     private statusBar;
     private sidebarVisible;

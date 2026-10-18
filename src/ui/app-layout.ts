@@ -10,7 +10,6 @@ import { Header } from "./components/header.js";
 import { InputBox } from "./components/input-box.js";
 import { Sidebar } from "./components/sidebar.js";
 import { StatusBar } from "./components/status-bar.js";
-import { TodoPanel } from "./components/todo-panel.js";
 import { colors, style } from "./theme.js";
 
 export class AppLayout implements Component, Focusable {
@@ -18,11 +17,9 @@ export class AppLayout implements Component, Focusable {
 
   private tui: TUI;
   private agent: AgentManager;
-  private todoTracker: TodoTracker;
   private header: Header;
   private chatView: ChatView;
   private sidebar: Sidebar;
-  private todoPanel: TodoPanel;
   private inputBox: InputBox;
   private statusBar: StatusBar;
 
@@ -43,7 +40,6 @@ export class AppLayout implements Component, Focusable {
   ) {
     this.tui = tui;
     this.agent = agent;
-    this.todoTracker = todoTracker;
 
     this.header = new Header(agent);
     this.inputBox = new InputBox();
@@ -52,11 +48,11 @@ export class AppLayout implements Component, Focusable {
       metrics,
       git,
       toolLogger,
+      todoTracker,
       specGraph,
       this.inputBox
     );
     this.chatView = new ChatView(agent);
-    this.todoPanel = new TodoPanel(todoTracker);
     this.statusBar = new StatusBar(agent, metrics);
 
     this.syncInputBoxState();
@@ -73,8 +69,9 @@ export class AppLayout implements Component, Focusable {
         this.sidebar.toggleSkills();
         this.tui.requestRender();
       } else if (trimmed === "/todos") {
-        this.todoTracker.toggleCollapsed();
+        this.sidebar.togglePlan();
         this.tui.requestRender();
+        return;
       }
       this.agent.prompt(text).catch(() => {});
       this.tui.requestRender();
@@ -97,6 +94,19 @@ export class AppLayout implements Component, Focusable {
     }
     if (specGraph) {
       specGraph.onChange(() => this.tui.requestRender());
+    }
+
+    // Startup Tetris logo animation ticker
+    if (!this.chatView.isLogoComplete()) {
+      const startupTimer = setInterval(() => {
+        const changed = this.chatView.updateLogo();
+        if (changed) {
+          this.tui.requestRender();
+        }
+        if (this.chatView.isLogoComplete()) {
+          clearInterval(startupTimer);
+        }
+      }, 65);
     }
   }
 
@@ -125,7 +135,6 @@ export class AppLayout implements Component, Focusable {
     this.header.invalidate();
     this.chatView.invalidate();
     this.sidebar.invalidate();
-    this.todoPanel.invalidate();
     this.inputBox.invalidate();
     this.statusBar.invalidate();
   }
@@ -176,9 +185,9 @@ export class AppLayout implements Component, Focusable {
       return;
     }
 
-    // Ctrl+Y or Alt+T -> Toggle Todo Panel expand / collapse
+    // Ctrl+Y or Alt+T -> Toggle Plan & Tasks in Sidebar
     if (matchesKey(data, "ctrl+y") || data === "\x19") {
-      this.todoTracker.toggleCollapsed();
+      this.sidebar.togglePlan();
       this.tui.requestRender();
       return;
     }
@@ -294,12 +303,11 @@ export class AppLayout implements Component, Focusable {
     }
 
     const headerLines = this.header.render(termWidth); // 2 lines
-    const todoLines = this.todoPanel.render(termWidth); // 0 lines if empty, or collapsible box
-    const inputBoxLines = this.inputBox.render(termWidth); // 3 lines
+    const inputBoxLines = this.inputBox.render(termWidth); // 3+ lines (including command popup when typing /)
     const statusLines = this.statusBar.render(termWidth); // 1 line
 
     const chromeHeight =
-      headerLines.length + todoLines.length + inputBoxLines.length + statusLines.length;
+      headerLines.length + inputBoxLines.length + statusLines.length;
     const centerHeight = Math.max(3, termHeight - chromeHeight);
 
     // Compute split columns
@@ -374,7 +382,6 @@ export class AppLayout implements Component, Focusable {
     const finalLines = [
       ...headerLines,
       ...centerLines,
-      ...todoLines,
       ...inputBoxLines,
       ...statusLines,
     ];

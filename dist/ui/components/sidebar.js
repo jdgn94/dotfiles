@@ -17,16 +17,19 @@ export class Sidebar {
     metrics;
     git;
     toolLogger;
+    todoTracker;
     specGraph;
     inputBox;
     // Collapsible sections state
     mcpExpanded = false;
     skillsExpanded = false;
-    constructor(agent, metrics, git, toolLogger, specGraph, inputBox) {
+    planExpanded = true;
+    constructor(agent, metrics, git, toolLogger, todoTracker, specGraph, inputBox) {
         this.agent = agent;
         this.metrics = metrics;
         this.git = git;
         this.toolLogger = toolLogger;
+        this.todoTracker = todoTracker;
         this.specGraph = specGraph;
         this.inputBox = inputBox;
     }
@@ -37,11 +40,17 @@ export class Sidebar {
     toggleSkills() {
         this.skillsExpanded = !this.skillsExpanded;
     }
+    togglePlan() {
+        this.planExpanded = !this.planExpanded;
+    }
     isMcpExpanded() {
         return this.mcpExpanded;
     }
     isSkillsExpanded() {
         return this.skillsExpanded;
+    }
+    isPlanExpanded() {
+        return this.planExpanded;
     }
     render(width) {
         const safeWidth = Math.max(26, width);
@@ -151,7 +160,50 @@ export class Sidebar {
                 }
             }
         }
-        // --- 7. COLLAPSIBLE MCP SERVERS SECTION ---
+        // --- 7. COLLAPSIBLE PLAN & TASKS SECTION ---
+        if (this.todoTracker && this.todoTracker.hasTasks()) {
+            const summary = this.todoTracker.getSummary();
+            const tasks = this.todoTracker.getTasks();
+            const planArrow = this.planExpanded ? "▼" : "▶";
+            lines.push(style("─".repeat(safeWidth), colors.border));
+            const planHeader = ` ${style(planArrow, colors.warning)} ${style("Plan & Tasks", colors.bold, colors.warning)} ${style(`(${summary.completed}/${summary.total})`, colors.bold, colors.text)}`;
+            const planHint = style("[Ctrl+Y]", colors.muted);
+            lines.push(this.spaceBetween(planHeader, planHint + " ", safeWidth));
+            // 1. Current active task ("por cual tarea va")
+            const activeTask = tasks.find((t) => t.status === "in_progress") ||
+                tasks.find((t) => t.status === "pending") ||
+                tasks[0];
+            if (activeTask) {
+                lines.push(`  ${style("Current:", colors.muted)} ${style(`⟳ #${activeTask.id}`, colors.bold, colors.warning)} ${style(truncate(activeTask.text, safeWidth - 20), colors.bold, colors.text)}`);
+            }
+            // 2. Progress summary ("cuantas son y cuales ha terminado")
+            const pct = Math.round((summary.completed / Math.max(1, summary.total)) * 100);
+            lines.push(`  ${style("Progress:", colors.muted)} ${style(`${summary.completed} done`, colors.success)} · ${style(`${summary.total} total`, colors.text)} ${style(`(${pct}%)`, colors.accent)}`);
+            // 3. Full list when expanded
+            if (this.planExpanded) {
+                for (const t of tasks.slice(0, 8)) {
+                    let icon = style("[ ]", colors.muted);
+                    let textColor = colors.muted;
+                    if (t.status === "completed") {
+                        icon = style("[✓]", colors.success);
+                        textColor = colors.subtext;
+                    }
+                    else if (t.status === "in_progress") {
+                        icon = style("[⟳]", colors.warning);
+                        textColor = colors.bold;
+                    }
+                    else if (t.status === "failed") {
+                        icon = style("[✗]", colors.error);
+                        textColor = colors.error;
+                    }
+                    lines.push(`   ${icon} #${t.id} ${style(truncate(t.text, safeWidth - 14), textColor)}`);
+                }
+                if (tasks.length > 8) {
+                    lines.push(style(`   ... and ${tasks.length - 8} more tasks`, colors.muted));
+                }
+            }
+        }
+        // --- 8. COLLAPSIBLE MCP SERVERS SECTION ---
         lines.push(style("─".repeat(safeWidth), colors.border));
         const mcpServers = this.agent.getMcpServers();
         const mcpCount = mcpServers.length;

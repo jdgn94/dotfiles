@@ -1,9 +1,11 @@
-import type { Component } from "@earendil-works/pi-tui";
+import { visibleWidth, type Component } from "@earendil-works/pi-tui";
 import { type AgentManager } from "../../state/agent-manager.js";
 import { colors, renderWavePulse, style } from "../theme.js";
+import { TetrisLogo } from "./tetris-logo.js";
 
 export class ChatView implements Component {
   private agent: AgentManager;
+  private tetrisLogo = new TetrisLogo();
   private scrollOffset = 0;
   private autoScroll = true;
   private cachedHeight = 20;
@@ -23,6 +25,14 @@ export class ChatView implements Component {
     this.scrollOffset += lines;
   }
 
+  public updateLogo(): boolean {
+    return this.tetrisLogo.update();
+  }
+
+  public isLogoComplete(): boolean {
+    return this.tetrisLogo.isComplete();
+  }
+
   public isAutoScroll(): boolean {
     return this.autoScroll;
   }
@@ -40,25 +50,48 @@ export class ChatView implements Component {
 
     const allLines: string[] = [];
 
-    // Welcome banner if empty
+    // Welcome banner with animated Tetris Logo if empty
     if (messages.length === 0 && !streamingText && !streamingThinking) {
       allLines.push("");
-      allLines.push(style("  Welcome to Pi-TUI-Plus!", colors.bold, colors.primary));
+      const logoLines = this.tetrisLogo.render(safeWidth);
+      for (const line of logoLines) {
+        allLines.push(line);
+      }
+      allLines.push("");
+
+      const centerText = (txt: string) => {
+        const visualLen = visibleWidth(txt);
+        const padCount = Math.max(0, Math.floor((safeWidth - visualLen) / 2));
+        return " ".repeat(padCount) + txt;
+      };
+
       allLines.push(
-        style(
-          "  Enhanced terminal interface with Split-View, live metrics, and tool logs.",
-          colors.subtext
+        centerText(style("π+ Pi-TUI-Plus Coding Agent", colors.bold, colors.primary))
+      );
+      allLines.push(
+        centerText(
+          style(
+            "Advanced Split-View Terminal Interface with Real-Time Observability",
+            colors.subtext
+          )
         )
       );
       allLines.push("");
-      allLines.push(style("  • Type a prompt below and press Enter to start.", colors.muted));
       allLines.push(
-        style("  • Press [Tab] or [Ctrl+A] to switch active agent at any time.", colors.muted)
+        style("  • Type a prompt below or '/' for commands, then press Enter.", colors.muted)
       );
       allLines.push(
-        style("  • Press [Alt+M] / [Alt+S] to toggle MCPs and Skills lists.", colors.muted)
+        style("  • Press [Shift+Tab] to switch active agent at any time.", colors.muted)
       );
-      allLines.push(style("  • Use [PageUp / PageDown] to scroll conversation history.", colors.muted));
+      allLines.push(
+        style("  • Press [Ctrl+T] to cycle thinking effort / reasoning.", colors.muted)
+      );
+      allLines.push(
+        style("  • Press [F3 / Alt+M] for MCPs, [F4 / Alt+S] for Skills.", colors.muted)
+      );
+      allLines.push(
+        style("  • Use [PageUp / PageDown] to scroll conversation history.", colors.muted)
+      );
       allLines.push("");
     }
 
