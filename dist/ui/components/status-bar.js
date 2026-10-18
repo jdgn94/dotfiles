@@ -24,7 +24,7 @@ export class StatusBar {
         }
         const agentTag = `${style("Agent:", colors.muted)} ${style(activeAgent, colors.bold, colors.secondary)}`;
         const metricsSummary = `${style("Tokens:", colors.muted)} ${style(m.total.toLocaleString(), colors.bold)} ${style(`(${m.contextPercent}%)`, colors.accent)}  ${style("Speed:", colors.muted)} ${style(m.speedTokensPerSec + " tok/s", colors.subtext)}`;
-        const hints = `${style("[Tab]", colors.bold, colors.primary)} ${style("Agent", colors.muted)}  ${style("[Ctrl+T]", colors.bold, colors.primary)} ${style("Tasks", colors.muted)}  ${style("[Alt+M]", colors.bold, colors.primary)} ${style("MCPs", colors.muted)}  ${style("[Alt+S]", colors.bold, colors.primary)} ${style("Skills", colors.muted)}  ${style("[Ctrl+C]", colors.bold, colors.primary)} ${style("Exit", colors.muted)}`;
+        const hints = `${style("[Tab]", colors.bold, colors.primary)} ${style("Agent", colors.muted)}  ${style("[Ctrl+T]", colors.bold, colors.primary)} ${style("Tasks", colors.muted)}  ${style("[Alt+M/F3]", colors.bold, colors.primary)} ${style("MCPs", colors.muted)}  ${style("[Alt+S/F4]", colors.bold, colors.primary)} ${style("Skills", colors.muted)}  ${style("[Ctrl+C]", colors.bold, colors.primary)} ${style("Exit", colors.muted)}`;
         const left = ` ${indicator}  │  ${agentTag}  │  ${metricsSummary}`;
         const right = `${hints} `;
         const leftStripped = left.replace(/\x1b\[[0-9;]*m/g, "");

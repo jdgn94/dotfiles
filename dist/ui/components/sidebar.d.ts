@@ -21,6 +21,6 @@ export declare class Sidebar implements Component {
     isMcpExpanded(): boolean;
     isSkillsExpanded(): boolean;
     render(width: number): string[];
-    private renderContextBar;
+    private renderBar;
     private spaceBetween;
 }

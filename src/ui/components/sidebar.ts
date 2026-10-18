@@ -5,7 +5,7 @@ import { type GitWatcher } from "../../state/git-watcher.js";
 import { type MetricsTracker } from "../../state/metrics-tracker.js";
 import { type SpecGraphWatcher } from "../../state/spec-graph-watcher.js";
 import { type ToolLogger } from "../../state/tool-logger.js";
-import { colors, progressBar, style, truncate } from "../theme.js";
+import { colors, style, truncate } from "../theme.js";
 import { ImagePreview } from "./image-preview.js";
 import { type InputBox } from "./input-box.js";
 
@@ -109,7 +109,12 @@ export class Sidebar implements Component {
 
     // --- 3. CONTEXT & PROMPT CACHE EFFICIENCY SECTION (Option 2) ---
     const m = this.metrics.getMetrics();
-    const contextLine = this.renderContextBar(m.contextPercent, safeWidth);
+    const contextLine = this.renderBar(
+      " Context  ",
+      m.contextPercent,
+      safeWidth,
+      "\x1b[38;2;180;160;235m"
+    );
     lines.push(contextLine);
 
     // Below context bar: e.g. "192k / 1M · $0.48 · ~150/s"
@@ -120,22 +125,19 @@ export class Sidebar implements Component {
     const subStats = ` ${style(`${totalStr} / ${maxStr} · ${costStr} · ${speedStr}`, colors.muted)}`;
     lines.push(subStats);
 
-    // Cache hit ratio gauge
+    // Cache hit ratio gauge: identical width and alignment without "· 0 cached"
     const totalInputTokens = m.input + m.cacheRead;
     const cacheHitPct =
       totalInputTokens > 0
         ? Math.round((m.cacheRead / totalInputTokens) * 100)
         : 0;
-    const cacheBarWidth = Math.max(6, safeWidth - 28);
-    const cacheBar = progressBar(cacheHitPct, cacheBarWidth);
-    const cacheTokensStr = formatTokens(m.cacheRead);
-    lines.push(
-      ` ${style("Cache Hit:", colors.muted)} ${cacheBar} ${style(
-        `${cacheHitPct}%`,
-        colors.bold,
-        colors.accent
-      )} · ${style(`${cacheTokensStr} cached`, colors.subtext)}`
+    const cacheLine = this.renderBar(
+      " Cache    ",
+      cacheHitPct,
+      safeWidth,
+      "\x1b[38;2;116;199;236m"
     );
+    lines.push(cacheLine);
     lines.push("");
 
     // --- 4. TOKEN IN/OUT/CACHE TABLE (matches image-1) ---
@@ -360,18 +362,20 @@ export class Sidebar implements Component {
     return lines;
   }
 
-  private renderContextBar(percent: number, width: number): string {
+  private renderBar(
+    label: string,
+    percent: number,
+    width: number,
+    fillColor = "\x1b[38;2;180;160;235m"
+  ): string {
     const clamped = Math.max(0, Math.min(100, percent));
-    const label = " Context  ";
     const percentStr = ` | ${clamped}% `;
 
     const barWidth = Math.max(6, width - label.length - percentStr.length);
     const fillWidth = Math.round((clamped / 100) * barWidth);
     const emptyWidth = Math.max(0, barWidth - fillWidth);
 
-    // Pastel lavender filled bar like image-1
-    const lavenderColor = "\x1b[38;2;180;160;235m";
-    const filled = `${lavenderColor}${"█".repeat(fillWidth)}${colors.reset}`;
+    const filled = `${fillColor}${"█".repeat(fillWidth)}${colors.reset}`;
     const empty = `${colors.muted}${"░".repeat(emptyWidth)}${colors.reset}`;
 
     return `${style(label, colors.muted)}${filled}${empty}${style(percentStr, colors.muted)}`;

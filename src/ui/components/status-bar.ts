@@ -52,10 +52,10 @@ export class StatusBar implements Component {
     )}  ${style("[Ctrl+T]", colors.bold, colors.primary)} ${style(
       "Tasks",
       colors.muted
-    )}  ${style("[Alt+M]", colors.bold, colors.primary)} ${style(
+    )}  ${style("[Alt+M/F3]", colors.bold, colors.primary)} ${style(
       "MCPs",
       colors.muted
-    )}  ${style("[Alt+S]", colors.bold, colors.primary)} ${style(
+    )}  ${style("[Alt+S/F4]", colors.bold, colors.primary)} ${style(
       "Skills",
       colors.muted
     )}  ${style("[Ctrl+C]", colors.bold, colors.primary)} ${style("Exit", colors.muted)}`;

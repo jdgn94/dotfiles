@@ -36,6 +36,19 @@ export class AppLayout {
         this.inputBox.onSubmit((text) => {
             this.scrollFollow = true;
             this.chatScrollOffset = 0;
+            const trimmed = text.trim();
+            if (trimmed === "/mcp") {
+                this.sidebar.toggleMcp();
+                this.tui.requestRender();
+            }
+            else if (trimmed === "/skills") {
+                this.sidebar.toggleSkills();
+                this.tui.requestRender();
+            }
+            else if (trimmed === "/todos") {
+                this.todoTracker.toggleCollapsed();
+                this.tui.requestRender();
+            }
             this.agent.prompt(text).catch(() => { });
             this.tui.requestRender();
         });
@@ -61,6 +74,7 @@ export class AppLayout {
     syncInputBoxState() {
         const agents = this.agent.getAgents();
         this.inputBox.setActiveAgent(this.agent.getActiveAgentName(), agents.length > 1);
+        this.inputBox.setAvailableCommands(this.agent.getCommands());
     }
     syncAnimationTimer() {
         if (this.agent.getIsWorking()) {
@@ -98,7 +112,14 @@ export class AppLayout {
             }
             return;
         }
-        // Tab key -> Cycle to next installed Agent
+        // If typing a slash command, forward Tab and Arrow keys to InputBox for autocomplete
+        if (this.inputBox.getText().startsWith("/") &&
+            (data === "\t" || data === "\x1b[A" || data === "\x1b[B")) {
+            this.inputBox.handleInput(data);
+            this.tui.requestRender();
+            return;
+        }
+        // Tab key -> Cycle to next installed Agent (when not autocompleting)
         if (data === "\t") {
             this.agent.nextAgent();
             this.syncInputBoxState();
@@ -125,17 +146,55 @@ export class AppLayout {
             this.tui.requestRender();
             return;
         }
-        // Alt+M -> Toggle MCP Servers section in sidebar
-        if (data === "\x1bm") {
+        // Toggle MCP Servers (Alt+M, F3, Ctrl+O, and terminal variants)
+        if (data === "\x1bm" ||
+            data === "\x1bM" ||
+            data === "\x1b[109;3u" ||
+            data === "\x1b[77;3u" ||
+            data === "\x1bOR" ||
+            data === "\x1b[13~" ||
+            data === "\x0f") {
             this.sidebar.toggleMcp();
             this.tui.requestRender();
             return;
         }
-        // Alt+S -> Toggle Skills section in sidebar
-        if (data === "\x1bs") {
+        // Toggle Skills (Alt+S, F4, Ctrl+K, and terminal variants)
+        if (data === "\x1bs" ||
+            data === "\x1bS" ||
+            data === "\x1b[115;3u" ||
+            data === "\x1b[83;3u" ||
+            data === "\x1bOS" ||
+            data === "\x1b[14~" ||
+            data === "\x0b") {
             this.sidebar.toggleSkills();
             this.tui.requestRender();
             return;
+        }
+        // SGR Mouse Click Handling (clicking on sidebar or headers)
+        if (data.startsWith("\x1b[<") && (data.endsWith("M") || data.endsWith("m"))) {
+            const match = data.match(/^\x1b\[<(\d+);(\d+);(\d+)([Mm])/);
+            if (match && match[1] === "0" && match[4] === "M") {
+                const col = parseInt(match[2] ?? "0", 10);
+                const row = parseInt(match[3] ?? "0", 10);
+                const termWidth = Math.max(40, this.tui?.terminal?.columns ??
+                    process.stdout.columns ??
+                    80);
+                const sbWidth = Math.min(this.sidebarWidth, Math.floor(termWidth * 0.45));
+                const chatWidth = termWidth - sbWidth - 1;
+                if (col > chatWidth) {
+                    // Clicked on right sidebar
+                    if (row >= 10 && row <= 16) {
+                        this.sidebar.toggleMcp();
+                        this.tui.requestRender();
+                        return;
+                    }
+                    if (row > 16 && row <= 24) {
+                        this.sidebar.toggleSkills();
+                        this.tui.requestRender();
+                        return;
+                    }
+                }
+            }
         }
         // Alt+B -> Toggle Sidebar visibility
         if (data === "\x1bb") {

@@ -1,7 +1,12 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { Component, Focusable } from "@earendil-works/pi-tui";
-import { colors, style } from "../theme.js";
+import { visibleWidth, type Component, type Focusable } from "@earendil-works/pi-tui";
+import { colors, style, truncate } from "../theme.js";
+
+export interface SlashCommand {
+  name: string;
+  description: string;
+}
 
 export class InputBox implements Component, Focusable {
   public focused = true;
@@ -9,11 +14,15 @@ export class InputBox implements Component, Focusable {
   private cursor = 0;
   private history: string[] = [];
   private historyIndex = -1;
-  private placeholder = "Type a prompt... (Enter to send, Ctrl+A to switch agent, Ctrl+C to exit)";
+  private placeholder = "Type a prompt... (Enter to send, Ctrl+A to switch agent, / for commands)";
   private onSubmitCallback?: (text: string) => void;
 
   private activeAgentName = "default";
   private hasMultipleAgents = false;
+
+  // Slash commands autocomplete state
+  private availableCommands: SlashCommand[] = [];
+  private selectedCommandIndex = 0;
 
   public onSubmit(cb: (text: string) => void): void {
     this.onSubmitCallback = cb;
@@ -22,6 +31,10 @@ export class InputBox implements Component, Focusable {
   public setActiveAgent(name: string, hasMultiple = true): void {
     this.activeAgentName = name;
     this.hasMultipleAgents = hasMultiple;
+  }
+
+  public setAvailableCommands(commands: SlashCommand[]): void {
+    this.availableCommands = commands;
   }
 
   public invalidate(): void {}
@@ -39,6 +52,23 @@ export class InputBox implements Component, Focusable {
     this.text = "";
     this.cursor = 0;
     this.historyIndex = -1;
+    this.selectedCommandIndex = 0;
+  }
+
+  private getMatchingCommands(): SlashCommand[] {
+    if (!this.text.startsWith("/")) return [];
+    const query = this.text.slice(1).toLowerCase().trim();
+    if (!query) {
+      // Return top commands when only "/" is typed
+      return this.availableCommands.slice(0, 6);
+    }
+    return this.availableCommands
+      .filter(
+        (c) =>
+          c.name.toLowerCase().startsWith(query) ||
+          c.name.toLowerCase().includes(query)
+      )
+      .slice(0, 6);
   }
 
   public getAttachedImageAtCursor(): string | null {
@@ -49,11 +79,11 @@ export class InputBox implements Component, Focusable {
 
     // Extract word around cursor
     let start = cursor;
-    while (start > 0 && !/\s|"|'/.test(text[start - 1])) {
+    while (start > 0 && !/\s|"|'/.test(text[start - 1] ?? "")) {
       start--;
     }
     let end = cursor;
-    while (end < text.length && !/\s|"|'/.test(text[end])) {
+    while (end < text.length && !/\s|"|'/.test(text[end] ?? "")) {
       end++;
     }
 
@@ -95,13 +125,37 @@ export class InputBox implements Component, Focusable {
   }
 
   public handleInput(data: string): void {
+    const isCommandMode = this.text.startsWith("/");
+    const matching = isCommandMode ? this.getMatchingCommands() : [];
+
+    // Tab key in command mode -> Autocomplete selected command
+    if (data === "\t" && isCommandMode && matching.length > 0) {
+      const chosen = matching[this.selectedCommandIndex] ?? matching[0];
+      if (chosen) {
+        this.setText(`/${chosen.name} `);
+        this.selectedCommandIndex = 0;
+      }
+      return;
+    }
+
     // Enter key
     if (data === "\r" || data === "\n") {
-      const trimmed = this.text.trim();
-      if (trimmed) {
+      let finalSubmission = this.text.trim();
+      if (
+        isCommandMode &&
+        matching.length > 0 &&
+        !this.text.includes(" ")
+      ) {
+        const chosen = matching[this.selectedCommandIndex] ?? matching[0];
+        if (chosen) {
+          finalSubmission = `/${chosen.name}`;
+        }
+      }
+
+      if (finalSubmission) {
         this.history.push(this.text);
         if (this.onSubmitCallback) {
-          this.onSubmitCallback(this.text);
+          this.onSubmitCallback(finalSubmission);
         }
         this.clear();
       }
@@ -113,6 +167,7 @@ export class InputBox implements Component, Focusable {
       if (this.cursor > 0) {
         this.text = this.text.slice(0, this.cursor - 1) + this.text.slice(this.cursor);
         this.cursor--;
+        this.selectedCommandIndex = 0;
       }
       return;
     }
@@ -148,23 +203,35 @@ export class InputBox implements Component, Focusable {
         return;
       }
       if (code === "A") {
-        // Up arrow (History prev)
+        // Up arrow: Navigate commands popup if active, else history
+        if (isCommandMode && matching.length > 0) {
+          this.selectedCommandIndex =
+            (this.selectedCommandIndex - 1 + matching.length) % matching.length;
+          return;
+        }
         if (this.history.length > 0) {
           if (this.historyIndex === -1) {
             this.historyIndex = this.history.length - 1;
           } else if (this.historyIndex > 0) {
             this.historyIndex--;
           }
-          this.setText(this.history[this.historyIndex]);
+          const item = this.history[this.historyIndex];
+          if (item !== undefined) this.setText(item);
         }
         return;
       }
       if (code === "B") {
-        // Down arrow (History next)
+        // Down arrow: Navigate commands popup if active, else history
+        if (isCommandMode && matching.length > 0) {
+          this.selectedCommandIndex =
+            (this.selectedCommandIndex + 1) % matching.length;
+          return;
+        }
         if (this.historyIndex !== -1) {
           if (this.historyIndex < this.history.length - 1) {
             this.historyIndex++;
-            this.setText(this.history[this.historyIndex]);
+            const item = this.history[this.historyIndex];
+            if (item !== undefined) this.setText(item);
           } else {
             this.historyIndex = -1;
             this.clear();
@@ -179,12 +246,60 @@ export class InputBox implements Component, Focusable {
     if (!data.startsWith("\x1b")) {
       this.text = this.text.slice(0, this.cursor) + data + this.text.slice(this.cursor);
       this.cursor += data.length;
+      this.selectedCommandIndex = 0;
     }
   }
 
   public render(width: number): string[] {
     const safeWidth = Math.max(20, width);
     const borderColor = this.focused ? colors.activeBorder : colors.border;
+    const lines: string[] = [];
+
+    // --- Slash Commands Autocomplete Popup (renders floating above the input box) ---
+    const matching = this.getMatchingCommands();
+    if (matching.length > 0) {
+      const popupTitle = " 󰘳 Commands ";
+      const popupHint = " [Tab: complete | Enter: run] ";
+      const pTitleLen = visibleWidth(popupTitle);
+      const pHintLen = visibleWidth(popupHint);
+      const remP = Math.max(0, safeWidth - 3 - pTitleLen - pHintLen);
+
+      lines.push(
+        `${style("╭─", colors.border)}${style(popupTitle, colors.bold, colors.accent)}${style(
+          "─".repeat(remP),
+          colors.border
+        )}${style(popupHint, colors.muted)}${style("╮", colors.border)}`
+      );
+
+      for (let i = 0; i < matching.length; i++) {
+        const isSel = i === this.selectedCommandIndex;
+        const cmd = matching[i];
+        if (!cmd) continue;
+
+        const prefix = isSel ? style(" > ", colors.bold, colors.accent) : "   ";
+        const nameStyled = isSel
+          ? style("/" + cmd.name.padEnd(20), colors.bold, colors.accent)
+          : style("/" + cmd.name.padEnd(20), colors.bold, colors.primary);
+        const maxDesc = Math.max(10, safeWidth - 30);
+        const descStyled = style(
+          truncate(cmd.description || "", maxDesc),
+          colors.muted
+        );
+
+        const rowContent = `${prefix}${nameStyled} ${descStyled}`;
+        const rowVisualLen = visibleWidth(rowContent);
+        const pad = Math.max(0, safeWidth - 2 - rowVisualLen);
+
+        lines.push(
+          `${style("│", colors.border)}${rowContent}${" ".repeat(pad)}${style(
+            "│",
+            colors.border
+          )}`
+        );
+      }
+
+      lines.push(`${style("╰" + "─".repeat(safeWidth - 2) + "╯", colors.border)}`);
+    }
 
     // Header title with active agent visual indicator
     let title = "";
@@ -196,10 +311,11 @@ export class InputBox implements Component, Focusable {
       title = this.focused ? " 󰌌 Active Input " : " 󰌌 Input ";
     }
 
-    const titleVisualLen = title.replace(/\x1b\[[0-9;]*m/g, "").length;
+    // Precise visibleWidth calculation (handles 2-byte surrogate pairs like 󰌌)
+    const titleVisualLen = visibleWidth(title);
     const remTop = Math.max(0, safeWidth - 3 - titleVisualLen);
-    const top = `${style("┌─", borderColor)}${style(title, colors.bold, borderColor)}${style(
-      "─".repeat(remTop) + "┐",
+    const top = `${style("╭─", borderColor)}${style(title, colors.bold, borderColor)}${style(
+      "─".repeat(remTop) + "╮",
       borderColor
     )}`;
 
@@ -235,9 +351,10 @@ export class InputBox implements Component, Focusable {
       borderColor
     )}`;
 
-    // Clean bottom border without project/branch (now moved to right panel)
-    const bottom = `${style("└" + "─".repeat(safeWidth - 2) + "┘", borderColor)}`;
+    // Clean rounded bottom border aligning with rounded top
+    const bottom = `${style("╰" + "─".repeat(safeWidth - 2) + "╯", borderColor)}`;
 
-    return [top, middle, bottom];
+    lines.push(top, middle, bottom);
+    return lines;
   }
 }

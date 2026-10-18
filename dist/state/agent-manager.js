@@ -131,6 +131,21 @@ export class AgentManager {
     getActiveTools() {
         return this.session?.getActiveToolNames() ?? [];
     }
+    getCommands() {
+        try {
+            const exts = this.session?.resourceLoader?.getExtensions?.();
+            if (exts?.runtime?.getCommands) {
+                return exts.runtime.getCommands().map((c) => ({
+                    name: String(c.name),
+                    description: String(c.description || ""),
+                }));
+            }
+        }
+        catch {
+            // ignore
+        }
+        return [];
+    }
     // --- Agent Hot-Switching Methods ---
     getAgents() {
         return [...this.availableAgents];

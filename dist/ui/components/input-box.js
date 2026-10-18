@@ -1,22 +1,29 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { colors, style } from "../theme.js";
+import { visibleWidth } from "@earendil-works/pi-tui";
+import { colors, style, truncate } from "../theme.js";
 export class InputBox {
     focused = true;
     text = "";
     cursor = 0;
     history = [];
     historyIndex = -1;
-    placeholder = "Type a prompt... (Enter to send, Ctrl+A to switch agent, Ctrl+C to exit)";
+    placeholder = "Type a prompt... (Enter to send, Ctrl+A to switch agent, / for commands)";
     onSubmitCallback;
     activeAgentName = "default";
     hasMultipleAgents = false;
+    // Slash commands autocomplete state
+    availableCommands = [];
+    selectedCommandIndex = 0;
     onSubmit(cb) {
         this.onSubmitCallback = cb;
     }
     setActiveAgent(name, hasMultiple = true) {
         this.activeAgentName = name;
         this.hasMultipleAgents = hasMultiple;
+    }
+    setAvailableCommands(commands) {
+        this.availableCommands = commands;
     }
     invalidate() { }
     getText() {
@@ -30,6 +37,20 @@ export class InputBox {
         this.text = "";
         this.cursor = 0;
         this.historyIndex = -1;
+        this.selectedCommandIndex = 0;
+    }
+    getMatchingCommands() {
+        if (!this.text.startsWith("/"))
+            return [];
+        const query = this.text.slice(1).toLowerCase().trim();
+        if (!query) {
+            // Return top commands when only "/" is typed
+            return this.availableCommands.slice(0, 6);
+        }
+        return this.availableCommands
+            .filter((c) => c.name.toLowerCase().startsWith(query) ||
+            c.name.toLowerCase().includes(query))
+            .slice(0, 6);
     }
     getAttachedImageAtCursor() {
         if (!this.text.trim())
@@ -38,11 +59,11 @@ export class InputBox {
         const cursor = this.cursor;
         // Extract word around cursor
         let start = cursor;
-        while (start > 0 && !/\s|"|'/.test(text[start - 1])) {
+        while (start > 0 && !/\s|"|'/.test(text[start - 1] ?? "")) {
             start--;
         }
         let end = cursor;
-        while (end < text.length && !/\s|"|'/.test(text[end])) {
+        while (end < text.length && !/\s|"|'/.test(text[end] ?? "")) {
             end++;
         }
         const candidate = text.slice(start, end).trim().replace(/^['"]|['"]$/g, "");
@@ -82,13 +103,32 @@ export class InputBox {
         return null;
     }
     handleInput(data) {
+        const isCommandMode = this.text.startsWith("/");
+        const matching = isCommandMode ? this.getMatchingCommands() : [];
+        // Tab key in command mode -> Autocomplete selected command
+        if (data === "\t" && isCommandMode && matching.length > 0) {
+            const chosen = matching[this.selectedCommandIndex] ?? matching[0];
+            if (chosen) {
+                this.setText(`/${chosen.name} `);
+                this.selectedCommandIndex = 0;
+            }
+            return;
+        }
         // Enter key
         if (data === "\r" || data === "\n") {
-            const trimmed = this.text.trim();
-            if (trimmed) {
+            let finalSubmission = this.text.trim();
+            if (isCommandMode &&
+                matching.length > 0 &&
+                !this.text.includes(" ")) {
+                const chosen = matching[this.selectedCommandIndex] ?? matching[0];
+                if (chosen) {
+                    finalSubmission = `/${chosen.name}`;
+                }
+            }
+            if (finalSubmission) {
                 this.history.push(this.text);
                 if (this.onSubmitCallback) {
-                    this.onSubmitCallback(this.text);
+                    this.onSubmitCallback(finalSubmission);
                 }
                 this.clear();
             }
@@ -99,6 +139,7 @@ export class InputBox {
             if (this.cursor > 0) {
                 this.text = this.text.slice(0, this.cursor - 1) + this.text.slice(this.cursor);
                 this.cursor--;
+                this.selectedCommandIndex = 0;
             }
             return;
         }
@@ -133,7 +174,12 @@ export class InputBox {
                 return;
             }
             if (code === "A") {
-                // Up arrow (History prev)
+                // Up arrow: Navigate commands popup if active, else history
+                if (isCommandMode && matching.length > 0) {
+                    this.selectedCommandIndex =
+                        (this.selectedCommandIndex - 1 + matching.length) % matching.length;
+                    return;
+                }
                 if (this.history.length > 0) {
                     if (this.historyIndex === -1) {
                         this.historyIndex = this.history.length - 1;
@@ -141,16 +187,25 @@ export class InputBox {
                     else if (this.historyIndex > 0) {
                         this.historyIndex--;
                     }
-                    this.setText(this.history[this.historyIndex]);
+                    const item = this.history[this.historyIndex];
+                    if (item !== undefined)
+                        this.setText(item);
                 }
                 return;
             }
             if (code === "B") {
-                // Down arrow (History next)
+                // Down arrow: Navigate commands popup if active, else history
+                if (isCommandMode && matching.length > 0) {
+                    this.selectedCommandIndex =
+                        (this.selectedCommandIndex + 1) % matching.length;
+                    return;
+                }
                 if (this.historyIndex !== -1) {
                     if (this.historyIndex < this.history.length - 1) {
                         this.historyIndex++;
-                        this.setText(this.history[this.historyIndex]);
+                        const item = this.history[this.historyIndex];
+                        if (item !== undefined)
+                            this.setText(item);
                     }
                     else {
                         this.historyIndex = -1;
@@ -165,11 +220,40 @@ export class InputBox {
         if (!data.startsWith("\x1b")) {
             this.text = this.text.slice(0, this.cursor) + data + this.text.slice(this.cursor);
             this.cursor += data.length;
+            this.selectedCommandIndex = 0;
         }
     }
     render(width) {
         const safeWidth = Math.max(20, width);
         const borderColor = this.focused ? colors.activeBorder : colors.border;
+        const lines = [];
+        // --- Slash Commands Autocomplete Popup (renders floating above the input box) ---
+        const matching = this.getMatchingCommands();
+        if (matching.length > 0) {
+            const popupTitle = " 󰘳 Commands ";
+            const popupHint = " [Tab: complete | Enter: run] ";
+            const pTitleLen = visibleWidth(popupTitle);
+            const pHintLen = visibleWidth(popupHint);
+            const remP = Math.max(0, safeWidth - 3 - pTitleLen - pHintLen);
+            lines.push(`${style("╭─", colors.border)}${style(popupTitle, colors.bold, colors.accent)}${style("─".repeat(remP), colors.border)}${style(popupHint, colors.muted)}${style("╮", colors.border)}`);
+            for (let i = 0; i < matching.length; i++) {
+                const isSel = i === this.selectedCommandIndex;
+                const cmd = matching[i];
+                if (!cmd)
+                    continue;
+                const prefix = isSel ? style(" > ", colors.bold, colors.accent) : "   ";
+                const nameStyled = isSel
+                    ? style("/" + cmd.name.padEnd(20), colors.bold, colors.accent)
+                    : style("/" + cmd.name.padEnd(20), colors.bold, colors.primary);
+                const maxDesc = Math.max(10, safeWidth - 30);
+                const descStyled = style(truncate(cmd.description || "", maxDesc), colors.muted);
+                const rowContent = `${prefix}${nameStyled} ${descStyled}`;
+                const rowVisualLen = visibleWidth(rowContent);
+                const pad = Math.max(0, safeWidth - 2 - rowVisualLen);
+                lines.push(`${style("│", colors.border)}${rowContent}${" ".repeat(pad)}${style("│", colors.border)}`);
+            }
+            lines.push(`${style("╰" + "─".repeat(safeWidth - 2) + "╯", colors.border)}`);
+        }
         // Header title with active agent visual indicator
         let title = "";
         if (this.hasMultipleAgents || this.activeAgentName !== "default") {
@@ -180,9 +264,10 @@ export class InputBox {
         else {
             title = this.focused ? " 󰌌 Active Input " : " 󰌌 Input ";
         }
-        const titleVisualLen = title.replace(/\x1b\[[0-9;]*m/g, "").length;
+        // Precise visibleWidth calculation (handles 2-byte surrogate pairs like 󰌌)
+        const titleVisualLen = visibleWidth(title);
         const remTop = Math.max(0, safeWidth - 3 - titleVisualLen);
-        const top = `${style("┌─", borderColor)}${style(title, colors.bold, borderColor)}${style("─".repeat(remTop) + "┐", borderColor)}`;
+        const top = `${style("╭─", borderColor)}${style(title, colors.bold, borderColor)}${style("─".repeat(remTop) + "╮", borderColor)}`;
         const innerWidth = safeWidth - 4;
         let contentDisplay = "";
         if (this.text.length === 0) {
@@ -207,9 +292,10 @@ export class InputBox {
             : Math.min(innerWidth - 2, this.text.length + 1);
         const padCount = Math.max(0, innerWidth - 2 - textLen);
         const middle = `${style("│ ", borderColor)}> ${contentDisplay}${" ".repeat(padCount)}${style(" │", borderColor)}`;
-        // Clean bottom border without project/branch (now moved to right panel)
-        const bottom = `${style("└" + "─".repeat(safeWidth - 2) + "┘", borderColor)}`;
-        return [top, middle, bottom];
+        // Clean rounded bottom border aligning with rounded top
+        const bottom = `${style("╰" + "─".repeat(safeWidth - 2) + "╯", borderColor)}`;
+        lines.push(top, middle, bottom);
+        return lines;
     }
 }
 //# sourceMappingURL=input-box.js.map
