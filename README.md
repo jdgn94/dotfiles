@@ -47,26 +47,37 @@ dotsfiles/
     │   └── skills/             # Skills exclusivas de Antigravity
     └── herdr/                  # Configuración de Herdr (.config/herdr)
         ├── config.toml         # Configuración del servidor/cliente y keybindings
-        ├── plugins.json        # Plugins activos (Projects, herdr-files, etc.)
-        ├── bin/                # Scripts de control (toggle-explorer.sh)
-        ├── plugins/herdr-files # Plugin de explorador de archivos split a la derecha
-        └── yazi/               # Configuración de Yazi (iconos, git, fzf, ripgrep)
+        ├── plugins.json        # Registro de plugins instalados (Projects, herdr-sidebar)
+        └── state/              # Estado persistente preconfigurado (dock right, preview pane, nvim)
 ```
 
 ---
 
-## 🗂️ Herdr: Explorador de Archivos (Panel Derecho)
+## 🗂️ Herdr: Barra Lateral Tipo VS Code (`herdr-sidebar`)
 
-Herdr incluye el plugin de explorador de archivos **`herdr-files`**, impulsado por **Yazi** y configurado con:
-- **Panel lateral a la derecha**: Se abre como un panel split del 35% del ancho a la derecha del workspace.
-- **Git status en vivo**: Indicadores visuales de estado de git (`M` modificado, `?` no rastreado, `✔` limpio) en cada archivo y carpeta.
-- **Iconos de archivo**: Iconografía nativa según extensiones y tipos de archivo.
-- **Buscador por nombre de archivo**: Presiona `ff` o `Ctrl+P` dentro del explorador para buscar archivos rápidamente con `fzf`.
-- **Buscador por contenido (Grep)**: Presiona `fg` (fuzzy) o `fG` (ripgrep) o `Ctrl+F` para buscar texto dentro de cualquier archivo con preview instantáneo.
+Herdr cuenta con el plugin oficial **`herdr-sidebar`**, que ofrece una experiencia idéntica a la barra lateral de VS Code en la terminal:
+
+- **Dock a la derecha**: Anclado en el lado derecho de la pantalla.
+- **División Consola vs Archivos (50/50 o adaptable)**:
+  - Lado izquierdo: Espacio dedicado a terminales y agentes (`pi`, `claude`, `opencode`). Si no hay previsualización abierta, ocupan el espacio completo.
+  - Lado derecho: Árbol de archivos y panel de previsualización en split.
+- **Confinado a la raíz del proyecto**: Explora desde el root del workspace activo sin subir a carpetas padre.
+- **Visualizador de imágenes en terminal**: Previsualización gráfica nativa con protocolo Kitty/Ghostty para formatos `.png`, `.jpg`, `.webp`, `.svg`, `.gif`.
+- **Markdown formateado + Edición inmediata**:
+  - Los archivos `.md` muestran renderizado estilizado con tablas, listas y syntax highlighting.
+  - Presiona **`e`** dentro del visor o configura clic directo para saltar a editar con **Neovim (`nvim`)**.
+- **Source Control (Git) integrado**: Panel de GitLens con diffs interactivos, staging y mensajes de commit.
+- **Búsqueda instantánea**:
+  - `Ctrl + P`: Búsqueda difusa rápida de archivos por nombre.
+  - `Ctrl + F`: Búsqueda global de contenido por texto/regex en todo el proyecto.
 
 ### Atajos de teclado en Herdr:
-- **`Prefix + e`** (`Ctrl+b` luego `e`) o **`Alt + e`**: Alterna (abre/cierra) el explorador en el split derecho.
-- **`Prefix + E`** (`Ctrl+b` luego `Shift+e`): Abre el explorador en una ventana modal flotante (popup) al 85%.
+- **`Alt + e`** o **`Prefix + e`** (`Ctrl+b` luego `e`): Alterna (abre/cierra) la barra lateral a la derecha.
+- **`Prefix + p`** (`Ctrl+b` luego `p`): Selector de archivos estilo `Ctrl+P`.
+- **`Prefix + g`** (`Ctrl+b` luego `g`): Acceso directo al panel de Source Control (Git).
+- **`Prefix + f`** (`Ctrl+b` luego `f`): Acceso directo a la búsqueda global de contenido.
+- **`1`, `2`, `3`**: Conmuta entre Explorer, Búsqueda y Source Control.
+- **`s`**: Abre el menú interactivo de ajustes del sidebar.
 
 ---
 

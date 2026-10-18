@@ -4,25 +4,37 @@ onboarding = false
 name = "catppuccin"
 auto_switch = false
 
+[terminal]
+kitty_graphics = true
+
 [keys]
 # Prefix por defecto: ctrl+b
 
-# Abrir / conmutar el explorador de archivos en el panel derecho (Yazi con Git, Grep y Fzf)
+# Alternar la barra lateral (VS Code style: Explorer + Git + Search) a la derecha
 [[keys.command]]
 key = "prefix+e"
 type = "shell"
-command = "sh -c '~/.config/herdr/bin/toggle-explorer.sh'"
+command = "herdr plugin action invoke herdr-sidebar.open-sidebar"
 
-# Atajo directo Alt+E para alternar el explorador
 [[keys.command]]
 key = "alt+e"
 type = "shell"
-command = "sh -c '~/.config/herdr/bin/toggle-explorer.sh'"
+command = "herdr plugin action invoke herdr-sidebar.open-sidebar"
 
-# Abrir explorador en popup rápido con prefix+E
+# Quick Open de archivos estilo VS Code (Ctrl+P)
 [[keys.command]]
-key = "prefix+E"
-type = "popup"
-command = "yazi"
-width = "85%"
-height = "85%"
+key = "prefix+p"
+type = "shell"
+command = "herdr plugin action invoke herdr-sidebar.quick-open"
+
+# Abrir directamente en Source Control / Git (Ctrl+Shift+G)
+[[keys.command]]
+key = "prefix+g"
+type = "shell"
+command = "herdr plugin action invoke herdr-sidebar.show-git"
+
+# Búsqueda global de texto en el proyecto (Ctrl+Shift+F)
+[[keys.command]]
+key = "prefix+f"
+type = "shell"
+command = "herdr plugin action invoke herdr-sidebar.show-search"
