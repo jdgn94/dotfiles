@@ -250,6 +250,12 @@ if command -v herdr >/dev/null 2>&1; then
     log_info "Instalando plugin herdr-agent-usage (usagebar)..."
     herdr plugin install senna-lang/herdr-agent-usage -y 2>/dev/null || true
   fi
+  # Asegurar que el panel de límites use --all para incluir siempre Antigravity
+  USAGEBAR_RUN_LIMITS="$(find "$HOME_DIR/.config/herdr/plugins/github" -name "run-limits-pane.sh" 2>/dev/null | head -n 1 || true)"
+  if [ -n "$USAGEBAR_RUN_LIMITS" ] && [ -f "$DOTS_DIR/harnesses/herdr/usagebar-patches/run-limits-pane.sh" ]; then
+    cp "$DOTS_DIR/harnesses/herdr/usagebar-patches/run-limits-pane.sh" "$USAGEBAR_RUN_LIMITS"
+    chmod +x "$USAGEBAR_RUN_LIMITS"
+  fi
   if ! herdr plugin list 2>/dev/null | grep -q "herdr.auto-title"; then
     log_info "Instalando plugin herdr-auto-title..."
     herdr plugin install kryptamine/herdr-auto-title -y 2>/dev/null || true
