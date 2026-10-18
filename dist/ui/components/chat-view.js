@@ -66,7 +66,8 @@ export class ChatView {
             this.renderBox(allLines, "Assistant (typing...)", streamingText + " █", colors.secondary, safeWidth);
         }
         else if (isWorking && !streamingThinking) {
-            allLines.push(`  ${renderWavePulse(6)} ${style(this.agent.getStatusText(), colors.accent)} █`);
+            const elapsedSec = this.agent.getElapsedSec();
+            allLines.push(`  ${renderWavePulse(14, elapsedSec)}  ${style(this.agent.getStatusText(), colors.accent)} █`);
             allLines.push("");
         }
         this.cachedHeight = allLines.length;

@@ -182,7 +182,7 @@ export class InputBox {
         }
         const titleVisualLen = title.replace(/\x1b\[[0-9;]*m/g, "").length;
         const remTop = Math.max(0, safeWidth - 3 - titleVisualLen);
-        const top = `${style("╭─", borderColor)}${style(title, colors.bold, borderColor)}${style("─".repeat(remTop) + "╮", borderColor)}`;
+        const top = `${style("┌─", borderColor)}${style(title, colors.bold, borderColor)}${style("─".repeat(remTop) + "┐", borderColor)}`;
         const innerWidth = safeWidth - 4;
         let contentDisplay = "";
         if (this.text.length === 0) {
@@ -208,7 +208,7 @@ export class InputBox {
         const padCount = Math.max(0, innerWidth - 2 - textLen);
         const middle = `${style("│ ", borderColor)}> ${contentDisplay}${" ".repeat(padCount)}${style(" │", borderColor)}`;
         // Clean bottom border without project/branch (now moved to right panel)
-        const bottom = `${style("╰" + "─".repeat(safeWidth - 2) + "╯", borderColor)}`;
+        const bottom = `${style("└" + "─".repeat(safeWidth - 2) + "┘", borderColor)}`;
         return [top, middle, bottom];
     }
 }

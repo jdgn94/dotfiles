@@ -198,8 +198,8 @@ export class InputBox implements Component, Focusable {
 
     const titleVisualLen = title.replace(/\x1b\[[0-9;]*m/g, "").length;
     const remTop = Math.max(0, safeWidth - 3 - titleVisualLen);
-    const top = `${style("╭─", borderColor)}${style(title, colors.bold, borderColor)}${style(
-      "─".repeat(remTop) + "╮",
+    const top = `${style("┌─", borderColor)}${style(title, colors.bold, borderColor)}${style(
+      "─".repeat(remTop) + "┐",
       borderColor
     )}`;
 
@@ -236,7 +236,7 @@ export class InputBox implements Component, Focusable {
     )}`;
 
     // Clean bottom border without project/branch (now moved to right panel)
-    const bottom = `${style("╰" + "─".repeat(safeWidth - 2) + "╯", borderColor)}`;
+    const bottom = `${style("└" + "─".repeat(safeWidth - 2) + "┘", borderColor)}`;
 
     return [top, middle, bottom];
   }

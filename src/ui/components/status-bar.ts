@@ -22,9 +22,10 @@ export class StatusBar implements Component {
 
     let indicator = "";
     if (isWorking) {
-      const wave = renderWavePulse(5);
+      const elapsedSec = this.agent.getElapsedSec();
+      const wave = renderWavePulse(12, elapsedSec);
       const elapsed = this.agent.getTurnElapsedSec();
-      indicator = `${wave} ${style(statusText, colors.bold, colors.text)} ${style(
+      indicator = `${wave}  ${style(statusText, colors.bold, colors.warning)} ${style(
         `(${elapsed})`,
         colors.muted
       )}`;

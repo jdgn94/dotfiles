@@ -14,9 +14,10 @@ export class StatusBar {
         const m = this.metrics.getMetrics();
         let indicator = "";
         if (isWorking) {
-            const wave = renderWavePulse(5);
+            const elapsedSec = this.agent.getElapsedSec();
+            const wave = renderWavePulse(12, elapsedSec);
             const elapsed = this.agent.getTurnElapsedSec();
-            indicator = `${wave} ${style(statusText, colors.bold, colors.text)} ${style(`(${elapsed})`, colors.muted)}`;
+            indicator = `${wave}  ${style(statusText, colors.bold, colors.warning)} ${style(`(${elapsed})`, colors.muted)}`;
         }
         else {
             indicator = `${style("●", colors.bold, colors.success)} ${style("Ready", colors.success)}`;

@@ -91,22 +91,26 @@ function hslToRgb(h, s, l) {
     return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
 }
 /**
- * Animated Multi-Color Wave Pulse work indicator
- * Oscillates heights smoothly and shifts through a vibrant TrueColor spectrum
+ * Animated Progressive-Color Wave Pulse work indicator
+ * - Lengthened wave (12-16 bars) with traveling wave dynamics
+ * - Progressive unified color transition during the thinking/reasoning process
+ *   (starts in cool cyan/sapphire, shifts gradually over elapsed seconds into violet, mauve, rose, and amber)
  */
-export function renderWavePulse(numBars = 5) {
-    const tick = Math.floor(Date.now() / 90);
-    const bars = ["▂", "▃", "▄", "▅", "▆", "▇", "█"];
-    let out = "";
+export function renderWavePulse(numBars = 14, elapsedSec = 0) {
+    const tick = Math.floor(Date.now() / 80);
+    const bars = [" ", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
+    // Base hue transitions smoothly over elapsed seconds (cool blue/cyan -> violet -> rose -> amber)
+    const baseHue = (0.55 + elapsedSec * 0.035) % 1;
+    const [r, g, b] = hslToRgb(baseHue, 0.85, 0.65);
+    const colorAnsi = `\x1b[38;2;${r};${g};${b}m`;
+    let out = colorAnsi;
     for (let i = 0; i < numBars; i++) {
-        const wavePhase = tick * 0.45 + i * 0.85;
+        const wavePhase = tick * 0.35 + (i / numBars) * Math.PI * 2;
         const norm = (Math.sin(wavePhase) + 1) / 2;
         const barIdx = Math.min(bars.length - 1, Math.floor(norm * bars.length));
-        const char = bars[barIdx];
-        const hue = (Date.now() / 2500 + i / numBars) % 1;
-        const [r, g, b] = hslToRgb(hue, 0.85, 0.65);
-        out += `\x1b[38;2;${r};${g};${b}m${char}\x1b[0m`;
+        out += bars[barIdx];
     }
+    out += colors.reset;
     return out;
 }
 //# sourceMappingURL=theme.js.map

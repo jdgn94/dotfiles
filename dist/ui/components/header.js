@@ -14,9 +14,10 @@ export class Header {
         const left = ` ${style("π+", colors.bold, colors.accent)} ${style("Pi-TUI-Plus", colors.bold, colors.primary)}  ${style(`[${model}]`, colors.secondary)} ${style(`(think: ${thinking})`, colors.muted)}`;
         let right = "";
         if (isWorking) {
-            const wave = renderWavePulse(5);
+            const elapsedSec = this.agent.getElapsedSec();
+            const wave = renderWavePulse(14, elapsedSec);
             const elapsed = this.agent.getTurnElapsedSec();
-            right = `${wave} ${style(statusText, colors.bold, colors.text)} ${style(`(${elapsed})`, colors.muted)}  ${style(`[${activeAgent}]`, colors.secondary)} `;
+            right = `${wave}  ${style(statusText, colors.bold, colors.warning)} ${style(`(${elapsed})`, colors.muted)}  ${style(`[${activeAgent}]`, colors.secondary)} `;
         }
         else {
             right = `${style("●", colors.success)} ${style("Ready", colors.muted)}  ${style(`[Agent: ${activeAgent}]`, colors.secondary)} `;

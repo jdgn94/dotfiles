@@ -99,8 +99,12 @@ export class ChatView implements Component {
         safeWidth
       );
     } else if (isWorking && !streamingThinking) {
+      const elapsedSec = this.agent.getElapsedSec();
       allLines.push(
-        `  ${renderWavePulse(6)} ${style(this.agent.getStatusText(), colors.accent)} █`
+        `  ${renderWavePulse(14, elapsedSec)}  ${style(
+          this.agent.getStatusText(),
+          colors.accent
+        )} █`
       );
       allLines.push("");
     }

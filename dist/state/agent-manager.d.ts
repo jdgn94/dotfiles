@@ -52,6 +52,7 @@ export declare class AgentManager {
     getIsWorking(): boolean;
     getStatusText(): string;
     getTurnElapsedSec(): string;
+    getElapsedSec(): number;
     getModelName(): string;
     getModelId(): string;
     getSessionId(): string;

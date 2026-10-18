@@ -126,6 +126,11 @@ export class AgentManager {
     return `${((Date.now() - this.turnStartTime) / 1000).toFixed(1)}s`;
   }
 
+  public getElapsedSec(): number {
+    if (!this.isWorking || !this.turnStartTime) return 0;
+    return (Date.now() - this.turnStartTime) / 1000;
+  }
+
   public getModelName(): string {
     return this.session?.model?.name ?? "default";
   }
@@ -451,7 +456,7 @@ export class AgentManager {
     switch (event.type) {
       case "turn_start": {
         this.isWorking = true;
-        this.currentStatus = "Generating response...";
+        this.currentStatus = "Processing...";
         this.streamingText = "";
         this.streamingThinking = "";
         this.notify();
@@ -468,7 +473,7 @@ export class AgentManager {
             this.metrics.onTokenDelta(tokenEstimate);
           } else if (assistantEvent.type === "thinking_delta") {
             this.streamingThinking += assistantEvent.delta;
-            this.currentStatus = "Thinking...";
+            this.currentStatus = "Thinking / Reasoning...";
           }
         }
         this.notify();

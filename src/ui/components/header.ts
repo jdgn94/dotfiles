@@ -26,9 +26,10 @@ export class Header implements Component {
 
     let right = "";
     if (isWorking) {
-      const wave = renderWavePulse(5);
+      const elapsedSec = this.agent.getElapsedSec();
+      const wave = renderWavePulse(14, elapsedSec);
       const elapsed = this.agent.getTurnElapsedSec();
-      right = `${wave} ${style(statusText, colors.bold, colors.text)} ${style(
+      right = `${wave}  ${style(statusText, colors.bold, colors.warning)} ${style(
         `(${elapsed})`,
         colors.muted
       )}  ${style(`[${activeAgent}]`, colors.secondary)} `;

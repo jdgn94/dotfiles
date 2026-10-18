@@ -29,7 +29,9 @@ export declare function pad(text: string, targetWidth: number, align?: "left" | 
 export declare function truncate(text: string, maxWidth: number): string;
 export declare function progressBar(percent: number, width: number): string;
 /**
- * Animated Multi-Color Wave Pulse work indicator
- * Oscillates heights smoothly and shifts through a vibrant TrueColor spectrum
+ * Animated Progressive-Color Wave Pulse work indicator
+ * - Lengthened wave (12-16 bars) with traveling wave dynamics
+ * - Progressive unified color transition during the thinking/reasoning process
+ *   (starts in cool cyan/sapphire, shifts gradually over elapsed seconds into violet, mauve, rose, and amber)
  */
-export declare function renderWavePulse(numBars?: number): string;
+export declare function renderWavePulse(numBars?: number, elapsedSec?: number): string;
