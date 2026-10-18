@@ -32,6 +32,7 @@ export class InputBox implements Component, Focusable {
   private onSubmitCallback?: (text: string) => void;
 
   private activeAgentName = "default";
+  private activeAgentColor = colors.activeBorder;
   private hasMultipleAgents = false;
 
   // Slash commands autocomplete state
@@ -42,8 +43,9 @@ export class InputBox implements Component, Focusable {
     this.onSubmitCallback = cb;
   }
 
-  public setActiveAgent(name: string, hasMultiple = true): void {
+  public setActiveAgent(name: string, color?: string, hasMultiple = true): void {
     this.activeAgentName = name;
+    if (color) this.activeAgentColor = color;
     this.hasMultipleAgents = hasMultiple;
   }
 
@@ -266,7 +268,7 @@ export class InputBox implements Component, Focusable {
 
   public render(width: number): string[] {
     const safeWidth = Math.max(20, width);
-    const borderColor = this.focused ? colors.activeBorder : colors.border;
+    const borderColor = this.focused ? this.activeAgentColor : colors.border;
     const lines: string[] = [];
 
     // --- Slash Commands Autocomplete Popup (renders floating above the input box) ---
@@ -328,10 +330,11 @@ export class InputBox implements Component, Focusable {
     // Precise visibleWidth calculation (handles 2-byte surrogate pairs like 󰌌)
     const titleVisualLen = visibleWidth(title);
     const remTop = Math.max(0, safeWidth - 3 - titleVisualLen);
-    const top = `${style("╭─", borderColor)}${style(title, colors.bold, borderColor)}${style(
-      "─".repeat(remTop) + "╮",
-      borderColor
-    )}`;
+    const top = `${style("╭─", borderColor)}${style(
+      title,
+      colors.bold,
+      this.activeAgentColor
+    )}${style("─".repeat(remTop) + "╮", borderColor)}`;
 
     const innerWidth = safeWidth - 4;
     let contentDisplay = "";

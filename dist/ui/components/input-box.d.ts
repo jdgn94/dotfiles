@@ -12,11 +12,12 @@ export declare class InputBox implements Component, Focusable {
     private placeholder;
     private onSubmitCallback?;
     private activeAgentName;
+    private activeAgentColor;
     private hasMultipleAgents;
     private availableCommands;
     private selectedCommandIndex;
     onSubmit(cb: (text: string) => void): void;
-    setActiveAgent(name: string, hasMultiple?: boolean): void;
+    setActiveAgent(name: string, color?: string, hasMultiple?: boolean): void;
     setAvailableCommands(commands: SlashCommand[]): void;
     invalidate(): void;
     getText(): string;

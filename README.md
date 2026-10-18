@@ -8,19 +8,25 @@ Built on `@earendil-works/pi-tui` and `@earendil-works/pi-coding-agent`.
 
 ## ✨ Key Features
 
-### 1. 🤖 Active Agent Visualization & Hot-Switching
-- **Active Input Indicator**: The header of the input text box (`Active Input [Agent: <name>]`) visualizes which agent is currently active.
-- **Dynamic Hot-Switching**: Instantly switch between installed agents with `Ctrl+A`, `Alt+A`, or `F2`.
-- **Automatic Loadout Application**: Automatically updates tool allowlists, thinking level, and system prompt constraints when switching agents.
-- **Multi-Scope Discovery**: Detects agents installed across User (`~/.pi/agent/agents`), Project (`.pi/agents`), and built-in subagents (`orchestrator`, `code-reviewer`, `security-auditor`, `spec-planner`, `test-engineer`, `build-error-resolver`, `code-simplifier`, `doc-updater`, `researcher`, `default`).
+### 1. 🤖 Primary Agents vs Specialized Subagents
+- **Primary Agent Hot-Switcher**: Cycling with `Shift + Tab` only toggles between primary agents (`default` and `orchestrator`). Subagents are excluded from the hot-switcher.
+- **Interactive `/agent` Modal**: Sending `/agent` opens a two-section interactive selector:
+  - **Primary Agents**: Selecting one immediately sets it as active.
+  - **Specialized Subagents**: Selecting one pre-fills the input box with `/agent <subagent> ` so you can type your prompt directly.
+- **Function-Based Agent Coloring**: Every agent is assigned a unique role color (e.g. Red for `security-auditor`, Yellow for `code-reviewer`, Mauve for `spec-planner`, Cyan for `orchestrator`).
+- **Dynamic Input Box Border**: The input box border illuminates in the exact color of the currently selected agent.
+- **Direct Delegation**: Run tasks on any subagent with `/agent <name> <prompt>` (e.g. `/agent code-reviewer Check git diff for bugs`).
 
-### 2. 📁 Project & Git Context on Input Box
-- **Bottom-Left Project Badge**: The bottom border of the input box continuously displays the current project name and git branch (`📁 <project> ( <branch>)`).
-- **Real-Time Git Tracking**: Automatically detects branch switches, uncommitted modifications, staged items, and untracked files.
+### 2. 📁 Right-Sidebar Git & Live Observability
+- **Git Context & Diff Stats**: Live repository path, branch, and uncommitted file list with `+add -del` metrics.
+- **Real-Time Plan & Tasks**: Collapsible live checklist in the right sidebar tracking current task, progress, and completed tasks (`Ctrl+Y`).
+- **Context & Cache Efficiency**: Aligned token usage and prompt cache hit ratio.
+- **Live Tool Inspector**: Last tool executions with timing and success/failure indicators.
+- **Attached Image Preview**: Instant TrueColor half-block ANSI image preview when cursor is over an image file.
 
-### 3. 📐 OpenSpec & Graphify Integration (Tab 4: Specs & Graph)
-- **OpenSpec Observability**: Live monitoring of active specifications (`openspec/specs/`), proposals/changes (`openspec/changes/`), and schema configuration (`spec-driven`).
-- **Graphify Code Graph**: Live statistics for AST nodes, graph edges, community clusters, and top architectural hubs (god nodes).
+### 3. 📐 OpenSpec & Graphify Integration
+- **OpenSpec**: Live specs and change proposals count.
+- **Graphify**: Live AST nodes, edges, communities, and architectural hubs.
 - **CLI Commands Available**:
   ```bash
   openspec list --specs       # View active OpenSpec specifications
@@ -29,23 +35,10 @@ Built on `@earendil-works/pi-tui` and `@earendil-works/pi-coding-agent`.
   graphify cluster-only .     # Re-cluster and update GRAPH_REPORT.md
   ```
 
-### 4. 📊 Real-Time Metrics & Tokens (Tab 1: Metrics)
-- **Context Window Usage**: Visual percentage bar against the model's context ceiling (128k, 200k, 1M tokens).
-- **Token Breakdown**: Input, Output, Cache Read, Cache Write, and Total.
-- **Throughput & Latency**: Real-time generation speed (`tok/s`) and first-token latency (`ms`).
-- **Estimated Cost**: Dynamic USD cost calculation based on active model pricing.
-- **Turn Counter**: Conversation turn tracking.
-
-### 5. 🔀 Split-View & Multi-Tab Sidebar
-- **Split Layout**: Main chat viewport side-by-side with a 4-tab persistent sidebar.
-- **Responsive Toggle**: Toggle full-screen chat with `Shift + Tab`.
-- **Smooth Navigation**: Auto-scrolling on generation, with `PageUp` / `PageDown` history browsing.
-
-### 6. ⚡ Tool Execution Viewer (Tab 3: Tool Logs)
-- Chronological execution log of all tool calls (`read`, `bash`, `write`, `edit`, `web_search`, etc.).
-- Status icons (`[✓]` success, `[✗]` error, `[⟳]` running).
-- Execution timing in milliseconds (`durationMs`).
-- Argument previews and output excerpts.
+### 4. 🎮 Animated Tetris Startup Logo
+- Random 50/50 chance between word **"PI"** and symbol **"π"**.
+- Built from literal canonical 4-block tetrominoes dropping in parallel from the base to the crest.
+- Self-terminates on completion for 0% CPU consumption.
 
 ---
 

@@ -33,7 +33,25 @@ export interface AgentDefinition {
   thinking?: string;
   systemPrompt?: string;
   source: "default" | "user" | "project" | "builtin";
+  category: "primary" | "subagent";
+  color: string;
 }
+
+export const AGENT_COLORS: Record<string, string> = {
+  default: "\x1b[38;2;137;180;250m", // Lavender / Soft Blue (#89b4fa)
+  orchestrator: "\x1b[38;2;116;199;236m", // Sapphire / Cyan (#74c7ec)
+  "security-auditor": "\x1b[38;2;243;139;168m", // Red / Coral (#f38ba8)
+  "code-reviewer": "\x1b[38;2;249;226;175m", // Yellow / Gold (#f9e2af)
+  "spec-planner": "\x1b[38;2;203;166;247m", // Mauve / Violet (#cba6f7)
+  "test-engineer": "\x1b[38;2;250;179;135m", // Peach / Orange (#fab387)
+  "build-error-resolver": "\x1b[38;2;235;160;172m", // Maroon / Red-Orange (#eba0ac)
+  "code-simplifier": "\x1b[38;2;166;227;161m", // Mint / Green (#a6e3a1)
+  "doc-updater": "\x1b[38;2;137;220;235m", // Sky Blue (#89dceb)
+  researcher: "\x1b[38;2;148;226;213m", // Teal (#94e2d5)
+  worker: "\x1b[38;2;166;227;161m", // Green (#a6e3a1)
+  oracle: "\x1b[38;2;203;166;247m", // Mauve (#cba6f7)
+  scout: "\x1b[38;2;250;179;135m", // Peach (#fab387)
+};
 
 export class AgentManager {
   private session?: AgentSession;
@@ -241,13 +259,25 @@ export class AgentManager {
     return [...this.availableAgents];
   }
 
+  public getPrimaryAgents(): AgentDefinition[] {
+    return this.availableAgents.filter((a) => a.category === "primary");
+  }
+
+  public getSubagents(): AgentDefinition[] {
+    return this.availableAgents.filter((a) => a.category === "subagent");
+  }
+
   public getActiveAgent(): AgentDefinition {
+    const primaries = this.getPrimaryAgents();
     return (
-      this.availableAgents[this.currentAgentIndex] || {
+      primaries[this.currentAgentIndex] ||
+      this.availableAgents[0] || {
         id: "default",
         name: "default",
         description: "Generalist Pi Coding Agent",
         source: "default",
+        category: "primary",
+        color: AGENT_COLORS.default ?? "\x1b[38;2;137;180;250m",
       }
     );
   }
@@ -256,28 +286,35 @@ export class AgentManager {
     return this.getActiveAgent().name;
   }
 
+  public getActiveAgentColor(): string {
+    return this.getActiveAgent().color || "\x1b[38;2;137;180;250m";
+  }
+
   public getAgentSwitchNotice(): string {
     return this.lastAgentSwitchNotice;
   }
 
   public nextAgent(): AgentDefinition {
-    if (this.availableAgents.length <= 1) return this.getActiveAgent();
-    this.currentAgentIndex = (this.currentAgentIndex + 1) % this.availableAgents.length;
+    const primaries = this.getPrimaryAgents();
+    if (primaries.length <= 1) return this.getActiveAgent();
+    this.currentAgentIndex = (this.currentAgentIndex + 1) % primaries.length;
     this.applyActiveAgent();
     return this.getActiveAgent();
   }
 
   public prevAgent(): AgentDefinition {
-    if (this.availableAgents.length <= 1) return this.getActiveAgent();
+    const primaries = this.getPrimaryAgents();
+    if (primaries.length <= 1) return this.getActiveAgent();
     this.currentAgentIndex =
-      (this.currentAgentIndex - 1 + this.availableAgents.length) % this.availableAgents.length;
+      (this.currentAgentIndex - 1 + primaries.length) % primaries.length;
     this.applyActiveAgent();
     return this.getActiveAgent();
   }
 
   public selectAgent(nameOrId: string): boolean {
-    const idx = this.availableAgents.findIndex(
-      (a) => a.id === nameOrId || a.name.toLowerCase() === nameOrId.toLowerCase()
+    const primaries = this.getPrimaryAgents();
+    const idx = primaries.findIndex(
+      (a) => a.id.toLowerCase() === nameOrId.toLowerCase() || a.name.toLowerCase() === nameOrId.toLowerCase()
     );
     if (idx >= 0) {
       this.currentAgentIndex = idx;
@@ -326,6 +363,8 @@ export class AgentManager {
       description: "Default Pi generalist assistant with full capabilities",
       tools: this.defaultTools,
       source: "default",
+      category: "primary",
+      color: AGENT_COLORS.default ?? "\x1b[38;2;137;180;250m",
     });
 
     // 2. Discover user agents from ~/.pi/agent/agents
@@ -384,6 +423,15 @@ export class AgentManager {
             : undefined;
           const thinking = thinkMatch ? thinkMatch[1].trim() : undefined;
 
+          // Primary agents are default & orchestrator; all other specialists are subagents
+          const isPrimary =
+            name.toLowerCase() === "orchestrator" || name.toLowerCase() === "default";
+          const category = isPrimary ? "primary" : "subagent";
+          const color =
+            AGENT_COLORS[name.toLowerCase()] ??
+            AGENT_COLORS[baseId.toLowerCase()] ??
+            "\x1b[38;2;116;199;236m";
+
           // Project overrides user overrides builtin
           if (!map.has(name) || source === "project" || (source === "user" && map.get(name)?.source === "builtin")) {
             map.set(name, {
@@ -394,17 +442,27 @@ export class AgentManager {
               thinking,
               systemPrompt: body,
               source,
+              category,
+              color,
             });
           }
         } else {
           // Plain markdown without frontmatter
           if (!map.has(baseId)) {
+            const isPrimary =
+              baseId.toLowerCase() === "orchestrator" || baseId.toLowerCase() === "default";
+            const category = isPrimary ? "primary" : "subagent";
+            const color =
+              AGENT_COLORS[baseId.toLowerCase()] ?? "\x1b[38;2;116;199;236m";
+
             map.set(baseId, {
               id: baseId,
               name: baseId,
               description: `Agent ${baseId}`,
               systemPrompt: content.trim(),
               source,
+              category,
+              color,
             });
           }
         }
@@ -426,6 +484,24 @@ export class AgentManager {
   public async prompt(text: string): Promise<void> {
     if (!this.session) return;
     if (!text.trim()) return;
+
+    // Check if the prompt is an explicit delegation: /agent <subagent> <prompt...>
+    const agentCmdMatch = text.trim().match(/^\/agent\s+([^\s]+)(?:\s+([\s\S]+))?$/i);
+    if (agentCmdMatch) {
+      const targetName = agentCmdMatch[1];
+      const targetPrompt = agentCmdMatch[2]?.trim();
+      if (targetName && targetPrompt) {
+        const targetAgent = this.availableAgents.find(
+          (a) =>
+            a.id.toLowerCase() === targetName.toLowerCase() ||
+            a.name.toLowerCase() === targetName.toLowerCase()
+        );
+        if (targetAgent) {
+          await this.executeSubagentPrompt(targetAgent, targetPrompt, text);
+          return;
+        }
+      }
+    }
 
     const activeAgent = this.getActiveAgent();
 
@@ -468,6 +544,87 @@ export class AgentManager {
         timestamp: Date.now(),
       });
     } finally {
+      this.isWorking = false;
+      this.currentStatus = "Ready";
+      this.turnStartTime = 0;
+      this.streamingText = "";
+      this.streamingThinking = "";
+      this.metrics.onTurnEnd();
+      this.updateStats();
+      this.gitWatcher.refresh().catch(() => {});
+      this.notify();
+    }
+  }
+
+  private async executeSubagentPrompt(
+    agent: AgentDefinition,
+    taskPrompt: string,
+    rawUserText: string
+  ): Promise<void> {
+    if (!this.session) return;
+
+    this.messages.push({
+      id: "user-" + Date.now(),
+      role: "user",
+      text: rawUserText,
+      timestamp: Date.now(),
+    });
+
+    this.isWorking = true;
+    this.currentStatus = `[${agent.name}] Processing...`;
+    this.turnStartTime = Date.now();
+    this.streamingText = "";
+    this.streamingThinking = "";
+    this.metrics.onPromptStart();
+    this.notify();
+
+    const previousTools = this.session.getActiveToolNames();
+    const previousThinking = this.session.thinkingLevel;
+
+    try {
+      if (agent.tools && agent.tools.length > 0) {
+        const all = this.session.getAllTools().map((t) => t.name);
+        const valid = agent.tools.filter((t) => all.includes(t));
+        this.session.setActiveToolsByName(valid);
+      }
+      if (agent.thinking) {
+        this.session.setThinkingLevel(agent.thinking as any);
+      }
+
+      let subagentHeader = `[Subagent Delegation: ${agent.name}]\n`;
+      if (agent.description) {
+        subagentHeader += `Role: ${agent.description}\n`;
+      }
+      if (agent.systemPrompt) {
+        subagentHeader += `Instructions & Constraints:\n${agent.systemPrompt}\n\n`;
+      }
+      const effectivePrompt = `${subagentHeader}Task for ${agent.name}:\n${taskPrompt}`;
+
+      await this.session.prompt(effectivePrompt);
+    } catch (err: any) {
+      this.messages.push({
+        id: "err-" + Date.now(),
+        role: "system",
+        text: `Error executing subagent ${agent.name}: ${err?.message || String(err)}`,
+        timestamp: Date.now(),
+      });
+    } finally {
+      try {
+        const activePrimary = this.getActiveAgent();
+        if (activePrimary.tools && activePrimary.tools.length > 0) {
+          const all = this.session.getAllTools().map((t) => t.name);
+          const valid = activePrimary.tools.filter((t) => all.includes(t));
+          this.session.setActiveToolsByName(valid);
+        } else {
+          this.session.setActiveToolsByName(previousTools);
+        }
+        if (previousThinking) {
+          this.session.setThinkingLevel(previousThinking as any);
+        }
+      } catch {
+        // ignore
+      }
+
       this.isWorking = false;
       this.currentStatus = "Ready";
       this.turnStartTime = 0;

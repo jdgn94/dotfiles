@@ -5,6 +5,7 @@ import { type MetricsTracker } from "../state/metrics-tracker.js";
 import { type SpecGraphWatcher } from "../state/spec-graph-watcher.js";
 import { type TodoTracker } from "../state/todo-tracker.js";
 import { type ToolLogger } from "../state/tool-logger.js";
+import { AgentPopup } from "./components/agent-popup.js";
 import { ChatView } from "./components/chat-view.js";
 import { Header } from "./components/header.js";
 import { InputBox } from "./components/input-box.js";
@@ -20,6 +21,7 @@ export class AppLayout implements Component, Focusable {
   private header: Header;
   private chatView: ChatView;
   private sidebar: Sidebar;
+  private agentPopup: AgentPopup;
   private inputBox: InputBox;
   private statusBar: StatusBar;
 
@@ -43,6 +45,7 @@ export class AppLayout implements Component, Focusable {
 
     this.header = new Header(agent);
     this.inputBox = new InputBox();
+    this.agentPopup = new AgentPopup(agent);
     this.sidebar = new Sidebar(
       agent,
       metrics,
@@ -62,6 +65,11 @@ export class AppLayout implements Component, Focusable {
       this.scrollFollow = true;
       this.chatScrollOffset = 0;
       const trimmed = text.trim();
+      if (trimmed === "/agent") {
+        this.agentPopup.open();
+        this.tui.requestRender();
+        return;
+      }
       if (trimmed === "/mcp") {
         this.sidebar.toggleMcp();
         this.tui.requestRender();
@@ -112,7 +120,11 @@ export class AppLayout implements Component, Focusable {
 
   private syncInputBoxState(): void {
     const agents = this.agent.getAgents();
-    this.inputBox.setActiveAgent(this.agent.getActiveAgentName(), agents.length > 1);
+    this.inputBox.setActiveAgent(
+      this.agent.getActiveAgentName(),
+      this.agent.getActiveAgentColor(),
+      agents.length > 1
+    );
     this.inputBox.setAvailableCommands(this.agent.getCommands());
   }
 
@@ -135,11 +147,43 @@ export class AppLayout implements Component, Focusable {
     this.header.invalidate();
     this.chatView.invalidate();
     this.sidebar.invalidate();
+    this.agentPopup.invalidate();
     this.inputBox.invalidate();
     this.statusBar.invalidate();
   }
 
   public handleInput(data: string): void {
+    // Handle input when AgentPopup modal is open
+    if (this.agentPopup.getIsOpen()) {
+      if (matchesKey(data, "up")) {
+        this.agentPopup.navigateUp();
+        this.tui.requestRender();
+        return;
+      }
+      if (matchesKey(data, "down")) {
+        this.agentPopup.navigateDown();
+        this.tui.requestRender();
+        return;
+      }
+      if (matchesKey(data, "escape")) {
+        this.agentPopup.close();
+        this.tui.requestRender();
+        return;
+      }
+      if (matchesKey(data, "enter") || data === "\r" || data === "\n") {
+        const res = this.agentPopup.selectCurrent();
+        if (res.action === "selected_primary") {
+          this.syncInputBoxState();
+        } else if (res.action === "selected_subagent") {
+          this.inputBox.setText(`/agent ${res.agent.name} `);
+          this.inputBox.setActiveAgent(res.agent.name, res.agent.color, true);
+        }
+        this.tui.requestRender();
+        return;
+      }
+      return;
+    }
+
     // Ctrl+C -> Cancel current work or exit cleanly
     if (matchesKey(data, "ctrl+c") || data === "\x03") {
       if (this.agent.getIsWorking()) {
@@ -312,7 +356,39 @@ export class AppLayout implements Component, Focusable {
 
     // Compute split columns
     let centerLines: string[] = [];
-    if (this.sidebarVisible && termWidth > 75) {
+
+    // If AgentPopup is open, render it centered in the primary center area
+    if (this.agentPopup.getIsOpen()) {
+      const popupWidth =
+        this.sidebarVisible && termWidth > 75
+          ? termWidth - Math.min(this.sidebarWidth, Math.floor(termWidth * 0.45)) - 1
+          : termWidth;
+      const popupLines = this.agentPopup.render(popupWidth);
+      const topPad = Math.max(0, Math.floor((centerHeight - popupLines.length) / 2));
+      while (centerLines.length < topPad) {
+        centerLines.push(" ".repeat(popupWidth));
+      }
+      for (const pl of popupLines) {
+        centerLines.push(pl);
+      }
+      while (centerLines.length < centerHeight) {
+        centerLines.push(" ".repeat(popupWidth));
+      }
+      centerLines = centerLines.slice(0, centerHeight);
+
+      if (this.sidebarVisible && termWidth > 75) {
+        const sbWidth = Math.min(this.sidebarWidth, Math.floor(termWidth * 0.45));
+        const allSidebarLines = this.sidebar.render(sbWidth);
+        const compLines: string[] = [];
+        for (let i = 0; i < centerHeight; i++) {
+          const cLine = this.padTo(centerLines[i] ?? "", popupWidth);
+          const sLine = this.padTo(allSidebarLines[i] ?? "", sbWidth);
+          const sep = style("│", colors.border);
+          compLines.push(`${cLine}${sep}${sLine}`);
+        }
+        centerLines = compLines;
+      }
+    } else if (this.sidebarVisible && termWidth > 75) {
       const sbWidth = Math.min(this.sidebarWidth, Math.floor(termWidth * 0.45));
       const chatWidth = termWidth - sbWidth - 1; // 1 for separator
 

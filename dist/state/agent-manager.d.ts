@@ -24,7 +24,10 @@ export interface AgentDefinition {
     thinking?: string;
     systemPrompt?: string;
     source: "default" | "user" | "project" | "builtin";
+    category: "primary" | "subagent";
+    color: string;
 }
+export declare const AGENT_COLORS: Record<string, string>;
 export declare class AgentManager {
     private session?;
     private cwd;
@@ -72,8 +75,11 @@ export declare class AgentManager {
         description: string;
     }>;
     getAgents(): AgentDefinition[];
+    getPrimaryAgents(): AgentDefinition[];
+    getSubagents(): AgentDefinition[];
     getActiveAgent(): AgentDefinition;
     getActiveAgentName(): string;
+    getActiveAgentColor(): string;
     getAgentSwitchNotice(): string;
     nextAgent(): AgentDefinition;
     prevAgent(): AgentDefinition;
@@ -83,6 +89,7 @@ export declare class AgentManager {
     private loadAgentsFromDir;
     onChange(listener: () => void): () => void;
     prompt(text: string): Promise<void>;
+    private executeSubagentPrompt;
     abort(): Promise<void>;
     private handleSessionEvent;
     private loadHistory;

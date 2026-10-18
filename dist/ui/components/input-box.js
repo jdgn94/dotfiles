@@ -24,6 +24,7 @@ export class InputBox {
     placeholder = "Type a prompt... (Enter to send, Ctrl+A to switch agent, / for commands)";
     onSubmitCallback;
     activeAgentName = "default";
+    activeAgentColor = colors.activeBorder;
     hasMultipleAgents = false;
     // Slash commands autocomplete state
     availableCommands = [...CORE_COMMANDS];
@@ -31,8 +32,10 @@ export class InputBox {
     onSubmit(cb) {
         this.onSubmitCallback = cb;
     }
-    setActiveAgent(name, hasMultiple = true) {
+    setActiveAgent(name, color, hasMultiple = true) {
         this.activeAgentName = name;
+        if (color)
+            this.activeAgentColor = color;
         this.hasMultipleAgents = hasMultiple;
     }
     setAvailableCommands(commands) {
@@ -236,7 +239,7 @@ export class InputBox {
     }
     render(width) {
         const safeWidth = Math.max(20, width);
-        const borderColor = this.focused ? colors.activeBorder : colors.border;
+        const borderColor = this.focused ? this.activeAgentColor : colors.border;
         const lines = [];
         // --- Slash Commands Autocomplete Popup (renders floating above the input box) ---
         const matching = this.getMatchingCommands();
@@ -278,7 +281,7 @@ export class InputBox {
         // Precise visibleWidth calculation (handles 2-byte surrogate pairs like 󰌌)
         const titleVisualLen = visibleWidth(title);
         const remTop = Math.max(0, safeWidth - 3 - titleVisualLen);
-        const top = `${style("╭─", borderColor)}${style(title, colors.bold, borderColor)}${style("─".repeat(remTop) + "╮", borderColor)}`;
+        const top = `${style("╭─", borderColor)}${style(title, colors.bold, this.activeAgentColor)}${style("─".repeat(remTop) + "╮", borderColor)}`;
         const innerWidth = safeWidth - 4;
         let contentDisplay = "";
         if (this.text.length === 0) {

@@ -12,6 +12,7 @@ export declare class AppLayout implements Component, Focusable {
     private header;
     private chatView;
     private sidebar;
+    private agentPopup;
     private inputBox;
     private statusBar;
     private sidebarVisible;
