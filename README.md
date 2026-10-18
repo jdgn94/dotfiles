@@ -81,6 +81,31 @@ Herdr cuenta con el plugin oficial **`herdr-sidebar`**, que ofrece una experienc
 
 ---
 
+## ⏱️ Herdr: Monitor de Cuotas y Límites de Agentes (`usagebar`)
+
+Integración idéntica al monitor de cuotas de Orca (`senna-lang/herdr-agent-usage`):
+- **Ventana emergente de límites (Limits Pane)**:
+  - Muestra el consumo y tiempo restante de reinicio para **Claude Code** (5h / 7d), **OpenCode Go** (5h / 7d / 30d) y **Antigravity / Gemini** (5h / semanal), además de backends API pay-as-you-go y medidores de contexto de la sesión.
+- **Métricas integradas en la barra lateral**:
+  - Filas de estado automáticas en el sidebar con `$provider`, `$limit`, estado del prompt-cache y ventana de contexto `$context`.
+- **Alertas preventivas (Toasts)**: Notificaciones en terminal cuando un límite baja del 50%, 20%, 10% o 5%.
+
+### Atajos para monitorear cuotas en Herdr:
+- **`Alt + u`** o **`Prefix + u`** (`Ctrl+b` luego `u`): Abre el panel emergente detallado de cuotas y uso de todos los agentes.
+- **`Prefix + m`** (`Ctrl+b` luego `m`): Refresca manualmente los medidores y límites de los agentes.
+
+---
+
+## 🏷️ Herdr: Autonombrado Contextual de Pestañas (`herdr.auto-title`)
+
+Gestión inteligente de títulos para pestañas y paneles en Herdr:
+- **Agentes de IA**: Extrae y muestra la tarea y tema exacto que está ejecutando el agente activo (Claude Code, Pi, OpenCode), ej. `1 · dotsfiles › herdr auto-title`.
+- **Editores de código**: Al abrir Neovim, renombra la pestaña con el archivo en edición (`nvim › install.sh`).
+- **Ramas Git**: Refleja la rama activa de desarrollo.
+- **Respeto a nombres manuales**: Si renombras una pestaña con `Prefix + Shift + t`, el plugin lo detecta y deja intacto tu nombre personalizado.
+
+---
+
 ## 🔑 Gestión Centralizada de Tokens y MCPs
 
 Para no duplicar credenciales ni exponer tokens en el repositorio:

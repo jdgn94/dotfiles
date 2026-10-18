@@ -7,6 +7,34 @@ auto_switch = false
 [terminal]
 kitty_graphics = true
 
+[ui]
+# No pedir nombre manual para permitir que herdr-auto-title nombre las pestañas automáticamente
+prompt_new_tab_name = false
+
+# Sidebar context + provider limit rows (Agent Usage)
+[ui.sidebar.agents]
+row_gap = 0
+rows = [
+  ["state_icon", "$title"],
+  ["$provider", "$limit"],
+  ["$cache_high", { token = "$cache_mid", fg = "#e0af68" }, { token = "$cache_low", fg = "#f7768e" }],
+  ["$context"],
+]
+
+# Mostrar tópico activo del workspace en el sidebar (Auto Title)
+[ui.sidebar.spaces]
+rows = [
+  ["state_icon", "workspace", "branch", "git_status"],
+  [{ token = "$topic", bold = true, dim = false }],
+]
+
+# Toast delivery (notificaciones de alertas y cuotas de uso)
+[ui.toast]
+delivery = "herdr"
+
+[ui.toast.herdr]
+position = "bottom-right"
+
 [keys]
 # Prefix por defecto: ctrl+b
 
@@ -38,3 +66,20 @@ command = "herdr plugin action invoke herdr-sidebar.show-git"
 key = "prefix+f"
 type = "shell"
 command = "herdr plugin action invoke herdr-sidebar.show-search"
+
+# Abrir panel emergente de cuotas y uso de agentes (Agent Usage / Limits)
+[[keys.command]]
+key = "prefix+u"
+type = "plugin_action"
+command = "usagebar.open-limits"
+
+[[keys.command]]
+key = "alt+u"
+type = "plugin_action"
+command = "usagebar.open-limits"
+
+# Refrescar métricas y cuotas
+[[keys.command]]
+key = "prefix+m"
+type = "plugin_action"
+command = "usagebar.refresh"

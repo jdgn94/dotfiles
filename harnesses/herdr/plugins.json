@@ -613,5 +613,232 @@
       "managed_path": "/home/juan/.config/herdr/plugins/github/herdr-sidebar-7ff2582a7c8a",
       "installed_unix_ms": 1792281541217
     }
+  },
+  {
+    "plugin_id": "herdr.auto-title",
+    "name": "Auto Title",
+    "version": "0.13.2",
+    "min_herdr_version": "0.8.2",
+    "description": "Automatically generates contextual tab titles",
+    "manifest_path": "/home/juan/.config/herdr/plugins/github/herdr.auto-title-4b7d61f48ce8/herdr-plugin.toml",
+    "plugin_root": "/home/juan/.config/herdr/plugins/github/herdr.auto-title-4b7d61f48ce8",
+    "enabled": true,
+    "platforms": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "build": [
+      {
+        "platforms": [
+          "linux",
+          "macos"
+        ],
+        "command": [
+          "go",
+          "build",
+          "-o",
+          "herdr-auto-title",
+          "./cmd/herdr-auto-title"
+        ]
+      },
+      {
+        "platforms": [
+          "windows"
+        ],
+        "command": [
+          "go",
+          "build",
+          "-o",
+          "herdr-auto-title.exe",
+          "./cmd/herdr-auto-title"
+        ]
+      }
+    ],
+    "startup": [
+      {
+        "platforms": [
+          "linux",
+          "macos"
+        ],
+        "command": [
+          "./herdr-auto-title"
+        ]
+      },
+      {
+        "platforms": [
+          "windows"
+        ],
+        "command": [
+          "./herdr-auto-title.exe"
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "id": "restart",
+        "title": "Auto Title: restart",
+        "description": "Start a fresh Auto Title in place of the running one",
+        "contexts": [
+          "global"
+        ],
+        "command": [
+          "./herdr-auto-title",
+          "restart"
+        ]
+      }
+    ],
+    "source": {
+      "kind": "github",
+      "owner": "kryptamine",
+      "repo": "herdr-auto-title",
+      "resolved_commit": "ab6410eb929307de37f8143c39a18295f67066ab",
+      "managed_path": "/home/juan/.config/herdr/plugins/github/herdr.auto-title-4b7d61f48ce8",
+      "installed_unix_ms": 1792282988718
+    }
+  },
+  {
+    "plugin_id": "usagebar",
+    "name": "Agent Usage",
+    "version": "0.5.21",
+    "min_herdr_version": "0.7.5",
+    "description": "Sidebar context meters, provider limit windows, and rate-limit toasts for Claude, Codex, OpenCode Go, OMP, Pi coding agent, Grok, Kilo Code, and Hermes Agent, plus context meters for Cursor",
+    "manifest_path": "/home/juan/.config/herdr/plugins/github/usagebar-33803b79d616/herdr-plugin.toml",
+    "plugin_root": "/home/juan/.config/herdr/plugins/github/usagebar-33803b79d616",
+    "enabled": true,
+    "platforms": [
+      "macos",
+      "linux"
+    ],
+    "build": [
+      {
+        "command": [
+          "bash",
+          "bin/ensure-binary.sh",
+          "--in-tree"
+        ]
+      }
+    ],
+    "startup": [
+      {
+        "command": [
+          "bash",
+          "bin/run-startup.sh"
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "id": "check-updates",
+        "title": "Check for Agent Usage updates",
+        "contexts": [
+          "workspace",
+          "pane"
+        ],
+        "command": [
+          "bash",
+          "bin/run-update-check.sh"
+        ]
+      },
+      {
+        "id": "enable-toast",
+        "title": "Enable Herdr toast delivery (safe append)",
+        "contexts": [
+          "workspace",
+          "pane"
+        ],
+        "command": [
+          "bash",
+          "bin/run-setup.sh",
+          "--write-toast"
+        ]
+      },
+      {
+        "id": "open-limits",
+        "title": "Open Agent Usage pane",
+        "contexts": [
+          "workspace",
+          "pane"
+        ],
+        "command": [
+          "bash",
+          "bin/open-limits-pane.sh"
+        ]
+      },
+      {
+        "id": "refresh",
+        "title": "Refresh usage status",
+        "contexts": [
+          "workspace",
+          "pane"
+        ],
+        "command": [
+          "bash",
+          "bin/run-status.sh"
+        ]
+      },
+      {
+        "id": "setup",
+        "title": "Setup Agent Usage (show config snippets)",
+        "contexts": [
+          "workspace",
+          "pane"
+        ],
+        "command": [
+          "bash",
+          "bin/run-setup.sh"
+        ]
+      }
+    ],
+    "events": [
+      {
+        "on": "pane.agent_status_changed",
+        "command": [
+          "bash",
+          "bin/run-notify.sh"
+        ]
+      },
+      {
+        "on": "pane.agent_status_changed",
+        "command": [
+          "bash",
+          "bin/run-status.sh"
+        ]
+      },
+      {
+        "on": "pane.focused",
+        "command": [
+          "bash",
+          "bin/run-status.sh"
+        ]
+      },
+      {
+        "on": "pane.focused",
+        "command": [
+          "bash",
+          "bin/run-update-check.sh",
+          "--auto"
+        ]
+      }
+    ],
+    "panes": [
+      {
+        "id": "limits",
+        "title": "Agent Usage",
+        "placement": "split",
+        "command": [
+          "bash",
+          "bin/run-limits-pane.sh"
+        ]
+      }
+    ],
+    "source": {
+      "kind": "github",
+      "owner": "senna-lang",
+      "repo": "herdr-agent-usage",
+      "resolved_commit": "99717d4d8f435d1cb714d232f78aee8a27fcb5e9",
+      "managed_path": "/home/juan/.config/herdr/plugins/github/usagebar-33803b79d616",
+      "installed_unix_ms": 1792282652633
+    }
   }
 ]

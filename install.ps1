@@ -270,6 +270,9 @@ if (Test-Path (Join-Path $DOTS_DIR "harnesses" "herdr" "state")) {
 if (Get-Command herdr -ErrorAction SilentlyContinue) {
     Write-Info "Instalando e integrando plugins de Herdr..."
     herdr plugin install alexarthurs/herdr-sidebar/plugins/herdr-sidebar -y 2>$null
+    herdr plugin install senna-lang/herdr-agent-usage -y 2>$null
+    herdr plugin install kryptamine/herdr-auto-title -y 2>$null
+    herdr plugin action invoke herdr.auto-title.restart 2>$null
     herdr integration install pi 2>$null
     herdr integration install claude 2>$null
     herdr integration install opencode 2>$null

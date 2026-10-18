@@ -232,11 +232,20 @@ if [ -d "$DOTS_DIR/harnesses/herdr/state" ]; then
   cp "$DOTS_DIR/harnesses/herdr/state/editor-command.txt" "$HERDR_SIDEBAR_STATE_DIR/editor-command.txt" 2>/dev/null || true
 fi
 
-# Instalar herdr-sidebar vía herdr plugin install si aún no está instalado
+# Instalar plugins esenciales de Herdr si aún no están instalados
 if command -v herdr >/dev/null 2>&1; then
   if ! herdr plugin list 2>/dev/null | grep -q "herdr-sidebar"; then
     log_info "Instalando plugin herdr-sidebar..."
     herdr plugin install alexarthurs/herdr-sidebar/plugins/herdr-sidebar -y 2>/dev/null || true
+  fi
+  if ! herdr plugin list 2>/dev/null | grep -q "usagebar"; then
+    log_info "Instalando plugin herdr-agent-usage (usagebar)..."
+    herdr plugin install senna-lang/herdr-agent-usage -y 2>/dev/null || true
+  fi
+  if ! herdr plugin list 2>/dev/null | grep -q "herdr.auto-title"; then
+    log_info "Instalando plugin herdr-auto-title..."
+    herdr plugin install kryptamine/herdr-auto-title -y 2>/dev/null || true
+    herdr plugin action invoke herdr.auto-title.restart 2>/dev/null || true
   fi
 fi
 
