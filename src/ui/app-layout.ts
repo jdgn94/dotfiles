@@ -192,7 +192,14 @@ export class AppLayout implements Component, Focusable {
 
   public render(width: number): string[] {
     const termWidth = Math.max(40, width);
-    const termHeight = process.stdout.rows && process.stdout.rows > 10 ? process.stdout.rows : 30;
+    let termHeight = 24;
+
+    const tuiAny = this.tui as { terminal?: { rows?: number } };
+    if (tuiAny?.terminal?.rows && tuiAny.terminal.rows > 5) {
+      termHeight = tuiAny.terminal.rows;
+    } else if (process.stdout.rows && process.stdout.rows > 5) {
+      termHeight = process.stdout.rows;
+    }
 
     const headerLines = this.header.render(termWidth); // 2 lines
     const todoLines = this.todoPanel.render(termWidth); // 0 lines if empty, or collapsible box
@@ -201,7 +208,7 @@ export class AppLayout implements Component, Focusable {
 
     const chromeHeight =
       headerLines.length + todoLines.length + inputBoxLines.length + statusLines.length;
-    const centerHeight = Math.max(5, termHeight - chromeHeight);
+    const centerHeight = Math.max(3, termHeight - chromeHeight);
 
     // Compute split columns
     let centerLines: string[] = [];
@@ -272,7 +279,22 @@ export class AppLayout implements Component, Focusable {
       }
     }
 
-    return [...headerLines, ...centerLines, ...todoLines, ...inputBoxLines, ...statusLines];
+    const finalLines = [
+      ...headerLines,
+      ...centerLines,
+      ...todoLines,
+      ...inputBoxLines,
+      ...statusLines,
+    ];
+
+    if (finalLines.length > termHeight) {
+      return finalLines.slice(0, termHeight);
+    }
+    while (finalLines.length < termHeight) {
+      finalLines.push(" ".repeat(termWidth));
+    }
+
+    return finalLines;
   }
 
   private padTo(text: string, targetWidth: number): string {

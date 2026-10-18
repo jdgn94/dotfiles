@@ -160,13 +160,20 @@ export class AppLayout {
     }
     render(width) {
         const termWidth = Math.max(40, width);
-        const termHeight = process.stdout.rows && process.stdout.rows > 10 ? process.stdout.rows : 30;
+        let termHeight = 24;
+        const tuiAny = this.tui;
+        if (tuiAny?.terminal?.rows && tuiAny.terminal.rows > 5) {
+            termHeight = tuiAny.terminal.rows;
+        }
+        else if (process.stdout.rows && process.stdout.rows > 5) {
+            termHeight = process.stdout.rows;
+        }
         const headerLines = this.header.render(termWidth); // 2 lines
         const todoLines = this.todoPanel.render(termWidth); // 0 lines if empty, or collapsible box
         const inputBoxLines = this.inputBox.render(termWidth); // 3 lines
         const statusLines = this.statusBar.render(termWidth); // 1 line
         const chromeHeight = headerLines.length + todoLines.length + inputBoxLines.length + statusLines.length;
-        const centerHeight = Math.max(5, termHeight - chromeHeight);
+        const centerHeight = Math.max(3, termHeight - chromeHeight);
         // Compute split columns
         let centerLines = [];
         if (this.sidebarVisible && termWidth > 75) {
@@ -237,7 +244,20 @@ export class AppLayout {
                 }
             }
         }
-        return [...headerLines, ...centerLines, ...todoLines, ...inputBoxLines, ...statusLines];
+        const finalLines = [
+            ...headerLines,
+            ...centerLines,
+            ...todoLines,
+            ...inputBoxLines,
+            ...statusLines,
+        ];
+        if (finalLines.length > termHeight) {
+            return finalLines.slice(0, termHeight);
+        }
+        while (finalLines.length < termHeight) {
+            finalLines.push(" ".repeat(termWidth));
+        }
+        return finalLines;
     }
     padTo(text, targetWidth) {
         const stripped = text.replace(/\x1b\[[0-9;]*m/g, "");
