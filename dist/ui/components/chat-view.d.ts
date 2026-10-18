@@ -9,7 +9,8 @@ export declare class ChatView implements Component {
     invalidate(): void;
     scrollUp(lines?: number): void;
     scrollDown(lines?: number): void;
-    scrollToBottom(): void;
+    isAutoScroll(): boolean;
+    getCachedHeight(): number;
     render(width: number): string[];
     private renderBox;
     private wrapText;

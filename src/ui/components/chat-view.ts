@@ -1,6 +1,6 @@
 import type { Component } from "@earendil-works/pi-tui";
 import { type AgentManager } from "../../state/agent-manager.js";
-import { colors, pad, style } from "../theme.js";
+import { colors, style } from "../theme.js";
 
 export class ChatView implements Component {
   private agent: AgentManager;
@@ -23,9 +23,12 @@ export class ChatView implements Component {
     this.scrollOffset += lines;
   }
 
-  public scrollToBottom(): void {
-    this.autoScroll = true;
-    this.scrollOffset = 999999;
+  public isAutoScroll(): boolean {
+    return this.autoScroll;
+  }
+
+  public getCachedHeight(): number {
+    return this.cachedHeight;
   }
 
   public render(width: number): string[] {
@@ -40,40 +43,57 @@ export class ChatView implements Component {
     // Welcome banner if empty
     if (messages.length === 0 && !streamingText && !streamingThinking) {
       allLines.push("");
-      allLines.push(style("  Bienvenido a Pi-TUI-Plus!", colors.bold, colors.primary));
-      allLines.push(style("  Interfaz terminal mejorada con Split-View, métricas en vivo y logs.", colors.subtext));
+      allLines.push(style("  Welcome to Pi-TUI-Plus!", colors.bold, colors.primary));
+      allLines.push(
+        style(
+          "  Enhanced terminal interface with Split-View, live metrics, and tool logs.",
+          colors.subtext
+        )
+      );
       allLines.push("");
-      allLines.push(style("  • Escribe un prompt abajo y presiona Enter para comenzar.", colors.muted));
-      allLines.push(style("  • Presiona [Tab] para alternar las pestañas del panel lateral.", colors.muted));
-      allLines.push(style("  • [PageUp / PageDown] para navegar el historial.", colors.muted));
+      allLines.push(style("  • Type a prompt below and press Enter to start.", colors.muted));
+      allLines.push(
+        style("  • Press [Tab] or [Ctrl+A] to switch active agent at any time.", colors.muted)
+      );
+      allLines.push(
+        style("  • Press [Alt+M] / [Alt+S] to toggle MCPs and Skills lists.", colors.muted)
+      );
+      allLines.push(style("  • Use [PageUp / PageDown] to scroll conversation history.", colors.muted));
       allLines.push("");
     }
 
     // Render historical messages
     for (const msg of messages) {
       if (msg.role === "user") {
-        this.renderBox(allLines, "Tú", msg.text, colors.accent, safeWidth);
+        this.renderBox(allLines, "You", msg.text, colors.accent, safeWidth);
       } else if (msg.role === "assistant") {
         if (msg.thinking) {
-          this.renderBox(allLines, "Razonamiento / Thinking", msg.thinking, colors.muted, safeWidth, true);
+          this.renderBox(
+            allLines,
+            "Reasoning / Thinking",
+            msg.thinking,
+            colors.muted,
+            safeWidth,
+            true
+          );
         }
         if (msg.text) {
-          this.renderBox(allLines, "Asistente", msg.text, colors.secondary, safeWidth);
+          this.renderBox(allLines, "Assistant", msg.text, colors.secondary, safeWidth);
         }
       } else if (msg.role === "system") {
-        this.renderBox(allLines, "Sistema", msg.text, colors.warning, safeWidth);
+        this.renderBox(allLines, "System", msg.text, colors.warning, safeWidth);
       }
       allLines.push("");
     }
 
     // Render streaming content
     if (streamingThinking) {
-      this.renderBox(allLines, "Pensando...", streamingThinking, colors.muted, safeWidth, true);
+      this.renderBox(allLines, "Thinking...", streamingThinking, colors.muted, safeWidth, true);
     }
     if (streamingText) {
       this.renderBox(
         allLines,
-        "Asistente (escribiendo...)",
+        "Assistant (typing...)",
         streamingText + " █",
         colors.secondary,
         safeWidth
@@ -84,9 +104,6 @@ export class ChatView implements Component {
     }
 
     this.cachedHeight = allLines.length;
-
-    // Viewport slicing (auto-scroll behavior)
-    // Note: the caller layout will slice to the visible height, but we return all lines
     return allLines;
   }
 
@@ -106,8 +123,12 @@ export class ChatView implements Component {
     const bottomRight = isDashed ? "╯" : "┘";
 
     const titleStr = ` ${title} `;
-    const topBarLength = Math.max(0, width - 2 - titleStr.length);
-    const top = `${style(topLeft + horizontalChar, borderColor)}${style(titleStr, colors.bold, borderColor)}${style(horizontalChar.repeat(topBarLength) + topRight, borderColor)}`;
+    const topBarLength = Math.max(0, width - 3 - titleStr.length);
+    const top = `${style(topLeft + horizontalChar, borderColor)}${style(
+      titleStr,
+      colors.bold,
+      borderColor
+    )}${style(horizontalChar.repeat(topBarLength) + topRight, borderColor)}`;
     target.push(top);
 
     const innerWidth = Math.max(10, width - 4);
@@ -115,20 +136,31 @@ export class ChatView implements Component {
 
     for (const rawLine of rawLines) {
       if (rawLine.trim() === "") {
-        target.push(`${style(verticalChar + " ", borderColor)}${" ".repeat(innerWidth)}${style(" " + verticalChar, borderColor)}`);
+        target.push(
+          `${style(verticalChar + " ", borderColor)}${" ".repeat(innerWidth)}${style(
+            " " + verticalChar,
+            borderColor
+          )}`
+        );
       } else {
         const wrapped = this.wrapText(rawLine, innerWidth);
         for (const w of wrapped) {
           const paddingDiff = innerWidth - this.visualLength(w);
           const pad = paddingDiff > 0 ? " ".repeat(paddingDiff) : "";
           target.push(
-            `${style(verticalChar + " ", borderColor)}${w}${pad}${style(" " + verticalChar, borderColor)}`
+            `${style(verticalChar + " ", borderColor)}${w}${pad}${style(
+              " " + verticalChar,
+              borderColor
+            )}`
           );
         }
       }
     }
 
-    const bottom = `${style(bottomLeft + horizontalChar.repeat(width - 2) + bottomRight, borderColor)}`;
+    const bottom = `${style(
+      bottomLeft + horizontalChar.repeat(width - 2) + bottomRight,
+      borderColor
+    )}`;
     target.push(bottom);
   }
 
@@ -157,10 +189,10 @@ export class ChatView implements Component {
       lines.push(currentLine);
     }
 
-    return lines.length > 0 ? lines : [""];
+    return lines;
   }
 
-  private visualLength(text: string): number {
-    return text.replace(/\x1b\[[0-9;]*m/g, "").length;
+  private visualLength(str: string): number {
+    return str.replace(/\x1b\[[0-9;]*m/g, "").length;
   }
 }

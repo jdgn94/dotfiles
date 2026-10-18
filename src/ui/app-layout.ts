@@ -2,12 +2,14 @@ import type { Component, Focusable, TUI } from "@earendil-works/pi-tui";
 import { type AgentManager } from "../state/agent-manager.js";
 import { type GitWatcher } from "../state/git-watcher.js";
 import { type MetricsTracker } from "../state/metrics-tracker.js";
-import { type ToolLogger } from "../state/tool-logger.js";
+import { type SpecGraphWatcher } from "../state/spec-graph-watcher.js";
+import { type TodoTracker } from "../state/todo-tracker.js";
 import { ChatView } from "./components/chat-view.js";
 import { Header } from "./components/header.js";
 import { InputBox } from "./components/input-box.js";
 import { Sidebar } from "./components/sidebar.js";
 import { StatusBar } from "./components/status-bar.js";
+import { TodoPanel } from "./components/todo-panel.js";
 import { colors, style } from "./theme.js";
 
 export class AppLayout implements Component, Focusable {
@@ -15,33 +17,40 @@ export class AppLayout implements Component, Focusable {
 
   private tui: TUI;
   private agent: AgentManager;
+  private todoTracker: TodoTracker;
   private header: Header;
   private chatView: ChatView;
   private sidebar: Sidebar;
+  private todoPanel: TodoPanel;
   private inputBox: InputBox;
   private statusBar: StatusBar;
 
   private sidebarVisible = true;
-  private sidebarWidth = 38;
+  private sidebarWidth = 44;
   private scrollFollow = true;
   private chatScrollOffset = 0; // lines from bottom
-  private lastRenderHeight = 24;
+  private animationTimer?: NodeJS.Timeout;
 
   constructor(
     tui: TUI,
     agent: AgentManager,
     metrics: MetricsTracker,
     git: GitWatcher,
-    toolLogger: ToolLogger
+    todoTracker: TodoTracker,
+    specGraph?: SpecGraphWatcher
   ) {
     this.tui = tui;
     this.agent = agent;
+    this.todoTracker = todoTracker;
 
-    this.header = new Header(agent, git);
-    this.chatView = new ChatView(agent);
-    this.sidebar = new Sidebar(agent, metrics, git, toolLogger);
+    this.header = new Header(agent);
     this.inputBox = new InputBox();
+    this.sidebar = new Sidebar(agent, metrics, git, specGraph, this.inputBox);
+    this.chatView = new ChatView(agent);
+    this.todoPanel = new TodoPanel(todoTracker);
     this.statusBar = new StatusBar(agent, metrics);
+
+    this.syncInputBoxState();
 
     // Setup input submit
     this.inputBox.onSubmit((text) => {
@@ -52,22 +61,53 @@ export class AppLayout implements Component, Focusable {
     });
 
     // Re-render whenever state changes
-    agent.onChange(() => this.tui.requestRender());
+    agent.onChange(() => {
+      this.syncInputBoxState();
+      this.syncAnimationTimer();
+      this.tui.requestRender();
+    });
     metrics.onChange(() => this.tui.requestRender());
-    git.onChange(() => this.tui.requestRender());
-    toolLogger.onChange(() => this.tui.requestRender());
+    git.onChange(() => {
+      this.syncInputBoxState();
+      this.tui.requestRender();
+    });
+    todoTracker.onChange(() => this.tui.requestRender());
+    if (specGraph) {
+      specGraph.onChange(() => this.tui.requestRender());
+    }
+  }
+
+  private syncInputBoxState(): void {
+    const agents = this.agent.getAgents();
+    this.inputBox.setActiveAgent(this.agent.getActiveAgentName(), agents.length > 1);
+  }
+
+  private syncAnimationTimer(): void {
+    if (this.agent.getIsWorking()) {
+      if (!this.animationTimer) {
+        this.animationTimer = setInterval(() => {
+          this.tui.requestRender();
+        }, 80);
+      }
+    } else {
+      if (this.animationTimer) {
+        clearInterval(this.animationTimer);
+        this.animationTimer = undefined;
+      }
+    }
   }
 
   public invalidate(): void {
     this.header.invalidate();
     this.chatView.invalidate();
     this.sidebar.invalidate();
+    this.todoPanel.invalidate();
     this.inputBox.invalidate();
     this.statusBar.invalidate();
   }
 
   public handleInput(data: string): void {
-    // Ctrl+C
+    // Ctrl+C -> Cancel current work or exit cleanly
     if (data === "\x03") {
       if (this.agent.getIsWorking()) {
         this.agent.abort();
@@ -79,47 +119,66 @@ export class AppLayout implements Component, Focusable {
       return;
     }
 
-    // Tab key -> Next Sidebar Tab
+    // Tab key -> Cycle to next installed Agent
     if (data === "\t") {
-      this.sidebar.nextTab();
+      this.agent.nextAgent();
+      this.syncInputBoxState();
       this.tui.requestRender();
       return;
     }
 
-    // Shift+Tab -> Toggle Sidebar visibility
+    // Shift+Tab -> Cycle to previous installed Agent
     if (data === "\x1b[Z") {
-      this.sidebarVisible = !this.sidebarVisible;
+      this.agent.prevAgent();
+      this.syncInputBoxState();
       this.tui.requestRender();
       return;
     }
 
-    // Alt+1, Alt+2, Alt+3 -> Direct Tab switch
-    if (data === "\x1b1") {
-      this.sidebar.setTab(0);
+    // Ctrl+A, Alt+A, F2 -> Also cycle installed Agent
+    if (data === "\x01" || data === "\x1ba" || data === "\x1bOQ" || data === "\x1b[12~") {
+      this.agent.nextAgent();
+      this.syncInputBoxState();
       this.tui.requestRender();
       return;
     }
-    if (data === "\x1b2") {
-      this.sidebar.setTab(1);
+
+    // Ctrl+T -> Toggle Todo Panel expand / collapse
+    if (data === "\x14") {
+      this.todoTracker.toggleCollapsed();
       this.tui.requestRender();
       return;
     }
-    if (data === "\x1b3") {
-      this.sidebar.setTab(2);
+
+    // Alt+M -> Toggle MCP Servers section in sidebar
+    if (data === "\x1bm") {
+      this.sidebar.toggleMcp();
+      this.tui.requestRender();
+      return;
+    }
+
+    // Alt+S -> Toggle Skills section in sidebar
+    if (data === "\x1bs") {
+      this.sidebar.toggleSkills();
+      this.tui.requestRender();
+      return;
+    }
+
+    // Alt+B -> Toggle Sidebar visibility
+    if (data === "\x1bb") {
+      this.sidebarVisible = !this.sidebarVisible;
       this.tui.requestRender();
       return;
     }
 
     // PageUp & PageDown for ChatView
     if (data === "\x1b[5~") {
-      // PageUp
       this.scrollFollow = false;
       this.chatScrollOffset += 5;
       this.tui.requestRender();
       return;
     }
     if (data === "\x1b[6~") {
-      // PageDown
       this.chatScrollOffset = Math.max(0, this.chatScrollOffset - 5);
       if (this.chatScrollOffset === 0) this.scrollFollow = true;
       this.tui.requestRender();
@@ -133,21 +192,21 @@ export class AppLayout implements Component, Focusable {
 
   public render(width: number): string[] {
     const termWidth = Math.max(40, width);
-    // Approximate terminal rows from ProcessTerminal or fallback to stdout rows
-    const termHeight = (process.stdout.rows && process.stdout.rows > 10) ? process.stdout.rows : 30;
-    this.lastRenderHeight = termHeight;
+    const termHeight = process.stdout.rows && process.stdout.rows > 10 ? process.stdout.rows : 30;
 
     const headerLines = this.header.render(termWidth); // 2 lines
+    const todoLines = this.todoPanel.render(termWidth); // 0 lines if empty, or collapsible box
     const inputBoxLines = this.inputBox.render(termWidth); // 3 lines
     const statusLines = this.statusBar.render(termWidth); // 1 line
 
-    const chromeHeight = headerLines.length + inputBoxLines.length + statusLines.length;
+    const chromeHeight =
+      headerLines.length + todoLines.length + inputBoxLines.length + statusLines.length;
     const centerHeight = Math.max(5, termHeight - chromeHeight);
 
     // Compute split columns
     let centerLines: string[] = [];
-    if (this.sidebarVisible && termWidth > 70) {
-      const sbWidth = Math.min(this.sidebarWidth, Math.floor(termWidth * 0.4));
+    if (this.sidebarVisible && termWidth > 75) {
+      const sbWidth = Math.min(this.sidebarWidth, Math.floor(termWidth * 0.45));
       const chatWidth = termWidth - sbWidth - 1; // 1 for separator
 
       const allChatLines = this.chatView.render(chatWidth);
@@ -213,7 +272,7 @@ export class AppLayout implements Component, Focusable {
       }
     }
 
-    return [...headerLines, ...centerLines, ...inputBoxLines, ...statusLines];
+    return [...headerLines, ...centerLines, ...todoLines, ...inputBoxLines, ...statusLines];
   }
 
   private padTo(text: string, targetWidth: number): string {

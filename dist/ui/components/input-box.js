@@ -1,3 +1,5 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { colors, style } from "../theme.js";
 export class InputBox {
     focused = true;
@@ -5,10 +7,16 @@ export class InputBox {
     cursor = 0;
     history = [];
     historyIndex = -1;
-    placeholder = "Escribe un prompt... (Enter para enviar, Ctrl+C para salir)";
+    placeholder = "Type a prompt... (Enter to send, Ctrl+A to switch agent, Ctrl+C to exit)";
     onSubmitCallback;
+    activeAgentName = "default";
+    hasMultipleAgents = false;
     onSubmit(cb) {
         this.onSubmitCallback = cb;
+    }
+    setActiveAgent(name, hasMultiple = true) {
+        this.activeAgentName = name;
+        this.hasMultipleAgents = hasMultiple;
     }
     invalidate() { }
     getText() {
@@ -22,6 +30,56 @@ export class InputBox {
         this.text = "";
         this.cursor = 0;
         this.historyIndex = -1;
+    }
+    getAttachedImageAtCursor() {
+        if (!this.text.trim())
+            return null;
+        const text = this.text;
+        const cursor = this.cursor;
+        // Extract word around cursor
+        let start = cursor;
+        while (start > 0 && !/\s|"|'/.test(text[start - 1])) {
+            start--;
+        }
+        let end = cursor;
+        while (end < text.length && !/\s|"|'/.test(text[end])) {
+            end++;
+        }
+        const candidate = text.slice(start, end).trim().replace(/^['"]|['"]$/g, "");
+        if (this.resolveImagePath(candidate)) {
+            return this.resolveImagePath(candidate);
+        }
+        // Also check if any word in the text is an existing image path
+        const matches = text.match(/[^\s"']+\.(png|jpg|jpeg|webp|gif|bmp|svg)/gi);
+        if (matches && matches.length > 0) {
+            for (const m of matches) {
+                const clean = m.replace(/^['"]|['"]$/g, "");
+                const resolved = this.resolveImagePath(clean);
+                if (resolved)
+                    return resolved;
+            }
+        }
+        return null;
+    }
+    resolveImagePath(candidate) {
+        if (!candidate || candidate.length < 4)
+            return null;
+        const extMatch = candidate.match(/\.(png|jpg|jpeg|webp|gif|bmp|svg)$/i);
+        if (!extMatch)
+            return null;
+        try {
+            if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+                return path.resolve(candidate);
+            }
+            const resolved = path.resolve(process.cwd(), candidate);
+            if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
+                return resolved;
+            }
+        }
+        catch {
+            return null;
+        }
+        return null;
     }
     handleInput(data) {
         // Enter key
@@ -103,7 +161,7 @@ export class InputBox {
             }
             return;
         }
-        // Standard printable text
+        // Standard printable text (ignore other ESC control codes)
         if (!data.startsWith("\x1b")) {
             this.text = this.text.slice(0, this.cursor) + data + this.text.slice(this.cursor);
             this.cursor += data.length;
@@ -112,24 +170,44 @@ export class InputBox {
     render(width) {
         const safeWidth = Math.max(20, width);
         const borderColor = this.focused ? colors.activeBorder : colors.border;
-        const title = this.focused ? " 󰌌 Entrada (Activa) " : " 󰌌 Entrada ";
-        const rem = Math.max(0, safeWidth - 2 - title.length);
-        const top = `${style("╭─", borderColor)}${style(title, colors.bold, borderColor)}${style("─".repeat(rem) + "╮", borderColor)}`;
+        // Header title with active agent visual indicator
+        let title = "";
+        if (this.hasMultipleAgents || this.activeAgentName !== "default") {
+            title = this.focused
+                ? ` 󰌌 Active Input [Agent: ${this.activeAgentName}] `
+                : ` 󰌌 Input [Agent: ${this.activeAgentName}] `;
+        }
+        else {
+            title = this.focused ? " 󰌌 Active Input " : " 󰌌 Input ";
+        }
+        const titleVisualLen = title.replace(/\x1b\[[0-9;]*m/g, "").length;
+        const remTop = Math.max(0, safeWidth - 3 - titleVisualLen);
+        const top = `${style("╭─", borderColor)}${style(title, colors.bold, borderColor)}${style("─".repeat(remTop) + "╮", borderColor)}`;
         const innerWidth = safeWidth - 4;
         let contentDisplay = "";
         if (this.text.length === 0) {
             contentDisplay = style(this.placeholder.slice(0, innerWidth - 2), colors.muted);
         }
         else {
-            // Show text with simulated reverse cursor
-            const beforeCursor = this.text.slice(0, this.cursor);
-            const atCursor = this.text[this.cursor] || " ";
-            const afterCursor = this.text.slice(this.cursor + 1);
+            // Horizontal windowing for long text
+            const maxVisible = Math.max(1, innerWidth - 2);
+            let sliceStart = 0;
+            if (this.cursor >= maxVisible) {
+                sliceStart = this.cursor - maxVisible + 1;
+            }
+            const visibleSub = this.text.slice(sliceStart, sliceStart + maxVisible);
+            const visibleCursor = this.cursor - sliceStart;
+            const beforeCursor = visibleSub.slice(0, visibleCursor);
+            const atCursor = visibleSub[visibleCursor] || " ";
+            const afterCursor = visibleSub.slice(visibleCursor + 1);
             contentDisplay = `${beforeCursor}\x1b[7m${atCursor}\x1b[27m${afterCursor}`;
         }
-        const strippedLen = this.text.length === 0 ? this.placeholder.slice(0, innerWidth - 2).length : this.text.length + 1;
-        const padCount = Math.max(0, innerWidth - strippedLen);
+        const textLen = this.text.length === 0
+            ? this.placeholder.slice(0, innerWidth - 2).length
+            : Math.min(innerWidth - 2, this.text.length + 1);
+        const padCount = Math.max(0, innerWidth - 2 - textLen);
         const middle = `${style("│ ", borderColor)}> ${contentDisplay}${" ".repeat(padCount)}${style(" │", borderColor)}`;
+        // Clean bottom border without project/branch (now moved to right panel)
         const bottom = `${style("╰" + "─".repeat(safeWidth - 2) + "╯", borderColor)}`;
         return [top, middle, bottom];
     }

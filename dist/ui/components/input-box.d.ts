@@ -7,11 +7,16 @@ export declare class InputBox implements Component, Focusable {
     private historyIndex;
     private placeholder;
     private onSubmitCallback?;
+    private activeAgentName;
+    private hasMultipleAgents;
     onSubmit(cb: (text: string) => void): void;
+    setActiveAgent(name: string, hasMultiple?: boolean): void;
     invalidate(): void;
     getText(): string;
     setText(val: string): void;
     clear(): void;
+    getAttachedImageAtCursor(): string | null;
+    private resolveImagePath;
     handleInput(data: string): void;
     render(width: number): string[];
 }

@@ -3,29 +3,35 @@ import { Header } from "./components/header.js";
 import { InputBox } from "./components/input-box.js";
 import { Sidebar } from "./components/sidebar.js";
 import { StatusBar } from "./components/status-bar.js";
+import { TodoPanel } from "./components/todo-panel.js";
 import { colors, style } from "./theme.js";
 export class AppLayout {
     focused = true;
     tui;
     agent;
+    todoTracker;
     header;
     chatView;
     sidebar;
+    todoPanel;
     inputBox;
     statusBar;
     sidebarVisible = true;
-    sidebarWidth = 38;
+    sidebarWidth = 44;
     scrollFollow = true;
     chatScrollOffset = 0; // lines from bottom
-    lastRenderHeight = 24;
-    constructor(tui, agent, metrics, git, toolLogger) {
+    animationTimer;
+    constructor(tui, agent, metrics, git, todoTracker, specGraph) {
         this.tui = tui;
         this.agent = agent;
-        this.header = new Header(agent, git);
-        this.chatView = new ChatView(agent);
-        this.sidebar = new Sidebar(agent, metrics, git, toolLogger);
+        this.todoTracker = todoTracker;
+        this.header = new Header(agent);
         this.inputBox = new InputBox();
+        this.sidebar = new Sidebar(agent, metrics, git, specGraph, this.inputBox);
+        this.chatView = new ChatView(agent);
+        this.todoPanel = new TodoPanel(todoTracker);
         this.statusBar = new StatusBar(agent, metrics);
+        this.syncInputBoxState();
         // Setup input submit
         this.inputBox.onSubmit((text) => {
             this.scrollFollow = true;
@@ -34,20 +40,50 @@ export class AppLayout {
             this.tui.requestRender();
         });
         // Re-render whenever state changes
-        agent.onChange(() => this.tui.requestRender());
+        agent.onChange(() => {
+            this.syncInputBoxState();
+            this.syncAnimationTimer();
+            this.tui.requestRender();
+        });
         metrics.onChange(() => this.tui.requestRender());
-        git.onChange(() => this.tui.requestRender());
-        toolLogger.onChange(() => this.tui.requestRender());
+        git.onChange(() => {
+            this.syncInputBoxState();
+            this.tui.requestRender();
+        });
+        todoTracker.onChange(() => this.tui.requestRender());
+        if (specGraph) {
+            specGraph.onChange(() => this.tui.requestRender());
+        }
+    }
+    syncInputBoxState() {
+        const agents = this.agent.getAgents();
+        this.inputBox.setActiveAgent(this.agent.getActiveAgentName(), agents.length > 1);
+    }
+    syncAnimationTimer() {
+        if (this.agent.getIsWorking()) {
+            if (!this.animationTimer) {
+                this.animationTimer = setInterval(() => {
+                    this.tui.requestRender();
+                }, 80);
+            }
+        }
+        else {
+            if (this.animationTimer) {
+                clearInterval(this.animationTimer);
+                this.animationTimer = undefined;
+            }
+        }
     }
     invalidate() {
         this.header.invalidate();
         this.chatView.invalidate();
         this.sidebar.invalidate();
+        this.todoPanel.invalidate();
         this.inputBox.invalidate();
         this.statusBar.invalidate();
     }
     handleInput(data) {
-        // Ctrl+C
+        // Ctrl+C -> Cancel current work or exit cleanly
         if (data === "\x03") {
             if (this.agent.getIsWorking()) {
                 this.agent.abort();
@@ -59,44 +95,59 @@ export class AppLayout {
             }
             return;
         }
-        // Tab key -> Next Sidebar Tab
+        // Tab key -> Cycle to next installed Agent
         if (data === "\t") {
-            this.sidebar.nextTab();
+            this.agent.nextAgent();
+            this.syncInputBoxState();
             this.tui.requestRender();
             return;
         }
-        // Shift+Tab -> Toggle Sidebar visibility
+        // Shift+Tab -> Cycle to previous installed Agent
         if (data === "\x1b[Z") {
+            this.agent.prevAgent();
+            this.syncInputBoxState();
+            this.tui.requestRender();
+            return;
+        }
+        // Ctrl+A, Alt+A, F2 -> Also cycle installed Agent
+        if (data === "\x01" || data === "\x1ba" || data === "\x1bOQ" || data === "\x1b[12~") {
+            this.agent.nextAgent();
+            this.syncInputBoxState();
+            this.tui.requestRender();
+            return;
+        }
+        // Ctrl+T -> Toggle Todo Panel expand / collapse
+        if (data === "\x14") {
+            this.todoTracker.toggleCollapsed();
+            this.tui.requestRender();
+            return;
+        }
+        // Alt+M -> Toggle MCP Servers section in sidebar
+        if (data === "\x1bm") {
+            this.sidebar.toggleMcp();
+            this.tui.requestRender();
+            return;
+        }
+        // Alt+S -> Toggle Skills section in sidebar
+        if (data === "\x1bs") {
+            this.sidebar.toggleSkills();
+            this.tui.requestRender();
+            return;
+        }
+        // Alt+B -> Toggle Sidebar visibility
+        if (data === "\x1bb") {
             this.sidebarVisible = !this.sidebarVisible;
-            this.tui.requestRender();
-            return;
-        }
-        // Alt+1, Alt+2, Alt+3 -> Direct Tab switch
-        if (data === "\x1b1") {
-            this.sidebar.setTab(0);
-            this.tui.requestRender();
-            return;
-        }
-        if (data === "\x1b2") {
-            this.sidebar.setTab(1);
-            this.tui.requestRender();
-            return;
-        }
-        if (data === "\x1b3") {
-            this.sidebar.setTab(2);
             this.tui.requestRender();
             return;
         }
         // PageUp & PageDown for ChatView
         if (data === "\x1b[5~") {
-            // PageUp
             this.scrollFollow = false;
             this.chatScrollOffset += 5;
             this.tui.requestRender();
             return;
         }
         if (data === "\x1b[6~") {
-            // PageDown
             this.chatScrollOffset = Math.max(0, this.chatScrollOffset - 5);
             if (this.chatScrollOffset === 0)
                 this.scrollFollow = true;
@@ -109,18 +160,17 @@ export class AppLayout {
     }
     render(width) {
         const termWidth = Math.max(40, width);
-        // Approximate terminal rows from ProcessTerminal or fallback to stdout rows
-        const termHeight = (process.stdout.rows && process.stdout.rows > 10) ? process.stdout.rows : 30;
-        this.lastRenderHeight = termHeight;
+        const termHeight = process.stdout.rows && process.stdout.rows > 10 ? process.stdout.rows : 30;
         const headerLines = this.header.render(termWidth); // 2 lines
+        const todoLines = this.todoPanel.render(termWidth); // 0 lines if empty, or collapsible box
         const inputBoxLines = this.inputBox.render(termWidth); // 3 lines
         const statusLines = this.statusBar.render(termWidth); // 1 line
-        const chromeHeight = headerLines.length + inputBoxLines.length + statusLines.length;
+        const chromeHeight = headerLines.length + todoLines.length + inputBoxLines.length + statusLines.length;
         const centerHeight = Math.max(5, termHeight - chromeHeight);
         // Compute split columns
         let centerLines = [];
-        if (this.sidebarVisible && termWidth > 70) {
-            const sbWidth = Math.min(this.sidebarWidth, Math.floor(termWidth * 0.4));
+        if (this.sidebarVisible && termWidth > 75) {
+            const sbWidth = Math.min(this.sidebarWidth, Math.floor(termWidth * 0.45));
             const chatWidth = termWidth - sbWidth - 1; // 1 for separator
             const allChatLines = this.chatView.render(chatWidth);
             const allSidebarLines = this.sidebar.render(sbWidth);
@@ -187,7 +237,7 @@ export class AppLayout {
                 }
             }
         }
-        return [...headerLines, ...centerLines, ...inputBoxLines, ...statusLines];
+        return [...headerLines, ...centerLines, ...todoLines, ...inputBoxLines, ...statusLines];
     }
     padTo(text, targetWidth) {
         const stripped = text.replace(/\x1b\[[0-9;]*m/g, "");

@@ -15,9 +15,11 @@ export class ChatView {
     scrollDown(lines = 3) {
         this.scrollOffset += lines;
     }
-    scrollToBottom() {
-        this.autoScroll = true;
-        this.scrollOffset = 999999;
+    isAutoScroll() {
+        return this.autoScroll;
+    }
+    getCachedHeight() {
+        return this.cachedHeight;
     }
     render(width) {
         const safeWidth = Math.max(20, width);
@@ -29,46 +31,45 @@ export class ChatView {
         // Welcome banner if empty
         if (messages.length === 0 && !streamingText && !streamingThinking) {
             allLines.push("");
-            allLines.push(style("  Bienvenido a Pi-TUI-Plus!", colors.bold, colors.primary));
-            allLines.push(style("  Interfaz terminal mejorada con Split-View, métricas en vivo y logs.", colors.subtext));
+            allLines.push(style("  Welcome to Pi-TUI-Plus!", colors.bold, colors.primary));
+            allLines.push(style("  Enhanced terminal interface with Split-View, live metrics, and tool logs.", colors.subtext));
             allLines.push("");
-            allLines.push(style("  • Escribe un prompt abajo y presiona Enter para comenzar.", colors.muted));
-            allLines.push(style("  • Presiona [Tab] para alternar las pestañas del panel lateral.", colors.muted));
-            allLines.push(style("  • [PageUp / PageDown] para navegar el historial.", colors.muted));
+            allLines.push(style("  • Type a prompt below and press Enter to start.", colors.muted));
+            allLines.push(style("  • Press [Tab] or [Ctrl+A] to switch active agent at any time.", colors.muted));
+            allLines.push(style("  • Press [Alt+M] / [Alt+S] to toggle MCPs and Skills lists.", colors.muted));
+            allLines.push(style("  • Use [PageUp / PageDown] to scroll conversation history.", colors.muted));
             allLines.push("");
         }
         // Render historical messages
         for (const msg of messages) {
             if (msg.role === "user") {
-                this.renderBox(allLines, "Tú", msg.text, colors.accent, safeWidth);
+                this.renderBox(allLines, "You", msg.text, colors.accent, safeWidth);
             }
             else if (msg.role === "assistant") {
                 if (msg.thinking) {
-                    this.renderBox(allLines, "Razonamiento / Thinking", msg.thinking, colors.muted, safeWidth, true);
+                    this.renderBox(allLines, "Reasoning / Thinking", msg.thinking, colors.muted, safeWidth, true);
                 }
                 if (msg.text) {
-                    this.renderBox(allLines, "Asistente", msg.text, colors.secondary, safeWidth);
+                    this.renderBox(allLines, "Assistant", msg.text, colors.secondary, safeWidth);
                 }
             }
             else if (msg.role === "system") {
-                this.renderBox(allLines, "Sistema", msg.text, colors.warning, safeWidth);
+                this.renderBox(allLines, "System", msg.text, colors.warning, safeWidth);
             }
             allLines.push("");
         }
         // Render streaming content
         if (streamingThinking) {
-            this.renderBox(allLines, "Pensando...", streamingThinking, colors.muted, safeWidth, true);
+            this.renderBox(allLines, "Thinking...", streamingThinking, colors.muted, safeWidth, true);
         }
         if (streamingText) {
-            this.renderBox(allLines, "Asistente (escribiendo...)", streamingText + " █", colors.secondary, safeWidth);
+            this.renderBox(allLines, "Assistant (typing...)", streamingText + " █", colors.secondary, safeWidth);
         }
         else if (isWorking && !streamingThinking) {
             allLines.push(style(`  ⟳ ${this.agent.getStatusText()} █`, colors.accent));
             allLines.push("");
         }
         this.cachedHeight = allLines.length;
-        // Viewport slicing (auto-scroll behavior)
-        // Note: the caller layout will slice to the visible height, but we return all lines
         return allLines;
     }
     renderBox(target, title, content, borderColor, width, isDashed = false) {
@@ -79,7 +80,7 @@ export class ChatView {
         const bottomLeft = isDashed ? "╰" : "└";
         const bottomRight = isDashed ? "╯" : "┘";
         const titleStr = ` ${title} `;
-        const topBarLength = Math.max(0, width - 2 - titleStr.length);
+        const topBarLength = Math.max(0, width - 3 - titleStr.length);
         const top = `${style(topLeft + horizontalChar, borderColor)}${style(titleStr, colors.bold, borderColor)}${style(horizontalChar.repeat(topBarLength) + topRight, borderColor)}`;
         target.push(top);
         const innerWidth = Math.max(10, width - 4);
@@ -124,10 +125,10 @@ export class ChatView {
         if (currentLine.length > 0) {
             lines.push(currentLine);
         }
-        return lines.length > 0 ? lines : [""];
+        return lines;
     }
-    visualLength(text) {
-        return text.replace(/\x1b\[[0-9;]*m/g, "").length;
+    visualLength(str) {
+        return str.replace(/\x1b\[[0-9;]*m/g, "").length;
     }
 }
 //# sourceMappingURL=chat-view.js.map

@@ -1,9 +1,13 @@
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import {
   createAgentSession,
   type AgentSession,
 } from "@earendil-works/pi-coding-agent";
 import { type GitWatcher } from "./git-watcher.js";
 import { type MetricsTracker } from "./metrics-tracker.js";
+import { type TodoTracker } from "./todo-tracker.js";
 import { type ToolLogger } from "./tool-logger.js";
 
 export interface ChatMessage {
@@ -21,31 +25,51 @@ export interface ChatMessage {
   timestamp: number;
 }
 
+export interface AgentDefinition {
+  id: string;
+  name: string;
+  description: string;
+  tools?: string[];
+  thinking?: string;
+  systemPrompt?: string;
+  source: "default" | "user" | "project" | "builtin";
+}
+
 export class AgentManager {
   private session?: AgentSession;
   private cwd: string;
   private metrics: MetricsTracker;
   private toolLogger: ToolLogger;
   private gitWatcher: GitWatcher;
+  private todoTracker?: TodoTracker;
 
   private messages: ChatMessage[] = [];
   private streamingText = "";
   private streamingThinking = "";
   private isWorking = false;
-  private currentStatus = "Listo";
+  private currentStatus = "Ready";
+  private turnStartTime = 0;
   private unsubscribeSession?: () => void;
   private listeners: Array<() => void> = [];
+
+  // Agent hot-switching state
+  private availableAgents: AgentDefinition[] = [];
+  private currentAgentIndex = 0;
+  private defaultTools: string[] = [];
+  private lastAgentSwitchNotice = "";
 
   constructor(
     cwd: string,
     metrics: MetricsTracker,
     toolLogger: ToolLogger,
-    gitWatcher: GitWatcher
+    gitWatcher: GitWatcher,
+    todoTracker?: TodoTracker
   ) {
     this.cwd = cwd;
     this.metrics = metrics;
     this.toolLogger = toolLogger;
     this.gitWatcher = gitWatcher;
+    this.todoTracker = todoTracker;
   }
 
   public async init(): Promise<void> {
@@ -54,10 +78,16 @@ export class AgentManager {
     });
     this.session = result.session;
 
+    // Record default tools
+    this.defaultTools = this.session.getActiveToolNames();
+
     const model = this.session.model;
     if (model) {
       this.metrics.setModelInfo(model.name, (model as any).contextWindow);
     }
+
+    // Discover installed agents
+    this.discoverAgents();
 
     // Load initial session history if any
     this.loadHistory();
@@ -91,8 +121,65 @@ export class AgentManager {
     return this.currentStatus;
   }
 
+  public getTurnElapsedSec(): string {
+    if (!this.isWorking || !this.turnStartTime) return "0.0s";
+    return `${((Date.now() - this.turnStartTime) / 1000).toFixed(1)}s`;
+  }
+
   public getModelName(): string {
     return this.session?.model?.name ?? "default";
+  }
+
+  public getModelId(): string {
+    return this.session?.model?.id ?? "gemini-3.8-flash";
+  }
+
+  public getSessionId(): string {
+    return (this.session?.sessionId || "01a14c70").slice(0, 8);
+  }
+
+  public getSessionName(): string {
+    return this.session?.sessionName || "Unnamed session";
+  }
+
+  public getPid(): number {
+    return process.pid;
+  }
+
+  public getThinkingEffort(): string {
+    return this.session?.thinkingLevel ?? "medium";
+  }
+
+  public getSkills(): Array<{ name: string; description: string }> {
+    try {
+      const skillsRes = (this.session as any)?.resourceLoader?.getSkills?.();
+      if (skillsRes && Array.isArray(skillsRes.skills)) {
+        return skillsRes.skills.map((s: any) => ({
+          name: s.name,
+          description: s.description || "",
+        }));
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  }
+
+  public getMcpServers(): string[] {
+    const servers: string[] = [];
+    const allTools = this.session?.getAllTools() || [];
+    for (const tool of allTools) {
+      if (tool.name.startsWith("mcp__")) {
+        const parts = tool.name.split("__");
+        if (parts.length > 1 && !servers.includes(parts[1])) {
+          servers.push(parts[1]);
+        }
+      }
+    }
+    if (servers.length === 0 && allTools.some((t) => t.name === "mcp")) {
+      servers.push("mcp-gateway");
+    }
+    return servers;
   }
 
   public getThinkingLevel(): string {
@@ -102,6 +189,187 @@ export class AgentManager {
   public getActiveTools(): string[] {
     return this.session?.getActiveToolNames() ?? [];
   }
+
+  // --- Agent Hot-Switching Methods ---
+
+  public getAgents(): AgentDefinition[] {
+    return [...this.availableAgents];
+  }
+
+  public getActiveAgent(): AgentDefinition {
+    return (
+      this.availableAgents[this.currentAgentIndex] || {
+        id: "default",
+        name: "default",
+        description: "Generalist Pi Coding Agent",
+        source: "default",
+      }
+    );
+  }
+
+  public getActiveAgentName(): string {
+    return this.getActiveAgent().name;
+  }
+
+  public getAgentSwitchNotice(): string {
+    return this.lastAgentSwitchNotice;
+  }
+
+  public nextAgent(): AgentDefinition {
+    if (this.availableAgents.length <= 1) return this.getActiveAgent();
+    this.currentAgentIndex = (this.currentAgentIndex + 1) % this.availableAgents.length;
+    this.applyActiveAgent();
+    return this.getActiveAgent();
+  }
+
+  public prevAgent(): AgentDefinition {
+    if (this.availableAgents.length <= 1) return this.getActiveAgent();
+    this.currentAgentIndex =
+      (this.currentAgentIndex - 1 + this.availableAgents.length) % this.availableAgents.length;
+    this.applyActiveAgent();
+    return this.getActiveAgent();
+  }
+
+  public selectAgent(nameOrId: string): boolean {
+    const idx = this.availableAgents.findIndex(
+      (a) => a.id === nameOrId || a.name.toLowerCase() === nameOrId.toLowerCase()
+    );
+    if (idx >= 0) {
+      this.currentAgentIndex = idx;
+      this.applyActiveAgent();
+      return true;
+    }
+    return false;
+  }
+
+  private applyActiveAgent(): void {
+    const agent = this.getActiveAgent();
+    this.lastAgentSwitchNotice = `Agent switched: ${agent.name}`;
+
+    if (!this.session) {
+      this.notify();
+      return;
+    }
+
+    try {
+      if (agent.tools && agent.tools.length > 0) {
+        // Filter to available tools
+        const all = this.session.getAllTools().map((t) => t.name);
+        const valid = agent.tools.filter((t) => all.includes(t));
+        this.session.setActiveToolsByName(valid);
+      } else {
+        this.session.setActiveToolsByName(this.defaultTools);
+      }
+
+      if (agent.thinking) {
+        this.session.setThinkingLevel(agent.thinking as any);
+      }
+    } catch {
+      // Ignore if session does not allow changing tool loadout
+    }
+
+    this.notify();
+  }
+
+  private discoverAgents(): void {
+    const agentsMap = new Map<string, AgentDefinition>();
+
+    // 1. Default generalist agent
+    agentsMap.set("default", {
+      id: "default",
+      name: "default",
+      description: "Default Pi generalist assistant with full capabilities",
+      tools: this.defaultTools,
+      source: "default",
+    });
+
+    // 2. Discover user agents from ~/.pi/agent/agents
+    const userAgentsDir = path.join(os.homedir(), ".pi", "agent", "agents");
+    this.loadAgentsFromDir(userAgentsDir, "user", agentsMap);
+
+    // 3. Discover project agents from .pi/agents
+    const projectAgentsDir = path.join(this.cwd, ".pi", "agents");
+    this.loadAgentsFromDir(projectAgentsDir, "project", agentsMap);
+
+    // 4. Built-in subagents from pi-subagents if installed
+    const builtinDir = path.join(
+      os.homedir(),
+      ".pi",
+      "agent",
+      "npm",
+      "node_modules",
+      "pi-subagents",
+      "agents"
+    );
+    this.loadAgentsFromDir(builtinDir, "builtin", agentsMap);
+
+    this.availableAgents = Array.from(agentsMap.values());
+  }
+
+  private loadAgentsFromDir(
+    dir: string,
+    source: "user" | "project" | "builtin",
+    map: Map<string, AgentDefinition>
+  ): void {
+    if (!fs.existsSync(dir)) return;
+
+    try {
+      const files = fs.readdirSync(dir).filter((f) => f.endsWith(".md"));
+      for (const file of files) {
+        const fullPath = path.join(dir, file);
+        const content = fs.readFileSync(fullPath, "utf8");
+
+        // Parse frontmatter
+        const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+        const baseId = file.replace(/\.md$/, "");
+
+        if (match) {
+          const frontmatter = match[1];
+          const body = match[2].trim();
+
+          const nameMatch = frontmatter.match(/name:\s*([^\r\n]+)/);
+          const descMatch = frontmatter.match(/description:\s*([^\r\n]+)/);
+          const toolsMatch = frontmatter.match(/tools:\s*([^\r\n]+)/);
+          const thinkMatch = frontmatter.match(/thinking:\s*([^\r\n]+)/);
+
+          const name = nameMatch ? nameMatch[1].trim() : baseId;
+          const description = descMatch ? descMatch[1].trim() : `Agent ${name}`;
+          const tools = toolsMatch
+            ? toolsMatch[1].split(",").map((s) => s.trim()).filter(Boolean)
+            : undefined;
+          const thinking = thinkMatch ? thinkMatch[1].trim() : undefined;
+
+          // Project overrides user overrides builtin
+          if (!map.has(name) || source === "project" || (source === "user" && map.get(name)?.source === "builtin")) {
+            map.set(name, {
+              id: name,
+              name,
+              description,
+              tools,
+              thinking,
+              systemPrompt: body,
+              source,
+            });
+          }
+        } else {
+          // Plain markdown without frontmatter
+          if (!map.has(baseId)) {
+            map.set(baseId, {
+              id: baseId,
+              name: baseId,
+              description: `Agent ${baseId}`,
+              systemPrompt: content.trim(),
+              source,
+            });
+          }
+        }
+      }
+    } catch {
+      // Ignore reading errors
+    }
+  }
+
+  // --- End Agent Hot-Switching Methods ---
 
   public onChange(listener: () => void): () => void {
     this.listeners.push(listener);
@@ -114,7 +382,9 @@ export class AgentManager {
     if (!this.session) return;
     if (!text.trim()) return;
 
-    // Push user message
+    const activeAgent = this.getActiveAgent();
+
+    // Push user message to UI
     this.messages.push({
       id: "user-" + Date.now(),
       role: "user",
@@ -123,24 +393,39 @@ export class AgentManager {
     });
 
     this.isWorking = true;
-    this.currentStatus = "Procesando...";
+    this.currentStatus = "Processing...";
+    this.turnStartTime = Date.now();
     this.streamingText = "";
     this.streamingThinking = "";
     this.metrics.onPromptStart();
     this.notify();
 
+    // Prepare prompt with active agent context if not default
+    let effectivePrompt = text;
+    if (activeAgent.id !== "default") {
+      let agentHeader = `[Active Agent: ${activeAgent.name}]\n`;
+      if (activeAgent.description) {
+        agentHeader += `Role: ${activeAgent.description}\n`;
+      }
+      if (activeAgent.systemPrompt) {
+        agentHeader += `Guidelines & Boundaries:\n${activeAgent.systemPrompt}\n\n`;
+      }
+      effectivePrompt = `${agentHeader}Task:\n${text}`;
+    }
+
     try {
-      await this.session.prompt(text);
+      await this.session.prompt(effectivePrompt);
     } catch (err: any) {
       this.messages.push({
         id: "err-" + Date.now(),
         role: "system",
-        text: `Error al procesar: ${err?.message || String(err)}`,
+        text: `Error processing prompt: ${err?.message || String(err)}`,
         timestamp: Date.now(),
       });
     } finally {
       this.isWorking = false;
-      this.currentStatus = "Listo";
+      this.currentStatus = "Ready";
+      this.turnStartTime = 0;
       this.streamingText = "";
       this.streamingThinking = "";
       this.metrics.onTurnEnd();
@@ -154,7 +439,8 @@ export class AgentManager {
     if (this.session) {
       await this.session.abort();
       this.isWorking = false;
-      this.currentStatus = "Cancelado";
+      this.currentStatus = "Cancelled";
+      this.turnStartTime = 0;
       this.streamingText = "";
       this.streamingThinking = "";
       this.notify();
@@ -165,7 +451,7 @@ export class AgentManager {
     switch (event.type) {
       case "turn_start": {
         this.isWorking = true;
-        this.currentStatus = "Generando respuesta...";
+        this.currentStatus = "Generating response...";
         this.streamingText = "";
         this.streamingThinking = "";
         this.notify();
@@ -182,7 +468,7 @@ export class AgentManager {
             this.metrics.onTokenDelta(tokenEstimate);
           } else if (assistantEvent.type === "thinking_delta") {
             this.streamingThinking += assistantEvent.delta;
-            this.currentStatus = "Pensando...";
+            this.currentStatus = "Thinking...";
           }
         }
         this.notify();
@@ -223,8 +509,11 @@ export class AgentManager {
       }
 
       case "tool_execution_start": {
-        this.currentStatus = `Ejecutando tool: ${event.toolName}...`;
+        this.currentStatus = `Executing tool: ${event.toolName}...`;
         this.toolLogger.onToolStart(event.toolCallId, event.toolName, event.args);
+        if (event.toolName === "todo" && this.todoTracker) {
+          this.todoTracker.handleToolCall(event.args);
+        }
         this.notify();
         break;
       }
@@ -237,7 +526,10 @@ export class AgentManager {
           event.isError,
           event.durationMs
         );
-        this.currentStatus = "Tool finalizada";
+        if (event.toolName === "todo" && this.todoTracker) {
+          this.todoTracker.handleToolCall(event.args);
+        }
+        this.currentStatus = `Tool completed (${event.toolName})`;
         this.gitWatcher.refresh().catch(() => {});
         this.notify();
         break;
@@ -246,11 +538,14 @@ export class AgentManager {
       case "agent_end":
       case "agent_settled": {
         this.isWorking = false;
-        this.currentStatus = "Listo";
+        this.currentStatus = "Ready";
         this.updateStats();
         this.notify();
         break;
       }
+
+      default:
+        break;
     }
   }
 

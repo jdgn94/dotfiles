@@ -1,27 +1,45 @@
 import type { Component } from "@earendil-works/pi-tui";
 import { type AgentManager } from "../../state/agent-manager.js";
-import { type GitWatcher } from "../../state/git-watcher.js";
-import { colors, pad, style, truncate } from "../theme.js";
+import { colors, style } from "../theme.js";
+
+const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 export class Header implements Component {
   private agent: AgentManager;
-  private git: GitWatcher;
 
-  constructor(agent: AgentManager, git: GitWatcher) {
+  constructor(agent: AgentManager) {
     this.agent = agent;
-    this.git = git;
   }
 
   public invalidate(): void {}
 
   public render(width: number): string[] {
-    const gitStatus = this.git.getStatus();
     const model = this.agent.getModelName();
-    const thinking = this.agent.getThinkingLevel();
-    const branch = gitStatus.isGitRepo ? ` ${gitStatus.branch}` : "no-git";
+    const thinking = this.agent.getThinkingEffort();
+    const isWorking = this.agent.getIsWorking();
+    const statusText = this.agent.getStatusText();
+    const activeAgent = this.agent.getActiveAgentName();
 
-    const left = ` ${style("π+", colors.bold, colors.accent)} ${style("Pi-TUI-Plus", colors.bold, colors.primary)}  ${style(`[${model}]`, colors.secondary)} ${style(`(think: ${thinking})`, colors.muted)}`;
-    const right = `${style(branch, colors.peach)}  ${style(process.cwd().replace(process.env.HOME || "", "~"), colors.muted)} `;
+    const left = ` ${style("π+", colors.bold, colors.accent)} ${style(
+      "Pi-TUI-Plus",
+      colors.bold,
+      colors.primary
+    )}  ${style(`[${model}]`, colors.secondary)} ${style(`(think: ${thinking})`, colors.muted)}`;
+
+    let right = "";
+    if (isWorking) {
+      const frame = SPINNER_FRAMES[Math.floor(Date.now() / 80) % SPINNER_FRAMES.length];
+      const elapsed = this.agent.getTurnElapsedSec();
+      right = `${style(frame, colors.bold, colors.warning)} ${style(
+        statusText,
+        colors.warning
+      )} ${style(`(${elapsed})`, colors.muted)}  ${style(`[${activeAgent}]`, colors.secondary)} `;
+    } else {
+      right = `${style("●", colors.success)} ${style("Ready", colors.muted)}  ${style(
+        `[Agent: ${activeAgent}]`,
+        colors.secondary
+      )} `;
+    }
 
     const leftStripped = left.replace(/\x1b\[[0-9;]*m/g, "");
     const rightStripped = right.replace(/\x1b\[[0-9;]*m/g, "");

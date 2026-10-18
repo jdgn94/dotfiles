@@ -1,184 +1,208 @@
-import { colors, pad, progressBar, style, truncate } from "../theme.js";
+import * as path from "node:path";
+import { colors, style, truncate } from "../theme.js";
+import { ImagePreview } from "./image-preview.js";
+function formatTokens(count) {
+    if (count >= 1000000) {
+        const val = count / 1000000;
+        return val >= 10 ? `${Math.round(val)}M` : `${val.toFixed(1)}M`;
+    }
+    if (count >= 1000) {
+        const val = count / 1000;
+        return val >= 10 ? `${Math.round(val)}k` : `${val.toFixed(1)}k`;
+    }
+    return String(count);
+}
 export class Sidebar {
     agent;
     metrics;
     git;
-    toolLogger;
-    activeTab = 0; // 0 = Metricas, 1 = Git & Env, 2 = Tool Logs
-    tabs = ["Métricas", "Git & Env", "Tool Logs"];
-    constructor(agent, metrics, git, toolLogger) {
+    specGraph;
+    inputBox;
+    // Collapsible sections state
+    mcpExpanded = false;
+    skillsExpanded = false;
+    constructor(agent, metrics, git, specGraph, inputBox) {
         this.agent = agent;
         this.metrics = metrics;
         this.git = git;
-        this.toolLogger = toolLogger;
+        this.specGraph = specGraph;
+        this.inputBox = inputBox;
     }
     invalidate() { }
-    nextTab() {
-        this.activeTab = (this.activeTab + 1) % this.tabs.length;
+    toggleMcp() {
+        this.mcpExpanded = !this.mcpExpanded;
     }
-    prevTab() {
-        this.activeTab = (this.activeTab - 1 + this.tabs.length) % this.tabs.length;
+    toggleSkills() {
+        this.skillsExpanded = !this.skillsExpanded;
     }
-    setTab(index) {
-        if (index >= 0 && index < this.tabs.length) {
-            this.activeTab = index;
-        }
+    isMcpExpanded() {
+        return this.mcpExpanded;
     }
-    getActiveTab() {
-        return this.activeTab;
+    isSkillsExpanded() {
+        return this.skillsExpanded;
     }
     render(width) {
-        const safeWidth = Math.max(24, width);
+        const safeWidth = Math.max(26, width);
         const lines = [];
-        // Render Tab Header
-        lines.push(this.renderTabBar(safeWidth));
+        // --- 1. SESSION SECTION (matches image-1) ---
+        lines.push(style(" SESSION", colors.muted));
+        const sessionName = this.agent.getSessionName();
+        lines.push(style(` ${sessionName}`, colors.bold, colors.peach));
+        const sessionId = this.agent.getSessionId();
+        const pid = this.agent.getPid();
+        lines.push(style(` ${sessionId} · pid ${pid}`, colors.muted));
+        lines.push("");
+        // --- 2. MODEL & THINKING EFFORT (matches image-1) ---
+        const modelId = this.agent.getModelId();
+        const effort = this.agent.getThinkingEffort();
+        const modelLeft = ` ${style(modelId, colors.bold, colors.text)}`;
+        const effortRight = `${style(effort, colors.muted)} `;
+        lines.push(this.spaceBetween(modelLeft, effortRight, safeWidth));
+        lines.push("");
+        // --- 3. CONTEXT PROGRESS BAR (matches image-1) ---
+        const m = this.metrics.getMetrics();
+        const contextLine = this.renderContextBar(m.contextPercent, safeWidth);
+        lines.push(contextLine);
+        // Below context bar: e.g. "192k / 1M · $0.48 · ~150/s"
+        const totalStr = formatTokens(m.total);
+        const maxStr = formatTokens(m.contextWindow);
+        const costStr = `$${m.estimatedCostUsd >= 0.01 ? m.estimatedCostUsd.toFixed(2) : m.estimatedCostUsd.toFixed(4)}`;
+        const speedStr = `~${m.speedTokensPerSec}/s`;
+        const subStats = ` ${style(`${totalStr} / ${maxStr} · ${costStr} · ${speedStr}`, colors.muted)}`;
+        lines.push(subStats);
+        lines.push("");
+        // --- 4. TOKEN IN/OUT/CACHE TABLE (matches image-1) ---
+        const inTokens = formatTokens(m.input);
+        const outTokens = formatTokens(m.output);
+        const cacheTokens = formatTokens(m.cacheRead);
+        const uncachedTokens = formatTokens(Math.max(0, m.input - m.cacheRead));
+        const row1Left = ` ${style("in", colors.muted)}  ${style(inTokens, colors.bold, colors.text)}`;
+        const row1Right = `${style("cache", colors.muted)} ${style(cacheTokens, colors.bold, colors.text)} `;
+        lines.push(this.spaceBetween(row1Left, row1Right, safeWidth));
+        const row2Left = ` ${style("out", colors.muted)} ${style(outTokens, colors.bold, colors.text)}`;
+        const row2Right = `${style("uncached", colors.muted)} ${style(uncachedTokens, colors.bold, colors.text)} `;
+        lines.push(this.spaceBetween(row2Left, row2Right, safeWidth));
         lines.push(style("─".repeat(safeWidth), colors.border));
-        switch (this.activeTab) {
-            case 0:
-                this.renderMetricsTab(lines, safeWidth);
-                break;
-            case 1:
-                this.renderGitTab(lines, safeWidth);
-                break;
-            case 2:
-                this.renderToolLogsTab(lines, safeWidth);
-                break;
+        // --- 5. COLLAPSIBLE MCP SERVERS SECTION ---
+        const mcpServers = this.agent.getMcpServers();
+        const mcpCount = mcpServers.length;
+        const mcpArrow = this.mcpExpanded ? "▼" : "▶";
+        const mcpHeader = ` ${style(mcpArrow, colors.accent)} ${style("MCP Servers", colors.bold, colors.primary)} ${style(`(${mcpCount})`, colors.muted)}`;
+        const mcpHint = style("[Alt+M]", colors.muted);
+        lines.push(this.spaceBetween(mcpHeader, mcpHint + " ", safeWidth));
+        if (this.mcpExpanded) {
+            if (mcpServers.length === 0) {
+                lines.push(style("   (no active MCP servers)", colors.muted));
+            }
+            else {
+                for (const server of mcpServers) {
+                    lines.push(`   ${style("•", colors.accent)} ${style(server, colors.text)}`);
+                }
+            }
+        }
+        lines.push(style("─".repeat(safeWidth), colors.border));
+        // --- 6. COLLAPSIBLE SKILLS SECTION ---
+        const skills = this.agent.getSkills();
+        const skillsCount = skills.length;
+        const skillsArrow = this.skillsExpanded ? "▼" : "▶";
+        const skillsHeader = ` ${style(skillsArrow, colors.secondary)} ${style("Skills", colors.bold, colors.secondary)} ${style(`(${skillsCount})`, colors.muted)}`;
+        const skillsHint = style("[Alt+S]", colors.muted);
+        lines.push(this.spaceBetween(skillsHeader, skillsHint + " ", safeWidth));
+        if (this.skillsExpanded) {
+            if (skills.length === 0) {
+                lines.push(style("   (no skills installed)", colors.muted));
+            }
+            else {
+                const displaySkills = skills.slice(0, 10);
+                for (const s of displaySkills) {
+                    lines.push(`   ${style("•", colors.secondary)} ${style(s.name, colors.text)}`);
+                }
+                if (skills.length > 10) {
+                    lines.push(style(`   ... and ${skills.length - 10} more skills`, colors.muted));
+                }
+            }
+        }
+        lines.push(style("─".repeat(safeWidth), colors.border));
+        // --- 7. GIT REPOSITORY & UNCOMMITTED CHANGES SECTION ---
+        const g = this.git.getStatus();
+        lines.push(` ${style("GIT REPOSITORY", colors.bold, colors.peach)}`);
+        lines.push(` ${style("Directory:", colors.muted)} ${style(g.projectDir, colors.text)}`);
+        const branchLabel = g.isGitRepo ? ` ${g.branch}` : "Not a git repo";
+        lines.push(` ${style("Branch:   ", colors.muted)} ${style(branchLabel, colors.bold, colors.peach)}`);
+        if (g.isGitRepo) {
+            const changes = g.changedFiles;
+            lines.push(` ${style("Uncommitted / Unpushed", colors.bold, colors.warning)} ${style(`(${changes.length})`, colors.muted)}:`);
+            if (changes.length === 0) {
+                lines.push(`  ${style("✓ Working tree clean", colors.success)}`);
+            }
+            else {
+                // Display up to 5 changed files with additions/deletions diff stat
+                for (const ch of changes.slice(0, 5)) {
+                    let diffBadge = "";
+                    if (ch.additions > 0 || ch.deletions > 0) {
+                        diffBadge = ` ${style(`+${ch.additions}`, colors.success)}${style(` -${ch.deletions}`, colors.error)}`;
+                    }
+                    else if (ch.status === "untracked") {
+                        diffBadge = ` ${style("(new)", colors.accent)}`;
+                    }
+                    const statusColor = ch.status === "untracked"
+                        ? colors.accent
+                        : ch.status === "deleted"
+                            ? colors.error
+                            : colors.warning;
+                    const fileText = `  ${style(ch.statusCode || "M", statusColor)} ${truncate(ch.file, safeWidth - 18)}${diffBadge}`;
+                    lines.push(fileText);
+                }
+                if (changes.length > 5) {
+                    lines.push(`   ${style(`... and ${changes.length - 5} more files`, colors.muted)}`);
+                }
+            }
+        }
+        lines.push(style("─".repeat(safeWidth), colors.border));
+        // --- 8. OPENSPEC & GRAPHIFY OVERVIEW ---
+        if (this.specGraph) {
+            const data = this.specGraph.getData();
+            if (data.openSpec.hasOpenSpec || data.graphify.hasGraphify) {
+                const specSummary = data.openSpec.hasOpenSpec
+                    ? `${style("OpenSpec:", colors.muted)} ${style(String(data.openSpec.specsCount) + " specs", colors.bold, colors.accent)}`
+                    : "";
+                const graphSummary = data.graphify.hasGraphify
+                    ? `${style("Graph:", colors.muted)} ${style(String(data.graphify.nodeCount) + " nodes", colors.bold, colors.secondary)}`
+                    : "";
+                lines.push(` ${specSummary}  ${graphSummary}`);
+            }
+        }
+        // --- 9. IMAGE PREVIEW (when cursor is over an attached image file) ---
+        const attachedImage = this.inputBox?.getAttachedImageAtCursor();
+        if (attachedImage) {
+            lines.push(style("─".repeat(safeWidth), colors.border));
+            const filename = path.basename(attachedImage);
+            lines.push(` ${style("󰋩 Image Preview:", colors.bold, colors.accent)} ${style(truncate(filename, safeWidth - 18), colors.secondary)}`);
+            const previewLines = ImagePreview.render(attachedImage, safeWidth - 4, 8);
+            for (const pLine of previewLines) {
+                lines.push(`  ${pLine}`);
+            }
         }
         return lines;
     }
-    renderTabBar(width) {
-        const renderedTabs = this.tabs.map((name, i) => {
-            const isSelected = i === this.activeTab;
-            const num = i + 1;
-            if (isSelected) {
-                return style(` [${num}:${name}] `, colors.bold, colors.accent);
-            }
-            else {
-                return style(`  ${num}:${name}  `, colors.muted);
-            }
-        });
-        const combined = renderedTabs.join(style("│", colors.border));
-        return pad(combined, width);
+    renderContextBar(percent, width) {
+        const clamped = Math.max(0, Math.min(100, percent));
+        const label = " Context  ";
+        const percentStr = ` | ${clamped}% `;
+        const barWidth = Math.max(6, width - label.length - percentStr.length);
+        const fillWidth = Math.round((clamped / 100) * barWidth);
+        const emptyWidth = Math.max(0, barWidth - fillWidth);
+        // Pastel lavender filled bar like image-1
+        const lavenderColor = "\x1b[38;2;180;160;235m";
+        const filled = `${lavenderColor}${"█".repeat(fillWidth)}${colors.reset}`;
+        const empty = `${colors.muted}${"░".repeat(emptyWidth)}${colors.reset}`;
+        return `${style(label, colors.muted)}${filled}${empty}${style(percentStr, colors.muted)}`;
     }
-    renderMetricsTab(lines, width) {
-        const m = this.metrics.getMetrics();
-        const innerW = width - 2;
-        // Context Window Box
-        this.boxHeader(lines, "Ventana de Contexto", colors.accent, width);
-        const barW = Math.max(10, width - 14);
-        const bar = progressBar(m.contextPercent, barW);
-        lines.push(this.boxLine(` Uso: ${bar} ${style(m.contextPercent + "%", colors.bold, colors.accent)}`, width));
-        lines.push(this.boxLine(` Tokens: ${style(m.total.toLocaleString(), colors.bold)} / ${style(m.contextWindow.toLocaleString(), colors.muted)}`, width));
-        this.boxBottom(lines, colors.accent, width);
-        lines.push("");
-        // Token Details Box
-        this.boxHeader(lines, "Tokens de Sesión", colors.secondary, width);
-        lines.push(this.boxRow("Entrada:", m.input.toLocaleString(), width));
-        lines.push(this.boxRow("Salida:", m.output.toLocaleString(), width));
-        lines.push(this.boxRow("Caché Read:", m.cacheRead.toLocaleString(), width));
-        lines.push(this.boxRow("Caché Write:", m.cacheWrite.toLocaleString(), width));
-        lines.push(this.boxRow("Total:", style(m.total.toLocaleString(), colors.bold, colors.secondary), width));
-        this.boxBottom(lines, colors.secondary, width);
-        lines.push("");
-        // Performance & Cost Box
-        this.boxHeader(lines, "Rendimiento y Coste", colors.peach, width);
-        const speedStr = m.speedTokensPerSec > 0 ? `${m.speedTokensPerSec} tok/s` : "0 tok/s";
-        const latencyStr = m.latencyMs > 0 ? `${m.latencyMs} ms` : "-";
-        lines.push(this.boxRow("Velocidad:", speedStr, width));
-        lines.push(this.boxRow("Latencia 1er token:", latencyStr, width));
-        lines.push(this.boxRow("Turnos completados:", String(m.totalTurns), width));
-        const costStr = `$${m.estimatedCostUsd.toFixed(4)} USD`;
-        lines.push(this.boxRow("Coste estimado:", style(costStr, colors.bold, colors.success), width));
-        this.boxBottom(lines, colors.peach, width);
-    }
-    renderGitTab(lines, width) {
-        const g = this.git.getStatus();
-        // Git Status Box
-        this.boxHeader(lines, "Estado de Git", colors.peach, width);
-        lines.push(this.boxRow("Rama actual:", style(g.branch, colors.bold, colors.peach), width));
-        if (g.isGitRepo) {
-            lines.push(this.boxRow("Archivos modificados:", style(String(g.modified), g.modified > 0 ? colors.warning : colors.muted), width));
-            lines.push(this.boxRow("En stage (staged):", style(String(g.staged), g.staged > 0 ? colors.success : colors.muted), width));
-            lines.push(this.boxRow("Sin seguimiento:", style(String(g.untracked), g.untracked > 0 ? colors.error : colors.muted), width));
-        }
-        else {
-            lines.push(this.boxLine(` ${style("Directorio sin inicializar en Git", colors.muted)}`, width));
-        }
-        this.boxBottom(lines, colors.peach, width);
-        lines.push("");
-        // Last Commit Box
-        if (g.isGitRepo) {
-            this.boxHeader(lines, "Último Commit", colors.secondary, width);
-            lines.push(this.boxLine(` ${style(g.lastCommitHash, colors.bold, colors.accent)} ${style(g.lastCommitTime, colors.muted)}`, width));
-            lines.push(this.boxLine(` ${truncate(g.lastCommitMessage, width - 4)}`, width));
-            this.boxBottom(lines, colors.secondary, width);
-            lines.push("");
-        }
-        // Tools Available Box
-        const activeTools = this.agent.getActiveTools();
-        this.boxHeader(lines, `Tools Activas (${activeTools.length})`, colors.accent, width);
-        const chunk = activeTools.slice(0, 8).join(", ") + (activeTools.length > 8 ? "..." : "");
-        lines.push(this.boxLine(` ${truncate(chunk, width - 4)}`, width));
-        this.boxBottom(lines, colors.accent, width);
-    }
-    renderToolLogsTab(lines, width) {
-        const running = this.toolLogger.getRunningCount();
-        const recent = this.toolLogger.getRecentLogs(7);
-        this.boxHeader(lines, `Visor de Tools (Activas: ${running})`, colors.accent, width);
-        if (recent.length === 0) {
-            lines.push(this.boxLine(` ${style("No hay tools ejecutadas aún.", colors.muted)}`, width));
-        }
-        else {
-            for (const log of recent.reverse()) {
-                const icon = log.status === "running"
-                    ? style("⟳", colors.warning)
-                    : log.status === "success"
-                        ? style("✓", colors.success)
-                        : style("✗", colors.error);
-                const dur = log.durationMs !== undefined ? `${log.durationMs}ms` : "en curso";
-                const headerText = ` ${icon} ${style(log.toolName, colors.bold)} · ${style(dur, colors.muted)}`;
-                lines.push(this.boxLine(headerText, width));
-                let argsPreview = "";
-                if (typeof log.args === "object") {
-                    const keys = Object.keys(log.args);
-                    if (keys.length > 0) {
-                        const firstKey = keys[0];
-                        const val = String(log.args[firstKey]);
-                        argsPreview = `${firstKey}: ${val}`;
-                    }
-                }
-                else {
-                    argsPreview = String(log.args);
-                }
-                if (argsPreview) {
-                    lines.push(this.boxLine(`   ${style(truncate(argsPreview, width - 8), colors.subtext)}`, width));
-                }
-                if (log.resultPreview) {
-                    lines.push(this.boxLine(`   ${style("↳ " + truncate(log.resultPreview, width - 8), colors.muted)}`, width));
-                }
-            }
-        }
-        this.boxBottom(lines, colors.accent, width);
-    }
-    boxHeader(target, title, color, width) {
-        const titleStr = ` ${title} `;
-        const rem = Math.max(0, width - 2 - titleStr.length);
-        target.push(`${style("┌─", color)}${style(titleStr, colors.bold, color)}${style("─".repeat(rem) + "┐", color)}`);
-    }
-    boxLine(content, width) {
-        const stripped = content.replace(/\x1b\[[0-9;]*m/g, "");
-        const padCount = Math.max(0, width - 2 - stripped.length);
-        return `${style("│", colors.border)}${content}${" ".repeat(padCount)}${style("│", colors.border)}`;
-    }
-    boxRow(label, value, width) {
-        const strippedLabel = label.replace(/\x1b\[[0-9;]*m/g, "");
-        const strippedVal = value.replace(/\x1b\[[0-9;]*m/g, "");
-        const space = Math.max(1, width - 4 - strippedLabel.length - strippedVal.length);
-        const content = ` ${label}${" ".repeat(space)}${value} `;
-        return `${style("│", colors.border)}${content}${style("│", colors.border)}`;
-    }
-    boxBottom(target, color, width) {
-        target.push(`${style("└" + "─".repeat(width - 2) + "┘", color)}`);
+    spaceBetween(left, right, targetWidth) {
+        const strippedLeft = left.replace(/\x1b\[[0-9;]*m/g, "");
+        const strippedRight = right.replace(/\x1b\[[0-9;]*m/g, "");
+        const space = Math.max(1, targetWidth - strippedLeft.length - strippedRight.length);
+        return `${left}${" ".repeat(space)}${right}`;
     }
 }
 //# sourceMappingURL=sidebar.js.map
