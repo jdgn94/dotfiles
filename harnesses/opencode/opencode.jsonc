@@ -24,7 +24,9 @@
     "playwright": {
       "type": "local",
       "command": [
-        "/home/juan/.local/share/opencode/mcp/node_modules/.bin/playwright-mcp",
+        "npx",
+        "-y",
+        "@playwright/mcp@latest",
         "--headless"
       ],
       "enabled": true

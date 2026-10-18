@@ -15,7 +15,7 @@ prompt_new_tab_name = false
 [ui.sidebar.agents]
 row_gap = 0
 rows = [
-  ["state_icon", "$title"],
+  ["state_icon", "$icon", "$title"],
   ["$provider", "$limit"],
   ["$cache_high", { token = "$cache_mid", fg = "#e0af68" }, { token = "$cache_low", fg = "#f7768e" }],
   ["$context"],

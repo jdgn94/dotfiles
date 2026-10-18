@@ -58,6 +58,7 @@ dotsfiles/
 Herdr cuenta con el plugin oficial **`herdr-sidebar`**, que ofrece una experiencia idéntica a la barra lateral de VS Code en la terminal:
 
 - **Dock a la derecha**: Anclado en el lado derecho de la pantalla.
+- **Siempre visible (`auto_open`)**: Se acopla automáticamente en cada nueva pestaña o espacio de trabajo sin robar foco, funcionando como una barra lateral persistente (puedes alternarlo u ocultarlo en cualquier momento con `Alt + e`).
 - **División Consola vs Archivos (50/50 o adaptable)**:
   - Lado izquierdo: Espacio dedicado a terminales y agentes (`pi`, `claude`, `opencode`). Si no hay previsualización abierta, ocupan el espacio completo.
   - Lado derecho: Árbol de archivos y panel de previsualización en split.
@@ -103,6 +104,23 @@ Gestión inteligente de títulos para pestañas y paneles en Herdr:
 - **Editores de código**: Al abrir Neovim, renombra la pestaña con el archivo en edición (`nvim › install.sh`).
 - **Ramas Git**: Refleja la rama activa de desarrollo.
 - **Respeto a nombres manuales**: Si renombras una pestaña con `Prefix + Shift + t`, el plugin lo detecta y deja intacto tu nombre personalizado.
+
+---
+
+## 🎨 Herdr: Iconos de Agentes (`adihex/herdr-agent-icons`)
+
+Integración visual de logos para los agentes de IA en el sidebar lateral izquierdo:
+- **Logotipos Vectoriales Oficiales**: Asigna e inyecta iconos tipográficos reales de cada agente activo (`Claude`, `OpenCode`, `Pi`, `Codex`, `Gemini / Antigravity`, `Hermes`, etc.) en la fila de agentes del sidebar mediante el token `$icon`.
+- **Fuente PUA dedicada**: Utiliza `AgentIcons.otf` instalada en `~/.local/share/fonts` con fallback automático a emojis.
+
+---
+
+## 🌐 Automatización y Verificación E2E (`@playwright/mcp`)
+
+Todos los harnesses (`pi`, `claude`, `opencode`, `antigravity`) cuentan con el servidor MCP oficial de **Playwright** configurado de forma universal:
+- **Pruebas en navegador real**: Los agentes pueden abrir navegadores Chromium/WebKit en modo headless o con interfaz, navegar a URLs locales (`http://localhost:3000`), hacer clics, rellenar formularios y probar flujos de usuario completos.
+- **Feedback visual y screenshots**: Permite a los agentes tomar capturas de pantalla de la interfaz para inspeccionar visualmente el diseño y verificar estilos.
+- **Inspección de errores**: Lee errores en la consola de JavaScript (`browser_console_messages`) y solicitudes HTTP fallidas (`browser_network_requests`).
 
 ---
 

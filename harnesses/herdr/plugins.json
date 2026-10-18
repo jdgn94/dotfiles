@@ -698,6 +698,64 @@
     }
   },
   {
+    "plugin_id": "local.agent-icons",
+    "name": "Agent Icons",
+    "version": "0.3.0",
+    "min_herdr_version": "0.7.0",
+    "description": "Report a per-agent emoji/glyph as the $icon sidebar token.",
+    "manifest_path": "/home/juan/.config/herdr/plugins/github/local.agent-icons-da004f570912/herdr-plugin.toml",
+    "plugin_root": "/home/juan/.config/herdr/plugins/github/local.agent-icons-da004f570912",
+    "enabled": true,
+    "platforms": [
+      "linux",
+      "macos"
+    ],
+    "startup": [
+      {
+        "command": [
+          "sh",
+          "run.sh"
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "id": "install-font",
+        "title": "Agent icons: install logo font",
+        "contexts": [
+          "global"
+        ],
+        "platforms": [
+          "macos",
+          "linux"
+        ],
+        "command": [
+          "sh",
+          "install-font.sh"
+        ]
+      },
+      {
+        "id": "refresh",
+        "title": "Agent icons: refresh now",
+        "contexts": [
+          "global"
+        ],
+        "command": [
+          "sh",
+          "report-once.sh"
+        ]
+      }
+    ],
+    "source": {
+      "kind": "github",
+      "owner": "adihex",
+      "repo": "herdr-agent-icons",
+      "resolved_commit": "13426dd7b505bebe991dbec98ce46b78a79830ba",
+      "managed_path": "/home/juan/.config/herdr/plugins/github/local.agent-icons-da004f570912",
+      "installed_unix_ms": 1792338933814
+    }
+  },
+  {
     "plugin_id": "usagebar",
     "name": "Agent Usage",
     "version": "0.5.21",

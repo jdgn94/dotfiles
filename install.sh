@@ -136,6 +136,7 @@ mkdir -p "$PI_DIR/agents" "$PI_DIR/extensions" "$PI_DIR/npm" "$PI_DIR/pi-subagen
 
 # Copiar configuraciones base
 cp "$DOTS_DIR/harnesses/pi/agent/settings.json" "$PI_DIR/settings.json"
+[ -f "$DOTS_DIR/harnesses/pi/agent/mcp.json" ] && cp "$DOTS_DIR/harnesses/pi/agent/mcp.json" "$PI_DIR/mcp.json"
 [ -f "$DOTS_DIR/harnesses/pi/agent/pi-slate.json" ] && cp "$DOTS_DIR/harnesses/pi/agent/pi-slate.json" "$PI_DIR/pi-slate.json"
 [ -f "$DOTS_DIR/harnesses/pi/agent/mcp-onboarding.json" ] && cp "$DOTS_DIR/harnesses/pi/agent/mcp-onboarding.json" "$PI_DIR/mcp-onboarding.json"
 [ -f "$DOTS_DIR/harnesses/pi/agent/npm/package.json" ] && cp "$DOTS_DIR/harnesses/pi/agent/npm/package.json" "$PI_DIR/npm/package.json"
@@ -173,6 +174,11 @@ fi
 # Rellenar CLAUDE.md apuntando a las reglas comunes
 AGENTS_MD="$HOME_DIR/.agents/rules/AGENTS.md"
 printf '# Global Claude Instructions\nImporting common rules and instructions from dotsfiles:\n@%s\n' "$AGENTS_MD" > "$CLAUDE_DIR/CLAUDE.md"
+
+# Asegurar MCPs en Claude Code
+if command -v claude >/dev/null 2>&1; then
+  claude mcp add -s user playwright -- npx -y @playwright/mcp@latest --headless 2>/dev/null || true
+fi
 
 # --- 6. Desplegar Configuración de OpenCode ---
 log_info "Desplegando configuración de OpenCode..."
@@ -260,6 +266,11 @@ if command -v herdr >/dev/null 2>&1; then
     log_info "Instalando plugin herdr-auto-title..."
     herdr plugin install kryptamine/herdr-auto-title -y 2>/dev/null || true
     herdr plugin action invoke herdr.auto-title.restart 2>/dev/null || true
+  fi
+  if ! herdr plugin list 2>/dev/null | grep -q "local.agent-icons"; then
+    log_info "Instalando plugin herdr-agent-icons..."
+    herdr plugin install adihex/herdr-agent-icons -y 2>/dev/null || true
+    herdr plugin action invoke local.agent-icons.install-font 2>/dev/null || true
   fi
 fi
 

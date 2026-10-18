@@ -159,6 +159,9 @@ New-Item -ItemType Directory -Path (Join-Path $PiAgentDir "pi-subagents") -Force
 New-Item -ItemType Directory -Path (Join-Path $PiAgentDir "skills") -Force | Out-Null
 
 Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "pi" "agent" "settings.json") -Destination (Join-Path $PiAgentDir "settings.json") -Force
+if (Test-Path (Join-Path $DOTS_DIR "harnesses" "pi" "agent" "mcp.json")) {
+    Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "pi" "agent" "mcp.json") -Destination (Join-Path $PiAgentDir "mcp.json") -Force
+}
 if (Test-Path (Join-Path $DOTS_DIR "harnesses" "pi" "agent" "pi-slate.json")) {
     Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "pi" "agent" "pi-slate.json") -Destination (Join-Path $PiAgentDir "pi-slate.json") -Force
 }
@@ -208,6 +211,10 @@ Importing common rules and instructions from dotsfiles:
 @$AgentsMdPath
 "@
 Set-Content -Path (Join-Path $ClaudeDir "CLAUDE.md") -Value $ClaudeMdContent -Encoding UTF8
+
+if (Get-Command claude -ErrorAction SilentlyContinue) {
+    claude mcp add -s user playwright -- npx -y @playwright/mcp@latest --headless 2>$null
+}
 
 # --- 6. Deploy OpenCode Configuration ---
 Write-Info "Desplegando configuración de OpenCode..."
@@ -280,6 +287,8 @@ if (Get-Command herdr -ErrorAction SilentlyContinue) {
     herdr plugin install senna-lang/herdr-agent-usage -y 2>$null
     herdr plugin install kryptamine/herdr-auto-title -y 2>$null
     herdr plugin action invoke herdr.auto-title.restart 2>$null
+    herdr plugin install adihex/herdr-agent-icons -y 2>$null
+    herdr plugin action invoke local.agent-icons.install-font 2>$null
     herdr integration install pi 2>$null
     herdr integration install claude 2>$null
     herdr integration install opencode 2>$null
