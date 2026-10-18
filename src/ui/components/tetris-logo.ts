@@ -1,151 +1,243 @@
 import { colors } from "../theme.js";
 
-interface TetrisPiece {
+export interface TetrisTetromino {
   id: string;
+  type: "I" | "O" | "T" | "S" | "Z" | "J" | "L";
+  name: string;
   color: string;
-  cells: Array<[number, number]>;
+  // Each block coordinate [row, blockCol] (each block is 2 characters wide '██')
+  blocks: Array<[number, number]>;
+  layer: number; // 0 = Base, 1 = Mid, 2 = Top
 }
 
-const PIECES_PI: TetrisPiece[] = [
-  // P - bottom stem
+// Canonical 4-block Tetris colors
+const PIECE_COLORS = {
+  I: "\x1b[38;2;116;199;236m", // Cyan
+  O: "\x1b[38;2;249;226;175m", // Yellow
+  T: "\x1b[38;2;203;166;247m", // Mauve/Purple
+  S: "\x1b[38;2;166;227;161m", // Green
+  Z: "\x1b[38;2;243;139;168m", // Red
+  J: "\x1b[38;2;137;180;250m", // Blue
+  L: "\x1b[38;2;250;179;135m", // Orange
+};
+
+// Shape 1: Word "PI" constructed strictly from 4-block tetrominoes
+const TETROMINOES_PI: TetrisTetromino[] = [
+  // Layer 0: BASE (Bottom ground pieces, falling in parallel)
   {
-    id: "J",
-    color: "\x1b[38;2;137;180;250m", // Blue
-    cells: [[4, 2], [4, 3], [5, 2], [5, 3], [6, 2], [6, 3]],
+    id: "I_base_P",
+    type: "I",
+    name: "I-Piece (Cyan)",
+    color: PIECE_COLORS.I,
+    blocks: [[4, 1], [5, 1], [6, 1], [7, 1]],
+    layer: 0,
   },
-  // P - top stem
   {
-    id: "L",
-    color: "\x1b[38;2;250;179;135m", // Orange
-    cells: [
-      [0, 2], [0, 3],
-      [1, 2], [1, 3],
-      [2, 2], [2, 3],
-      [3, 2], [3, 3],
-    ],
+    id: "T_base_I",
+    type: "T",
+    name: "T-Piece (Purple)",
+    color: PIECE_COLORS.T,
+    blocks: [[7, 11], [7, 12], [7, 13], [6, 12]],
+    layer: 0,
   },
-  // P - top horizontal bar
   {
-    id: "I",
-    color: "\x1b[38;2;116;199;236m", // Cyan
-    cells: [
-      [0, 4], [0, 5], [0, 6], [0, 7],
-      [0, 8], [0, 9], [0, 10], [0, 11],
-    ],
+    id: "L_base_I",
+    type: "L",
+    name: "L-Piece (Orange)",
+    color: PIECE_COLORS.L,
+    blocks: [[7, 14], [7, 15], [6, 14], [5, 14]],
+    layer: 0,
   },
-  // P - right curve of loop
+
+  // Layer 1: MID (Middle stems & loops, falling in parallel onto base)
   {
-    id: "O",
-    color: "\x1b[38;2;249;226;175m", // Yellow
-    cells: [[1, 10], [1, 11], [2, 10], [2, 11]],
+    id: "I_mid_P",
+    type: "I",
+    name: "I-Piece (Blue)",
+    color: PIECE_COLORS.J,
+    blocks: [[0, 1], [1, 1], [2, 1], [3, 1]],
+    layer: 1,
   },
-  // P - bottom horizontal bar of loop
   {
-    id: "S",
-    color: "\x1b[38;2;166;227;161m", // Green
-    cells: [
-      [3, 4], [3, 5], [3, 6], [3, 7],
-      [3, 8], [3, 9], [3, 10], [3, 11],
-    ],
+    id: "I_loop_P",
+    type: "I",
+    name: "I-Piece (Green)",
+    color: PIECE_COLORS.S,
+    blocks: [[3, 2], [3, 3], [3, 4], [3, 5]],
+    layer: 1,
   },
-  // I - top serif
   {
-    id: "T",
-    color: "\x1b[38;2;203;166;247m", // Purple
-    cells: [
-      [0, 19], [0, 20], [0, 21], [0, 22], [0, 23],
-      [0, 24], [0, 25], [0, 26], [0, 27], [0, 28],
-    ],
+    id: "O_loop_P",
+    type: "O",
+    name: "O-Piece (Yellow)",
+    color: PIECE_COLORS.O,
+    blocks: [[1, 4], [1, 5], [2, 4], [2, 5]],
+    layer: 1,
   },
-  // I - vertical stem
   {
-    id: "I",
-    color: "\x1b[38;2;116;199;236m", // Cyan
-    cells: [
-      [1, 23], [1, 24],
-      [2, 23], [2, 24],
-      [3, 23], [3, 24],
-      [4, 23], [4, 24],
-      [5, 23], [5, 24],
-    ],
+    id: "I_stem_I1",
+    type: "I",
+    name: "I-Piece (Cyan)",
+    color: PIECE_COLORS.I,
+    blocks: [[1, 12], [2, 12], [3, 12], [4, 12]],
+    layer: 1,
   },
-  // I - bottom serif
   {
-    id: "Z",
-    color: "\x1b[38;2;243;139;168m", // Red
-    cells: [
-      [6, 19], [6, 20], [6, 21], [6, 22], [6, 23],
-      [6, 24], [6, 25], [6, 26], [6, 27], [6, 28],
-    ],
+    id: "I_stem_I2",
+    type: "I",
+    name: "I-Piece (Blue)",
+    color: PIECE_COLORS.J,
+    blocks: [[1, 13], [2, 13], [3, 13], [4, 13]],
+    layer: 1,
+  },
+
+  // Layer 2: TOP / PUNTA (Top crest, horizontal bar & serifs, falling in parallel)
+  {
+    id: "I_top_P",
+    type: "I",
+    name: "I-Piece (Red)",
+    color: PIECE_COLORS.Z,
+    blocks: [[0, 2], [0, 3], [0, 4], [0, 5]],
+    layer: 2,
+  },
+  {
+    id: "T_top_I",
+    type: "T",
+    name: "T-Piece (Purple)",
+    color: PIECE_COLORS.T,
+    blocks: [[0, 11], [0, 12], [0, 13], [1, 12]],
+    layer: 2,
+  },
+  {
+    id: "L_top_I",
+    type: "L",
+    name: "L-Piece (Orange)",
+    color: PIECE_COLORS.L,
+    blocks: [[0, 14], [0, 15], [1, 14], [2, 14]],
+    layer: 2,
   },
 ];
 
-const PIECES_SYMBOL: TetrisPiece[] = [
-  // Top horizontal arch left half
+// Shape 2: Symbol "π" constructed strictly from 4-block tetrominoes
+const TETROMINOES_SYMBOL: TetrisTetromino[] = [
+  // Layer 0: BASE (Bottom curved feet and lower pillars, falling in parallel)
   {
-    id: "I",
-    color: "\x1b[38;2;116;199;236m", // Cyan
-    cells: [
-      [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7],
-      [0, 8], [0, 9], [0, 10], [0, 11], [0, 12], [0, 13], [0, 14],
-    ],
+    id: "J_foot_L",
+    type: "J",
+    name: "J-Piece (Blue)",
+    color: PIECE_COLORS.J,
+    blocks: [[6, 2], [6, 3], [5, 3], [4, 3]],
+    layer: 0,
   },
-  // Top horizontal arch right half
   {
-    id: "L",
-    color: "\x1b[38;2;250;179;135m", // Orange
-    cells: [
-      [0, 15], [0, 16], [0, 17], [0, 18], [0, 19], [0, 20], [0, 21],
-      [0, 22], [0, 23], [0, 24], [0, 25], [0, 26], [0, 27], [0, 28], [0, 29], [0, 30],
-    ],
+    id: "L_foot_R",
+    type: "L",
+    name: "L-Piece (Orange)",
+    color: PIECE_COLORS.L,
+    blocks: [[6, 11], [6, 12], [5, 11], [4, 11]],
+    layer: 0,
   },
-  // Top left flourish hook
   {
-    id: "S",
-    color: "\x1b[38;2;166;227;161m", // Green
-    cells: [[1, 2], [1, 3], [1, 4], [1, 5]],
+    id: "I_pillar_L_low",
+    type: "I",
+    name: "I-Piece (Cyan)",
+    color: PIECE_COLORS.I,
+    blocks: [[3, 4], [4, 4], [5, 4], [6, 4]],
+    layer: 0,
   },
-  // Left leg top
   {
-    id: "O",
-    color: "\x1b[38;2;249;226;175m", // Yellow
-    cells: [[1, 9], [1, 10], [2, 9], [2, 10], [3, 9], [3, 10]],
+    id: "I_pillar_R_low",
+    type: "I",
+    name: "I-Piece (Cyan)",
+    color: PIECE_COLORS.I,
+    blocks: [[3, 10], [4, 10], [5, 10], [6, 10]],
+    layer: 0,
   },
-  // Left leg bottom & curved foot
+
+  // Layer 1: MID (Upper pillars and joints, falling in parallel onto base)
   {
-    id: "J",
-    color: "\x1b[38;2;137;180;250m", // Blue
-    cells: [[4, 9], [4, 10], [5, 9], [5, 10], [6, 7], [6, 8], [6, 9], [6, 10]],
+    id: "I_pillar_L_hi",
+    type: "I",
+    name: "I-Piece (Green)",
+    color: PIECE_COLORS.S,
+    blocks: [[0, 3], [1, 3], [2, 3], [3, 3]],
+    layer: 1,
   },
-  // Right leg top
   {
-    id: "T",
-    color: "\x1b[38;2;203;166;247m", // Purple
-    cells: [[1, 21], [1, 22], [2, 21], [2, 22], [3, 21], [3, 22]],
+    id: "I_pillar_R_hi",
+    type: "I",
+    name: "I-Piece (Green)",
+    color: PIECE_COLORS.S,
+    blocks: [[0, 11], [1, 11], [2, 11], [3, 11]],
+    layer: 1,
   },
-  // Right leg bottom & foot
   {
-    id: "Z",
-    color: "\x1b[38;2;243;139;168m", // Red
-    cells: [[4, 21], [4, 22], [5, 21], [5, 22], [6, 21], [6, 22], [6, 23], [6, 24]],
+    id: "O_joint_L",
+    type: "O",
+    name: "O-Piece (Yellow)",
+    color: PIECE_COLORS.O,
+    blocks: [[1, 4], [2, 4], [1, 5], [2, 5]],
+    layer: 1,
+  },
+  {
+    id: "O_joint_R",
+    type: "O",
+    name: "O-Piece (Yellow)",
+    color: PIECE_COLORS.O,
+    blocks: [[1, 9], [2, 9], [1, 10], [2, 10]],
+    layer: 1,
+  },
+
+  // Layer 2: TOP / PUNTA (Horizontal crest & crown arch, falling in parallel)
+  {
+    id: "S_arch_L",
+    type: "S",
+    name: "S-Piece (Red)",
+    color: PIECE_COLORS.Z,
+    blocks: [[0, 1], [0, 2], [1, 0], [1, 1]],
+    layer: 2,
+  },
+  {
+    id: "I_arch_midL",
+    type: "I",
+    name: "I-Piece (Cyan)",
+    color: PIECE_COLORS.I,
+    blocks: [[0, 4], [0, 5], [0, 6], [0, 7]],
+    layer: 2,
+  },
+  {
+    id: "T_arch_center",
+    type: "T",
+    name: "T-Piece (Purple)",
+    color: PIECE_COLORS.T,
+    blocks: [[0, 8], [0, 9], [0, 10], [1, 9]],
+    layer: 2,
+  },
+  {
+    id: "Z_arch_R",
+    type: "Z",
+    name: "Z-Piece (Red)",
+    color: PIECE_COLORS.Z,
+    blocks: [[0, 12], [0, 13], [1, 13], [1, 14]],
+    layer: 2,
   },
 ];
 
 export class TetrisLogo {
   private mode: "PI" | "SYMBOL";
-  private pieces: TetrisPiece[];
-  private currentPieceIndex = 0;
-  private currentDropOffset = -5;
+  private pieces: TetrisTetromino[];
+  private activeLayer = 0;
+  private maxLayer = 2;
+  private layerDropOffset = -8;
   private isCompleted = false;
 
-  public readonly gridHeight = 7;
-  public readonly gridWidth = 34;
+  public readonly gridRows = 8;
+  public readonly gridCols = 17; // 17 blocks * 2 chars = 34 columns wide
 
   constructor() {
-    // Random choice at startup between the word "PI" and the Greek symbol "π"
+    // 50% random chance between word "PI" and Greek symbol "π"
     this.mode = Math.random() < 0.5 ? "PI" : "SYMBOL";
-    this.pieces = this.mode === "PI" ? PIECES_PI : PIECES_SYMBOL;
-    this.resetPieceDrop();
+    this.pieces = this.mode === "PI" ? TETROMINOES_PI : TETROMINOES_SYMBOL;
   }
 
   public getMode(): "PI" | "SYMBOL" {
@@ -156,31 +248,25 @@ export class TetrisLogo {
     return this.isCompleted;
   }
 
-  private resetPieceDrop(): void {
-    if (this.currentPieceIndex < this.pieces.length) {
-      const piece = this.pieces[this.currentPieceIndex];
-      if (piece) {
-        // Start above the grid based on the piece's maximum row
-        const maxRow = Math.max(...piece.cells.map(([r]) => r));
-        this.currentDropOffset = -(maxRow + 2);
-      }
-    }
-  }
-
+  /**
+   * Advances the parallel falling animation by 1 frame.
+   * Pieces drop simultaneously layer by layer, building from the BASE (0) to the TOP (2).
+   */
   public update(): boolean {
     if (this.isCompleted) return false;
 
-    this.currentDropOffset += 1;
+    this.layerDropOffset += 1;
 
-    // When the falling piece lands on its target row (offset reaches 0)
-    if (this.currentDropOffset >= 0) {
-      this.currentDropOffset = 0;
-      this.currentPieceIndex += 1;
+    // When the falling pieces in the current layer reach their destination (offset reaches 0)
+    if (this.layerDropOffset >= 0) {
+      this.layerDropOffset = 0;
+      this.activeLayer += 1;
 
-      if (this.currentPieceIndex >= this.pieces.length) {
+      if (this.activeLayer > this.maxLayer) {
         this.isCompleted = true;
       } else {
-        this.resetPieceDrop();
+        // Next layer starts falling from above the grid
+        this.layerDropOffset = -8;
       }
     }
 
@@ -188,39 +274,41 @@ export class TetrisLogo {
   }
 
   public render(viewportWidth: number): string[] {
-    const grid: string[][] = Array.from({ length: this.gridHeight }, () =>
-      Array(this.gridWidth).fill(" ")
+    const grid: string[][] = Array.from({ length: this.gridRows }, () =>
+      Array(this.gridCols).fill("  ")
     );
 
-    // 1. Draw all pieces that have already landed and locked into place
-    for (let i = 0; i < this.currentPieceIndex; i++) {
-      const piece = this.pieces[i];
-      if (!piece) continue;
-      for (const [r, c] of piece.cells) {
-        if (r >= 0 && r < this.gridHeight && c >= 0 && c < this.gridWidth) {
-          const rowArr = grid[r];
-          if (rowArr) rowArr[c] = `${piece.color}█${colors.reset}`;
+    // 1. Draw all pieces that have already landed and locked (layers < activeLayer)
+    for (const p of this.pieces) {
+      if (p.layer < this.activeLayer || this.isCompleted) {
+        for (const [r, c] of p.blocks) {
+          if (r >= 0 && r < this.gridRows && c >= 0 && c < this.gridCols) {
+            const rowArr = grid[r];
+            if (rowArr) rowArr[c] = `${p.color}██${colors.reset}`;
+          }
         }
       }
     }
 
-    // 2. Draw the currently falling piece at its current drop position
-    if (!this.isCompleted && this.currentPieceIndex < this.pieces.length) {
-      const piece = this.pieces[this.currentPieceIndex];
-      if (piece) {
-        for (const [r, c] of piece.cells) {
-          const dropR = r + this.currentDropOffset;
-          if (dropR >= 0 && dropR < this.gridHeight && c >= 0 && c < this.gridWidth) {
-            const rowArr = grid[dropR];
-            if (rowArr) rowArr[c] = `${piece.color}█${colors.reset}`;
+    // 2. Draw all pieces in the CURRENT active layer dropping in parallel
+    if (!this.isCompleted) {
+      for (const p of this.pieces) {
+        if (p.layer === this.activeLayer) {
+          for (const [r, c] of p.blocks) {
+            const dropRow = r + this.layerDropOffset;
+            if (dropRow >= 0 && dropRow < this.gridRows && c >= 0 && c < this.gridCols) {
+              const rowArr = grid[dropRow];
+              if (rowArr) rowArr[c] = `${p.color}██${colors.reset}`;
+            }
           }
         }
       }
     }
 
     // 3. Center the rendered lines in the available viewport width
-    const leftPaddingCount = Math.max(0, Math.floor((viewportWidth - this.gridWidth) / 2));
-    const padStr = " ".repeat(leftPaddingCount);
+    const totalCharsWidth = this.gridCols * 2; // 34 characters
+    const leftPadCount = Math.max(0, Math.floor((viewportWidth - totalCharsWidth) / 2));
+    const padStr = " ".repeat(leftPadCount);
 
     return grid.map((row) => `${padStr}${row.join("")}`);
   }

@@ -300,6 +300,14 @@ export class Sidebar implements Component {
           lines.push(style(`   ... and ${tasks.length - 8} more tasks`, colors.muted));
         }
       }
+    } else {
+      lines.push(style("─".repeat(safeWidth), colors.border));
+      lines.push(
+        ` ${style("▶", colors.muted)} ${style("Plan & Tasks", colors.bold, colors.muted)} ${style(
+          "(no active plan)",
+          colors.muted
+        )}`
+      );
     }
 
     // --- 8. COLLAPSIBLE MCP SERVERS SECTION ---

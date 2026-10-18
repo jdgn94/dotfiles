@@ -203,6 +203,10 @@ export class Sidebar {
                 }
             }
         }
+        else {
+            lines.push(style("─".repeat(safeWidth), colors.border));
+            lines.push(` ${style("▶", colors.muted)} ${style("Plan & Tasks", colors.bold, colors.muted)} ${style("(no active plan)", colors.muted)}`);
+        }
         // --- 8. COLLAPSIBLE MCP SERVERS SECTION ---
         lines.push(style("─".repeat(safeWidth), colors.border));
         const mcpServers = this.agent.getMcpServers();
