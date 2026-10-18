@@ -1,5 +1,4 @@
-import { colors, style } from "../theme.js";
-const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+import { colors, renderWavePulse, style } from "../theme.js";
 export class Header {
     agent;
     constructor(agent) {
@@ -15,9 +14,9 @@ export class Header {
         const left = ` ${style("π+", colors.bold, colors.accent)} ${style("Pi-TUI-Plus", colors.bold, colors.primary)}  ${style(`[${model}]`, colors.secondary)} ${style(`(think: ${thinking})`, colors.muted)}`;
         let right = "";
         if (isWorking) {
-            const frame = SPINNER_FRAMES[Math.floor(Date.now() / 80) % SPINNER_FRAMES.length];
+            const wave = renderWavePulse(5);
             const elapsed = this.agent.getTurnElapsedSec();
-            right = `${style(frame, colors.bold, colors.warning)} ${style(statusText, colors.warning)} ${style(`(${elapsed})`, colors.muted)}  ${style(`[${activeAgent}]`, colors.secondary)} `;
+            right = `${wave} ${style(statusText, colors.bold, colors.text)} ${style(`(${elapsed})`, colors.muted)}  ${style(`[${activeAgent}]`, colors.secondary)} `;
         }
         else {
             right = `${style("●", colors.success)} ${style("Ready", colors.muted)}  ${style(`[Agent: ${activeAgent}]`, colors.secondary)} `;

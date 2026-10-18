@@ -1,5 +1,4 @@
-import { colors, style } from "../theme.js";
-const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+import { colors, renderWavePulse, style } from "../theme.js";
 export class StatusBar {
     agent;
     metrics;
@@ -15,9 +14,9 @@ export class StatusBar {
         const m = this.metrics.getMetrics();
         let indicator = "";
         if (isWorking) {
-            const frame = SPINNER_FRAMES[Math.floor(Date.now() / 80) % SPINNER_FRAMES.length];
+            const wave = renderWavePulse(5);
             const elapsed = this.agent.getTurnElapsedSec();
-            indicator = `${style(frame, colors.bold, colors.warning)} ${style(statusText, colors.warning)} ${style(`(${elapsed})`, colors.muted)}`;
+            indicator = `${wave} ${style(statusText, colors.bold, colors.text)} ${style(`(${elapsed})`, colors.muted)}`;
         }
         else {
             indicator = `${style("●", colors.bold, colors.success)} ${style("Ready", colors.success)}`;

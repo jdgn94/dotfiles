@@ -1,4 +1,4 @@
-import { colors, style } from "../theme.js";
+import { colors, renderWavePulse, style } from "../theme.js";
 export class ChatView {
     agent;
     scrollOffset = 0;
@@ -66,7 +66,7 @@ export class ChatView {
             this.renderBox(allLines, "Assistant (typing...)", streamingText + " █", colors.secondary, safeWidth);
         }
         else if (isWorking && !streamingThinking) {
-            allLines.push(style(`  ⟳ ${this.agent.getStatusText()} █`, colors.accent));
+            allLines.push(`  ${renderWavePulse(6)} ${style(this.agent.getStatusText(), colors.accent)} █`);
             allLines.push("");
         }
         this.cachedHeight = allLines.length;

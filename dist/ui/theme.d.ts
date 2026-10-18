@@ -28,3 +28,8 @@ export declare function style(text: string, ...ansiCodes: string[]): string;
 export declare function pad(text: string, targetWidth: number, align?: "left" | "right" | "center"): string;
 export declare function truncate(text: string, maxWidth: number): string;
 export declare function progressBar(percent: number, width: number): string;
+/**
+ * Animated Multi-Color Wave Pulse work indicator
+ * Oscillates heights smoothly and shifts through a vibrant TrueColor spectrum
+ */
+export declare function renderWavePulse(numBars?: number): string;

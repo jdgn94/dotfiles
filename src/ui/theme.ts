@@ -68,3 +68,49 @@ export function progressBar(percent: number, width: number): string {
 
   return `${color}${"█".repeat(fillWidth)}${colors.muted}${"░".repeat(emptyWidth)}${colors.reset}`;
 }
+
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  if (s === 0) {
+    const val = Math.round(l * 255);
+    return [val, val, val];
+  }
+
+  const hue2rgb = (p: number, q: number, t: number): number => {
+    let adjustedT = t;
+    if (adjustedT < 0) adjustedT += 1;
+    if (adjustedT > 1) adjustedT -= 1;
+    if (adjustedT < 1 / 6) return p + (q - p) * 6 * adjustedT;
+    if (adjustedT < 1 / 2) return q;
+    if (adjustedT < 2 / 3) return p + (q - p) * (2 / 3 - adjustedT) * 6;
+    return p;
+  };
+
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  const r = hue2rgb(p, q, h + 1 / 3);
+  const g = hue2rgb(p, q, h);
+  const b = hue2rgb(p, q, h - 1 / 3);
+
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+/**
+ * Animated Multi-Color Wave Pulse work indicator
+ * Oscillates heights smoothly and shifts through a vibrant TrueColor spectrum
+ */
+export function renderWavePulse(numBars = 5): string {
+  const tick = Math.floor(Date.now() / 90);
+  const bars = ["▂", "▃", "▄", "▅", "▆", "▇", "█"];
+  let out = "";
+  for (let i = 0; i < numBars; i++) {
+    const wavePhase = tick * 0.45 + i * 0.85;
+    const norm = (Math.sin(wavePhase) + 1) / 2;
+    const barIdx = Math.min(bars.length - 1, Math.floor(norm * bars.length));
+    const char = bars[barIdx];
+
+    const hue = (Date.now() / 2500 + i / numBars) % 1;
+    const [r, g, b] = hslToRgb(hue, 0.85, 0.65);
+    out += `\x1b[38;2;${r};${g};${b}m${char}\x1b[0m`;
+  }
+  return out;
+}

@@ -1,6 +1,6 @@
 import type { Component } from "@earendil-works/pi-tui";
 import { type AgentManager } from "../../state/agent-manager.js";
-import { colors, style } from "../theme.js";
+import { colors, renderWavePulse, style } from "../theme.js";
 
 export class ChatView implements Component {
   private agent: AgentManager;
@@ -99,7 +99,9 @@ export class ChatView implements Component {
         safeWidth
       );
     } else if (isWorking && !streamingThinking) {
-      allLines.push(style(`  ⟳ ${this.agent.getStatusText()} █`, colors.accent));
+      allLines.push(
+        `  ${renderWavePulse(6)} ${style(this.agent.getStatusText(), colors.accent)} █`
+      );
       allLines.push("");
     }
 
