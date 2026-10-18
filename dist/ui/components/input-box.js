@@ -1,7 +1,20 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { visibleWidth } from "@earendil-works/pi-tui";
+import { matchesKey, visibleWidth } from "@earendil-works/pi-tui";
 import { colors, style, truncate } from "../theme.js";
+const CORE_COMMANDS = [
+    { name: "skills", description: "List all installed global skills" },
+    { name: "mcp", description: "Show MCP server status and active tools" },
+    { name: "agent", description: "Switch or list available agents" },
+    { name: "status", description: "Show global metrics and session status" },
+    { name: "diff", description: "View git diff of current session changes" },
+    { name: "todos", description: "View or toggle current plan tasks" },
+    { name: "opsx-propose", description: "Propose a new OpenSpec change" },
+    { name: "opsx-apply", description: "Apply tasks from an OpenSpec change" },
+    { name: "opsx-explore", description: "Enter OpenSpec explore mode" },
+    { name: "graphify", description: "Inspect AST code knowledge graph" },
+    { name: "exit", description: "Quit Pi" },
+];
 export class InputBox {
     focused = true;
     text = "";
@@ -13,7 +26,7 @@ export class InputBox {
     activeAgentName = "default";
     hasMultipleAgents = false;
     // Slash commands autocomplete state
-    availableCommands = [];
+    availableCommands = [...CORE_COMMANDS];
     selectedCommandIndex = 0;
     onSubmit(cb) {
         this.onSubmitCallback = cb;
@@ -23,7 +36,14 @@ export class InputBox {
         this.hasMultipleAgents = hasMultiple;
     }
     setAvailableCommands(commands) {
-        this.availableCommands = commands;
+        const map = new Map();
+        for (const c of CORE_COMMANDS) {
+            map.set(c.name, c);
+        }
+        for (const c of commands) {
+            map.set(c.name, c);
+        }
+        this.availableCommands = Array.from(map.values());
     }
     invalidate() { }
     getText() {
@@ -143,76 +163,67 @@ export class InputBox {
             }
             return;
         }
-        // Arrow keys & special ANSI sequences
-        if (data.startsWith("\x1b[")) {
-            const code = data.slice(2);
-            if (code === "D") {
-                // Left
-                this.cursor = Math.max(0, this.cursor - 1);
+        // Arrow keys & special navigation keys using standard matchesKey
+        if (matchesKey(data, "left")) {
+            this.cursor = Math.max(0, this.cursor - 1);
+            return;
+        }
+        if (matchesKey(data, "right")) {
+            this.cursor = Math.min(this.text.length, this.cursor + 1);
+            return;
+        }
+        if (matchesKey(data, "home")) {
+            this.cursor = 0;
+            return;
+        }
+        if (matchesKey(data, "end")) {
+            this.cursor = this.text.length;
+            return;
+        }
+        if (matchesKey(data, "delete")) {
+            if (this.cursor < this.text.length) {
+                this.text = this.text.slice(0, this.cursor) + this.text.slice(this.cursor + 1);
+            }
+            return;
+        }
+        if (matchesKey(data, "up")) {
+            // Up arrow: Navigate commands popup if active, else history
+            if (isCommandMode && matching.length > 0) {
+                this.selectedCommandIndex =
+                    (this.selectedCommandIndex - 1 + matching.length) % matching.length;
                 return;
             }
-            if (code === "C") {
-                // Right
-                this.cursor = Math.min(this.text.length, this.cursor + 1);
-                return;
-            }
-            if (code === "H" || code === "1~") {
-                // Home
-                this.cursor = 0;
-                return;
-            }
-            if (code === "F" || code === "4~") {
-                // End
-                this.cursor = this.text.length;
-                return;
-            }
-            if (code === "3~") {
-                // Delete
-                if (this.cursor < this.text.length) {
-                    this.text = this.text.slice(0, this.cursor) + this.text.slice(this.cursor + 1);
+            if (this.history.length > 0) {
+                if (this.historyIndex === -1) {
+                    this.historyIndex = this.history.length - 1;
                 }
+                else if (this.historyIndex > 0) {
+                    this.historyIndex--;
+                }
+                const item = this.history[this.historyIndex];
+                if (item !== undefined)
+                    this.setText(item);
+            }
+            return;
+        }
+        if (matchesKey(data, "down")) {
+            // Down arrow: Navigate commands popup if active, else history
+            if (isCommandMode && matching.length > 0) {
+                this.selectedCommandIndex =
+                    (this.selectedCommandIndex + 1) % matching.length;
                 return;
             }
-            if (code === "A") {
-                // Up arrow: Navigate commands popup if active, else history
-                if (isCommandMode && matching.length > 0) {
-                    this.selectedCommandIndex =
-                        (this.selectedCommandIndex - 1 + matching.length) % matching.length;
-                    return;
-                }
-                if (this.history.length > 0) {
-                    if (this.historyIndex === -1) {
-                        this.historyIndex = this.history.length - 1;
-                    }
-                    else if (this.historyIndex > 0) {
-                        this.historyIndex--;
-                    }
+            if (this.historyIndex !== -1) {
+                if (this.historyIndex < this.history.length - 1) {
+                    this.historyIndex++;
                     const item = this.history[this.historyIndex];
                     if (item !== undefined)
                         this.setText(item);
                 }
-                return;
-            }
-            if (code === "B") {
-                // Down arrow: Navigate commands popup if active, else history
-                if (isCommandMode && matching.length > 0) {
-                    this.selectedCommandIndex =
-                        (this.selectedCommandIndex + 1) % matching.length;
-                    return;
+                else {
+                    this.historyIndex = -1;
+                    this.clear();
                 }
-                if (this.historyIndex !== -1) {
-                    if (this.historyIndex < this.history.length - 1) {
-                        this.historyIndex++;
-                        const item = this.history[this.historyIndex];
-                        if (item !== undefined)
-                            this.setText(item);
-                    }
-                    else {
-                        this.historyIndex = -1;
-                        this.clear();
-                    }
-                }
-                return;
             }
             return;
         }

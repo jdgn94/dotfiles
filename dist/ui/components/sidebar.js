@@ -157,7 +157,7 @@ export class Sidebar {
         const mcpCount = mcpServers.length;
         const mcpArrow = this.mcpExpanded ? "▼" : "▶";
         const mcpHeader = ` ${style(mcpArrow, colors.accent)} ${style("MCP Servers", colors.bold, colors.primary)} ${style(`(${mcpCount})`, colors.muted)}`;
-        const mcpHint = style("[Alt+M]", colors.muted);
+        const mcpHint = style("[F3 / Alt+M]", colors.muted);
         lines.push(this.spaceBetween(mcpHeader, mcpHint + " ", safeWidth));
         if (this.mcpExpanded) {
             if (mcpServers.length === 0) {
@@ -175,7 +175,7 @@ export class Sidebar {
         const skillsCount = skills.length;
         const skillsArrow = this.skillsExpanded ? "▼" : "▶";
         const skillsHeader = ` ${style(skillsArrow, colors.secondary)} ${style("Skills", colors.bold, colors.secondary)} ${style(`(${skillsCount})`, colors.muted)}`;
-        const skillsHint = style("[Alt+S]", colors.muted);
+        const skillsHint = style("[F4 / Alt+S]", colors.muted);
         lines.push(this.spaceBetween(skillsHeader, skillsHint + " ", safeWidth));
         if (this.skillsExpanded) {
             if (skills.length === 0) {

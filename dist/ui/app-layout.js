@@ -1,3 +1,4 @@
+import { matchesKey } from "@earendil-works/pi-tui";
 import { ChatView } from "./components/chat-view.js";
 import { Header } from "./components/header.js";
 import { InputBox } from "./components/input-box.js";
@@ -101,7 +102,7 @@ export class AppLayout {
     }
     handleInput(data) {
         // Ctrl+C -> Cancel current work or exit cleanly
-        if (data === "\x03") {
+        if (matchesKey(data, "ctrl+c") || data === "\x03") {
             if (this.agent.getIsWorking()) {
                 this.agent.abort();
                 this.tui.requestRender();
@@ -112,42 +113,44 @@ export class AppLayout {
             }
             return;
         }
-        // If typing a slash command, forward Tab and Arrow keys to InputBox for autocomplete
+        // If typing a slash command, forward Up, Down, Tab directly to InputBox for autocomplete
         if (this.inputBox.getText().startsWith("/") &&
-            (data === "\t" || data === "\x1b[A" || data === "\x1b[B")) {
+            (matchesKey(data, "up") || matchesKey(data, "down") || matchesKey(data, "tab"))) {
             this.inputBox.handleInput(data);
             this.tui.requestRender();
             return;
         }
-        // Tab key -> Cycle to next installed Agent (when not autocompleting)
-        if (data === "\t") {
+        // Shift+Tab -> Cycle active agent (user requested shortcut)
+        if (matchesKey(data, "shift+tab") || data === "\x1b[Z") {
             this.agent.nextAgent();
             this.syncInputBoxState();
             this.tui.requestRender();
             return;
         }
-        // Shift+Tab -> Cycle to previous installed Agent
-        if (data === "\x1b[Z") {
-            this.agent.prevAgent();
-            this.syncInputBoxState();
-            this.tui.requestRender();
-            return;
-        }
-        // Ctrl+A, Alt+A, F2 -> Also cycle installed Agent
-        if (data === "\x01" || data === "\x1ba" || data === "\x1bOQ" || data === "\x1b[12~") {
+        // Ctrl+A, Alt+A -> Also cycle installed Agent
+        if (matchesKey(data, "ctrl+a") || matchesKey(data, "alt+a") || data === "\x01" || data === "\x1ba") {
             this.agent.nextAgent();
             this.syncInputBoxState();
             this.tui.requestRender();
             return;
         }
-        // Ctrl+T -> Toggle Todo Panel expand / collapse
-        if (data === "\x14") {
+        // Ctrl+T -> Cycle Thinking Effort / Reasoning level (user requested shortcut)
+        if (matchesKey(data, "ctrl+t") || data === "\x14") {
+            this.agent.cycleThinkingLevel();
+            this.tui.requestRender();
+            return;
+        }
+        // Ctrl+Y or Alt+T -> Toggle Todo Panel expand / collapse
+        if (matchesKey(data, "ctrl+y") || data === "\x19") {
             this.todoTracker.toggleCollapsed();
             this.tui.requestRender();
             return;
         }
-        // Toggle MCP Servers (Alt+M, F3, Ctrl+O, and terminal variants)
-        if (data === "\x1bm" ||
+        // Toggle MCP Servers (F3, Ctrl+O, Alt+M, Alt+Shift+M, and terminal variants)
+        if (matchesKey(data, "f3") ||
+            matchesKey(data, "ctrl+o") ||
+            matchesKey(data, "alt+m") ||
+            data === "\x1bm" ||
             data === "\x1bM" ||
             data === "\x1b[109;3u" ||
             data === "\x1b[77;3u" ||
@@ -158,8 +161,11 @@ export class AppLayout {
             this.tui.requestRender();
             return;
         }
-        // Toggle Skills (Alt+S, F4, Ctrl+K, and terminal variants)
-        if (data === "\x1bs" ||
+        // Toggle Skills (F4, Ctrl+K, Alt+S, Alt+Shift+S, and terminal variants)
+        if (matchesKey(data, "f4") ||
+            matchesKey(data, "ctrl+k") ||
+            matchesKey(data, "alt+s") ||
+            data === "\x1bs" ||
             data === "\x1bS" ||
             data === "\x1b[115;3u" ||
             data === "\x1b[83;3u" ||
@@ -197,19 +203,19 @@ export class AppLayout {
             }
         }
         // Alt+B -> Toggle Sidebar visibility
-        if (data === "\x1bb") {
+        if (matchesKey(data, "alt+b") || data === "\x1bb") {
             this.sidebarVisible = !this.sidebarVisible;
             this.tui.requestRender();
             return;
         }
         // PageUp & PageDown for ChatView
-        if (data === "\x1b[5~") {
+        if (matchesKey(data, "pageUp") || data === "\x1b[5~") {
             this.scrollFollow = false;
             this.chatScrollOffset += 5;
             this.tui.requestRender();
             return;
         }
-        if (data === "\x1b[6~") {
+        if (matchesKey(data, "pageDown") || data === "\x1b[6~") {
             this.chatScrollOffset = Math.max(0, this.chatScrollOffset - 5);
             if (this.chatScrollOffset === 0)
                 this.scrollFollow = true;
@@ -229,6 +235,11 @@ export class AppLayout {
         }
         else if (process.stdout.rows && process.stdout.rows > 5) {
             termHeight = process.stdout.rows;
+        }
+        // Sync latest commands if available
+        const cmds = this.agent.getCommands();
+        if (cmds.length > 0) {
+            this.inputBox.setAvailableCommands(cmds);
         }
         const headerLines = this.header.render(termWidth); // 2 lines
         const todoLines = this.todoPanel.render(termWidth); // 0 lines if empty, or collapsible box

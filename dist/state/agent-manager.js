@@ -128,6 +128,27 @@ export class AgentManager {
     getThinkingLevel() {
         return this.session?.thinkingLevel ?? "off";
     }
+    cycleThinkingLevel() {
+        // SAFETY: AgentSession exposes cycleThinkingLevel and setThinkingLevel at runtime.
+        const sessionObj = this.session;
+        if (sessionObj?.cycleThinkingLevel) {
+            sessionObj.cycleThinkingLevel();
+            const level = this.getThinkingEffort();
+            this.lastAgentSwitchNotice = `Thinking effort: ${level}`;
+            this.notify();
+            return level;
+        }
+        const levels = ["off", "minimal", "low", "medium", "high", "max"];
+        const current = this.getThinkingEffort();
+        const nextIdx = (levels.indexOf(current) + 1) % levels.length;
+        const next = levels[nextIdx] ?? "medium";
+        if (sessionObj?.setThinkingLevel) {
+            sessionObj.setThinkingLevel(next);
+        }
+        this.lastAgentSwitchNotice = `Thinking effort: ${next}`;
+        this.notify();
+        return next;
+    }
     getActiveTools() {
         return this.session?.getActiveToolNames() ?? [];
     }

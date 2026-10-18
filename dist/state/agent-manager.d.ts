@@ -65,6 +65,7 @@ export declare class AgentManager {
     }>;
     getMcpServers(): string[];
     getThinkingLevel(): string;
+    cycleThinkingLevel(): string;
     getActiveTools(): string[];
     getCommands(): Array<{
         name: string;

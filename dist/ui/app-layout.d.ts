@@ -1,4 +1,4 @@
-import type { Component, Focusable, TUI } from "@earendil-works/pi-tui";
+import { type Component, type Focusable, type TUI } from "@earendil-works/pi-tui";
 import { type AgentManager } from "../state/agent-manager.js";
 import { type GitWatcher } from "../state/git-watcher.js";
 import { type MetricsTracker } from "../state/metrics-tracker.js";

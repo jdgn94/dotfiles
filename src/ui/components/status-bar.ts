@@ -46,16 +46,16 @@ export class StatusBar implements Component {
       colors.subtext
     )}`;
 
-    const hints = `${style("[Tab]", colors.bold, colors.primary)} ${style(
+    const hints = `${style("[Shift+Tab]", colors.bold, colors.primary)} ${style(
       "Agent",
       colors.muted
     )}  ${style("[Ctrl+T]", colors.bold, colors.primary)} ${style(
-      "Tasks",
+      "Effort",
       colors.muted
-    )}  ${style("[Alt+M/F3]", colors.bold, colors.primary)} ${style(
+    )}  ${style("[F3]", colors.bold, colors.primary)} ${style(
       "MCPs",
       colors.muted
-    )}  ${style("[Alt+S/F4]", colors.bold, colors.primary)} ${style(
+    )}  ${style("[F4]", colors.bold, colors.primary)} ${style(
       "Skills",
       colors.muted
     )}  ${style("[Ctrl+C]", colors.bold, colors.primary)} ${style("Exit", colors.muted)}`;
