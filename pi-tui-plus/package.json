@@ -1,0 +1,26 @@
+{
+  "name": "pi-tui-plus",
+  "version": "0.1.0",
+  "description": "Enhanced Terminal User Interface for Pi Coding Agent with Split-View, Live Metrics, Git Context, and Tool Logs",
+  "type": "module",
+  "bin": {
+    "pi-plus": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "start": "node ./dist/cli.js",
+    "dev": "node ./scripts/dev.js"
+  },
+  "dependencies": {
+    "@earendil-works/pi-agent-core": "^1.3.0",
+    "@earendil-works/pi-ai": "^1.3.0",
+    "@earendil-works/pi-coding-agent": "^1.3.0",
+    "@earendil-works/pi-tui": "^1.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.8.0"
+  }
+}

@@ -1,0 +1,6 @@
+schema: spec-driven
+
+context: |
+  Project: Pi-TUI-Plus
+  Architecture: TypeScript terminal interface built on Pi SDK.
+  Features: Split-view, token metrics, git context, agent switching.
