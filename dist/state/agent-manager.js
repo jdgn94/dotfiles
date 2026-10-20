@@ -1,3 +1,4 @@
+import { exec } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -422,6 +423,7 @@ export class AgentManager {
             });
         }
         finally {
+            const elapsed = this.turnStartTime ? (Date.now() - this.turnStartTime) / 1000 : 0;
             this.isWorking = false;
             this.currentStatus = "Ready";
             this.turnStartTime = 0;
@@ -431,6 +433,16 @@ export class AgentManager {
             this.updateStats();
             this.gitWatcher.refresh().catch(() => { });
             this.notify();
+            if (elapsed > 2.5) {
+                try {
+                    process.stdout.write("\x07");
+                    const activeAgent = this.getActiveAgentName();
+                    exec(`notify-send "Pi-TUI-Plus (${activeAgent})" "Turn completed in ${elapsed.toFixed(1)}s"`, () => { });
+                }
+                catch {
+                    // ignore notification failure
+                }
+            }
         }
     }
     async executeSubagentPrompt(agent, taskPrompt, rawUserText) {
@@ -496,6 +508,7 @@ export class AgentManager {
             catch {
                 // ignore
             }
+            const elapsed = this.turnStartTime ? (Date.now() - this.turnStartTime) / 1000 : 0;
             this.isWorking = false;
             this.currentStatus = "Ready";
             this.turnStartTime = 0;
@@ -505,6 +518,15 @@ export class AgentManager {
             this.updateStats();
             this.gitWatcher.refresh().catch(() => { });
             this.notify();
+            if (elapsed > 2.5) {
+                try {
+                    process.stdout.write("\x07");
+                    exec(`notify-send "Pi-TUI-Plus (${agent.name})" "Subagent task completed in ${elapsed.toFixed(1)}s"`, () => { });
+                }
+                catch {
+                    // ignore
+                }
+            }
         }
     }
     async abort() {

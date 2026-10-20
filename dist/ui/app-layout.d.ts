@@ -13,6 +13,8 @@ export declare class AppLayout implements Component, Focusable {
     private chatView;
     private sidebar;
     private agentPopup;
+    private diffViewer;
+    private sessionModal;
     private inputBox;
     private statusBar;
     private sidebarVisible;
@@ -24,6 +26,7 @@ export declare class AppLayout implements Component, Focusable {
     private syncInputBoxState;
     private syncAnimationTimer;
     invalidate(): void;
+    private openExternalEditor;
     handleInput(data: string): void;
     render(width: number): string[];
     private padTo;

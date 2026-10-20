@@ -67,6 +67,23 @@ export class AgentPopup implements Component {
     return { action: "selected_subagent", agent: chosen };
   }
 
+  public handleClick(rowOffset: number): AgentPopupResult | null {
+    if (!this.isOpen) return null;
+    const primaries = this.agentManager.getPrimaryAgents();
+    const subagents = this.agentManager.getSubagents();
+
+    if (rowOffset >= 2 && rowOffset < 2 + primaries.length) {
+      this.selectedIndex = rowOffset - 2;
+      return this.selectCurrent();
+    }
+    const subStart = 2 + primaries.length + 2;
+    if (rowOffset >= subStart && rowOffset < subStart + subagents.length) {
+      this.selectedIndex = primaries.length + (rowOffset - subStart);
+      return this.selectCurrent();
+    }
+    return null;
+  }
+
   public render(width: number): string[] {
     if (!this.isOpen) return [];
 

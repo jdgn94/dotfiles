@@ -27,6 +27,10 @@ export declare const colors: {
 export declare function style(text: string, ...ansiCodes: string[]): string;
 export declare function pad(text: string, targetWidth: number, align?: "left" | "right" | "center"): string;
 export declare function truncate(text: string, maxWidth: number): string;
+/**
+ * Highlights a single line of code with Catppuccin TrueColor tokens using single-pass tokenization
+ */
+export declare function highlightCodeLine(line: string): string;
 export declare function progressBar(percent: number, width: number): string;
 /**
  * Animated Progressive-Color Wave Pulse work indicator

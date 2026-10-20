@@ -24,6 +24,7 @@ export class Sidebar {
     mcpExpanded = false;
     skillsExpanded = false;
     planExpanded = true;
+    clickMap = new Map();
     constructor(agent, metrics, git, toolLogger, todoTracker, specGraph, inputBox) {
         this.agent = agent;
         this.metrics = metrics;
@@ -52,9 +53,13 @@ export class Sidebar {
     isPlanExpanded() {
         return this.planExpanded;
     }
+    handleClick(sidebarRowIndex) {
+        return this.clickMap.get(sidebarRowIndex) ?? null;
+    }
     render(width) {
         const safeWidth = Math.max(26, width);
         const lines = [];
+        this.clickMap.clear();
         // --- 1. SESSION SECTION (matches image-1) ---
         lines.push(style(" SESSION", colors.muted));
         const sessionName = this.agent.getSessionName();
@@ -169,6 +174,7 @@ export class Sidebar {
             const planHeader = ` ${style(planArrow, colors.warning)} ${style("Plan & Tasks", colors.bold, colors.warning)} ${style(`(${summary.completed}/${summary.total})`, colors.bold, colors.text)}`;
             const planHint = style("[Ctrl+Y]", colors.muted);
             lines.push(this.spaceBetween(planHeader, planHint + " ", safeWidth));
+            this.clickMap.set(lines.length - 1, { type: "toggle_plan" });
             // 1. Current active task ("por cual tarea va")
             const activeTask = tasks.find((t) => t.status === "in_progress") ||
                 tasks.find((t) => t.status === "pending") ||
@@ -206,6 +212,7 @@ export class Sidebar {
         else {
             lines.push(style("─".repeat(safeWidth), colors.border));
             lines.push(` ${style("▶", colors.muted)} ${style("Plan & Tasks", colors.bold, colors.muted)} ${style("(no active plan)", colors.muted)}`);
+            this.clickMap.set(lines.length - 1, { type: "toggle_plan" });
         }
         // --- 8. COLLAPSIBLE MCP SERVERS SECTION ---
         lines.push(style("─".repeat(safeWidth), colors.border));
@@ -215,6 +222,7 @@ export class Sidebar {
         const mcpHeader = ` ${style(mcpArrow, colors.accent)} ${style("MCP Servers", colors.bold, colors.primary)} ${style(`(${mcpCount})`, colors.muted)}`;
         const mcpHint = style("[F3 / Alt+M]", colors.muted);
         lines.push(this.spaceBetween(mcpHeader, mcpHint + " ", safeWidth));
+        this.clickMap.set(lines.length - 1, { type: "toggle_mcp" });
         if (this.mcpExpanded) {
             if (mcpServers.length === 0) {
                 lines.push(style("   (no active MCP servers)", colors.muted));
@@ -233,6 +241,7 @@ export class Sidebar {
         const skillsHeader = ` ${style(skillsArrow, colors.secondary)} ${style("Skills", colors.bold, colors.secondary)} ${style(`(${skillsCount})`, colors.muted)}`;
         const skillsHint = style("[F4 / Alt+S]", colors.muted);
         lines.push(this.spaceBetween(skillsHeader, skillsHint + " ", safeWidth));
+        this.clickMap.set(lines.length - 1, { type: "toggle_skills" });
         if (this.skillsExpanded) {
             if (skills.length === 0) {
                 lines.push(style("   (no skills installed)", colors.muted));
@@ -277,6 +286,7 @@ export class Sidebar {
                             : colors.warning;
                     const fileText = `  ${style(ch.statusCode || "M", statusColor)} ${truncate(ch.file, safeWidth - 18)}${diffBadge}`;
                     lines.push(fileText);
+                    this.clickMap.set(lines.length - 1, { type: "open_diff", file: ch.file });
                 }
                 if (changes.length > 5) {
                     lines.push(`   ${style(`... and ${changes.length - 5} more files`, colors.muted)}`);

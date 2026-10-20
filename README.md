@@ -48,14 +48,16 @@ Built on `@earendil-works/pi-tui` and `@earendil-works/pi-coding-agent`.
 | --- | --- |
 | `Shift + Tab` / `Tab` | **Switch to next installed Agent** (`default` → `orchestrator` → `code-reviewer` → ...) |
 | `Ctrl + T` | **Cycle Thinking Effort** (`off` → `minimal` → `low` → `medium` → `high` → `max`) |
+| `Ctrl + D` | **Open Git Diff Viewer** (syntax-colored diff of modified files) |
+| `Ctrl + S` | **Open Saved Sessions Manager** (inspect and resume past sessions) |
+| `Ctrl + E` | **Edit Prompt in External Editor** (`$EDITOR` / nano / nvim) |
+| `Alt + Enter` / `Shift + Enter` | **Insert Newline** for multi-line prompt expansion |
 | `Ctrl + Y` | **Expand / Collapse Plan & Tasks** in right sidebar |
 | `F3` / `Alt + M` / `Ctrl + O` | **Expand / Collapse MCP Servers list** |
 | `F4` / `Alt + S` / `Ctrl + K` | **Expand / Collapse Skills list** |
 | `Alt + B` | Show or hide the sidebar (toggle full-width chat) |
 | `/` (Slash) | Open **Slash Commands Autocomplete Popup** (navigate with `Up`/`Down`, `Tab` to complete) |
-| `PageUp` | Scroll up chat history |
-| `PageDown` | Scroll down chat history (resumes auto-scroll at bottom) |
-| `Up / Down Arrow` | Navigate input prompt history (or commands list when `/` active) |
+| `PageUp` / `PageDown` | Scroll chat history |
 | `Ctrl + C` | Cancel active response generation or exit cleanly |
 
 ---

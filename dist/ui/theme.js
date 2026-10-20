@@ -53,6 +53,38 @@ export function truncate(text, maxWidth) {
         return text;
     return stripped.slice(0, Math.max(0, maxWidth - 1)) + "…";
 }
+const CODE_KEYWORDS = new Set([
+    "const", "let", "var", "function", "class", "import", "export", "from",
+    "return", "if", "else", "async", "await", "def", "interface", "type",
+    "switch", "case", "break", "try", "catch", "new", "public", "private",
+    "readonly", "self", "for", "while", "in", "of", "null", "undefined",
+    "true", "false",
+]);
+/**
+ * Highlights a single line of code with Catppuccin TrueColor tokens using single-pass tokenization
+ */
+export function highlightCodeLine(line) {
+    // If whole line is a comment
+    if (/^\s*(\/\/|#|\/\*|\*)/.test(line)) {
+        return `${colors.muted}${colors.italic}${line}${colors.reset}`;
+    }
+    const tokenRegex = /(\/\/[^\r\n]*)|(["'`][^"'`]*["'`])|(\b\d+(?:\.\d+)?\b)|(\b[a-zA-Z_$][a-zA-Z0-9_$]*\b)|(\s+|[^\s\w])/g;
+    return line.replace(tokenRegex, (match, comment, str, num, word) => {
+        if (comment) {
+            return `${colors.muted}${colors.italic}${comment}${colors.reset}`;
+        }
+        if (str) {
+            return `${colors.success}${str}${colors.reset}`;
+        }
+        if (num) {
+            return `${colors.peach}${num}${colors.reset}`;
+        }
+        if (word && CODE_KEYWORDS.has(word)) {
+            return `${colors.secondary}${colors.bold}${word}${colors.reset}`;
+        }
+        return match;
+    });
+}
 export function progressBar(percent, width) {
     const clamped = Math.max(0, Math.min(100, percent));
     const fillWidth = Math.round((clamped / 100) * width);

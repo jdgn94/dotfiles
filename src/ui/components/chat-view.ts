@@ -1,6 +1,6 @@
 import { visibleWidth, type Component } from "@earendil-works/pi-tui";
 import { type AgentManager } from "../../state/agent-manager.js";
-import { colors, renderWavePulse, style } from "../theme.js";
+import { colors, highlightCodeLine, renderWavePulse, style } from "../theme.js";
 import { TetrisLogo } from "./tetris-logo.js";
 
 export class ChatView implements Component {
@@ -172,8 +172,26 @@ export class ChatView implements Component {
 
     const innerWidth = Math.max(10, width - 4);
     const rawLines = content.split("\n");
+    let inCodeBlock = false;
 
     for (const rawLine of rawLines) {
+      if (rawLine.startsWith("```")) {
+        inCodeBlock = !inCodeBlock;
+        const lang = rawLine.slice(3).trim();
+        const tag = inCodeBlock
+          ? style(`  ${lang || "code"} `, colors.bold, colors.accent)
+          : style("  end ", colors.muted);
+        const tagVisual = visibleWidth(tag);
+        const pad = Math.max(0, innerWidth - tagVisual);
+        target.push(
+          `${style(verticalChar + " ", borderColor)}${tag}${" ".repeat(pad)}${style(
+            " " + verticalChar,
+            borderColor
+          )}`
+        );
+        continue;
+      }
+
       if (rawLine.trim() === "") {
         target.push(
           `${style(verticalChar + " ", borderColor)}${" ".repeat(innerWidth)}${style(
@@ -182,7 +200,8 @@ export class ChatView implements Component {
           )}`
         );
       } else {
-        const wrapped = this.wrapText(rawLine, innerWidth);
+        const lineToRender = inCodeBlock ? highlightCodeLine(rawLine) : rawLine;
+        const wrapped = this.wrapText(lineToRender, innerWidth);
         for (const w of wrapped) {
           const paddingDiff = innerWidth - this.visualLength(w);
           const pad = paddingDiff > 0 ? " ".repeat(paddingDiff) : "";

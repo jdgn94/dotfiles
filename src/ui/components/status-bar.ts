@@ -52,6 +52,9 @@ export class StatusBar implements Component {
     )}  ${style("[Ctrl+T]", colors.bold, colors.primary)} ${style(
       "Effort",
       colors.muted
+    )}  ${style("[Ctrl+D]", colors.bold, colors.primary)} ${style(
+      "Diff",
+      colors.muted
     )}  ${style("[F3]", colors.bold, colors.primary)} ${style(
       "MCPs",
       colors.muted

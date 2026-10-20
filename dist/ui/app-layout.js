@@ -1,8 +1,14 @@
+import { execSync } from "node:child_process";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { matchesKey } from "@earendil-works/pi-tui";
 import { AgentPopup } from "./components/agent-popup.js";
 import { ChatView } from "./components/chat-view.js";
+import { DiffViewer } from "./components/diff-viewer.js";
 import { Header } from "./components/header.js";
 import { InputBox } from "./components/input-box.js";
+import { SessionModal } from "./components/session-modal.js";
 import { Sidebar } from "./components/sidebar.js";
 import { StatusBar } from "./components/status-bar.js";
 import { colors, style } from "./theme.js";
@@ -14,6 +20,8 @@ export class AppLayout {
     chatView;
     sidebar;
     agentPopup;
+    diffViewer = new DiffViewer();
+    sessionModal = new SessionModal();
     inputBox;
     statusBar;
     sidebarVisible = true;
@@ -27,6 +35,9 @@ export class AppLayout {
         this.header = new Header(agent);
         this.inputBox = new InputBox();
         this.agentPopup = new AgentPopup(agent);
+        this.inputBox.onOpenExternalEditor(() => {
+            this.openExternalEditor();
+        });
         this.sidebar = new Sidebar(agent, metrics, git, toolLogger, todoTracker, specGraph, this.inputBox);
         this.chatView = new ChatView(agent);
         this.statusBar = new StatusBar(agent, metrics);
@@ -38,6 +49,16 @@ export class AppLayout {
             const trimmed = text.trim();
             if (trimmed === "/agent") {
                 this.agentPopup.open();
+                this.tui.requestRender();
+                return;
+            }
+            if (trimmed === "/diff") {
+                this.diffViewer.open();
+                this.tui.requestRender();
+                return;
+            }
+            if (trimmed === "/session" || trimmed === "/sessions") {
+                this.sessionModal.open();
                 this.tui.requestRender();
                 return;
             }
@@ -113,10 +134,85 @@ export class AppLayout {
         this.chatView.invalidate();
         this.sidebar.invalidate();
         this.agentPopup.invalidate();
+        this.diffViewer.invalidate();
+        this.sessionModal.invalidate();
         this.inputBox.invalidate();
         this.statusBar.invalidate();
     }
+    openExternalEditor() {
+        const tempFile = path.join(os.tmpdir(), `pi-prompt-${Date.now()}.txt`);
+        try {
+            fs.writeFileSync(tempFile, this.inputBox.getText(), "utf8");
+            this.tui.stop();
+            const editor = process.env.EDITOR || "nano";
+            execSync(`${editor} "${tempFile}"`, { stdio: "inherit" });
+            const newText = fs.readFileSync(tempFile, "utf8");
+            this.inputBox.setText(newText);
+        }
+        catch {
+            // ignore
+        }
+        finally {
+            try {
+                if (fs.existsSync(tempFile))
+                    fs.unlinkSync(tempFile);
+            }
+            catch {
+                // ignore
+            }
+            this.tui.start();
+            this.tui.requestRender();
+        }
+    }
     handleInput(data) {
+        // Handle input when DiffViewer modal is open
+        if (this.diffViewer.getIsOpen()) {
+            if (matchesKey(data, "escape") || matchesKey(data, "ctrl+c")) {
+                this.diffViewer.close();
+                this.tui.requestRender();
+                return;
+            }
+            if (matchesKey(data, "up") || matchesKey(data, "k")) {
+                this.diffViewer.scrollUp(2);
+                this.tui.requestRender();
+                return;
+            }
+            if (matchesKey(data, "down") || matchesKey(data, "j")) {
+                this.diffViewer.scrollDown(2);
+                this.tui.requestRender();
+                return;
+            }
+            if (matchesKey(data, "pageUp")) {
+                this.diffViewer.scrollUp(8);
+                this.tui.requestRender();
+                return;
+            }
+            if (matchesKey(data, "pageDown")) {
+                this.diffViewer.scrollDown(8);
+                this.tui.requestRender();
+                return;
+            }
+            return;
+        }
+        // Handle input when SessionModal is open
+        if (this.sessionModal.getIsOpen()) {
+            if (matchesKey(data, "escape") || matchesKey(data, "ctrl+c")) {
+                this.sessionModal.close();
+                this.tui.requestRender();
+                return;
+            }
+            if (matchesKey(data, "up")) {
+                this.sessionModal.navigateUp();
+                this.tui.requestRender();
+                return;
+            }
+            if (matchesKey(data, "down")) {
+                this.sessionModal.navigateDown();
+                this.tui.requestRender();
+                return;
+            }
+            return;
+        }
         // Handle input when AgentPopup modal is open
         if (this.agentPopup.getIsOpen()) {
             if (matchesKey(data, "up")) {
@@ -187,6 +283,18 @@ export class AppLayout {
             this.tui.requestRender();
             return;
         }
+        // Ctrl+D -> Open Git Diff Viewer
+        if (matchesKey(data, "ctrl+d") || data === "\x04") {
+            this.diffViewer.open();
+            this.tui.requestRender();
+            return;
+        }
+        // Ctrl+S -> Open Saved Sessions Browser
+        if (matchesKey(data, "ctrl+s") || data === "\x13") {
+            this.sessionModal.open();
+            this.tui.requestRender();
+            return;
+        }
         // Ctrl+Y or Alt+T -> Toggle Plan & Tasks in Sidebar
         if (matchesKey(data, "ctrl+y") || data === "\x19") {
             this.sidebar.togglePlan();
@@ -223,7 +331,7 @@ export class AppLayout {
             this.tui.requestRender();
             return;
         }
-        // SGR Mouse Click Handling (clicking on sidebar or headers)
+        // SGR Mouse Click Handling (clicking on sidebar, headers, or buttons)
         if (data.startsWith("\x1b[<") && (data.endsWith("M") || data.endsWith("m"))) {
             const match = data.match(/^\x1b\[<(\d+);(\d+);(\d+)([Mm])/);
             if (match && match[1] === "0" && match[4] === "M") {
@@ -232,19 +340,96 @@ export class AppLayout {
                 const termWidth = Math.max(40, this.tui?.terminal?.columns ??
                     process.stdout.columns ??
                     80);
-                const sbWidth = Math.min(this.sidebarWidth, Math.floor(termWidth * 0.45));
-                const chatWidth = termWidth - sbWidth - 1;
-                if (col > chatWidth) {
-                    // Clicked on right sidebar
-                    if (row >= 10 && row <= 16) {
+                const termHeight = this.tui?.terminal?.rows ??
+                    process.stdout.rows ??
+                    24;
+                // 1. Click on Header area -> open Agent selector
+                if (row <= 2 && col >= termWidth - 32) {
+                    this.agentPopup.open();
+                    this.tui.requestRender();
+                    return;
+                }
+                // 2. Click on Status bar row (bottom row)
+                if (row >= termHeight) {
+                    if (col >= 30 && col < 46) {
+                        this.agent.nextAgent();
+                        this.syncInputBoxState();
+                        this.tui.requestRender();
+                        return;
+                    }
+                    if (col >= 46 && col < 58) {
+                        this.agent.cycleThinkingLevel();
+                        this.tui.requestRender();
+                        return;
+                    }
+                    if (col >= 58 && col < 70) {
                         this.sidebar.toggleMcp();
                         this.tui.requestRender();
                         return;
                     }
-                    if (row > 16 && row <= 24) {
+                    if (col >= 70 && col < 82) {
                         this.sidebar.toggleSkills();
                         this.tui.requestRender();
                         return;
+                    }
+                    if (col >= 82) {
+                        process.exit(0);
+                    }
+                }
+                // 3. Click when modals are open -> close or select
+                if (this.diffViewer.getIsOpen()) {
+                    this.diffViewer.close();
+                    this.tui.requestRender();
+                    return;
+                }
+                if (this.sessionModal.getIsOpen()) {
+                    this.sessionModal.close();
+                    this.tui.requestRender();
+                    return;
+                }
+                if (this.agentPopup.getIsOpen()) {
+                    const popupStartRow = 3;
+                    const rowOffset = row - popupStartRow;
+                    const res = this.agentPopup.handleClick(rowOffset);
+                    if (res) {
+                        if (res.action === "selected_primary") {
+                            this.syncInputBoxState();
+                        }
+                        else if (res.action === "selected_subagent") {
+                            this.inputBox.setText(`/agent ${res.agent.name} `);
+                            this.inputBox.setActiveAgent(res.agent.name, res.agent.color, true);
+                        }
+                        this.tui.requestRender();
+                        return;
+                    }
+                }
+                // 4. Click on Right Sidebar (dynamic clickMap)
+                const sbWidth = Math.min(this.sidebarWidth, Math.floor(termWidth * 0.45));
+                const chatWidth = termWidth - sbWidth - 1;
+                if (col > chatWidth) {
+                    const sidebarRowIndex = row - 3;
+                    const action = this.sidebar.handleClick(sidebarRowIndex);
+                    if (action) {
+                        if (action.type === "toggle_plan") {
+                            this.sidebar.togglePlan();
+                            this.tui.requestRender();
+                            return;
+                        }
+                        if (action.type === "toggle_mcp") {
+                            this.sidebar.toggleMcp();
+                            this.tui.requestRender();
+                            return;
+                        }
+                        if (action.type === "toggle_skills") {
+                            this.sidebar.toggleSkills();
+                            this.tui.requestRender();
+                            return;
+                        }
+                        if (action.type === "open_diff") {
+                            this.diffViewer.open(action.file);
+                            this.tui.requestRender();
+                            return;
+                        }
                     }
                 }
             }
@@ -307,6 +492,62 @@ export class AppLayout {
             }
             for (const pl of popupLines) {
                 centerLines.push(pl);
+            }
+            while (centerLines.length < centerHeight) {
+                centerLines.push(" ".repeat(popupWidth));
+            }
+            centerLines = centerLines.slice(0, centerHeight);
+            if (this.sidebarVisible && termWidth > 75) {
+                const sbWidth = Math.min(this.sidebarWidth, Math.floor(termWidth * 0.45));
+                const allSidebarLines = this.sidebar.render(sbWidth);
+                const compLines = [];
+                for (let i = 0; i < centerHeight; i++) {
+                    const cLine = this.padTo(centerLines[i] ?? "", popupWidth);
+                    const sLine = this.padTo(allSidebarLines[i] ?? "", sbWidth);
+                    const sep = style("│", colors.border);
+                    compLines.push(`${cLine}${sep}${sLine}`);
+                }
+                centerLines = compLines;
+            }
+        }
+        else if (this.diffViewer.getIsOpen()) {
+            const popupWidth = this.sidebarVisible && termWidth > 75
+                ? termWidth - Math.min(this.sidebarWidth, Math.floor(termWidth * 0.45)) - 1
+                : termWidth;
+            const diffRendered = this.diffViewer.render(popupWidth, centerHeight);
+            centerLines = [];
+            for (const dl of diffRendered) {
+                centerLines.push(dl);
+            }
+            while (centerLines.length < centerHeight) {
+                centerLines.push(" ".repeat(popupWidth));
+            }
+            centerLines = centerLines.slice(0, centerHeight);
+            if (this.sidebarVisible && termWidth > 75) {
+                const sbWidth = Math.min(this.sidebarWidth, Math.floor(termWidth * 0.45));
+                const allSidebarLines = this.sidebar.render(sbWidth);
+                const compLines = [];
+                for (let i = 0; i < centerHeight; i++) {
+                    const cLine = this.padTo(centerLines[i] ?? "", popupWidth);
+                    const sLine = this.padTo(allSidebarLines[i] ?? "", sbWidth);
+                    const sep = style("│", colors.border);
+                    compLines.push(`${cLine}${sep}${sLine}`);
+                }
+                centerLines = compLines;
+            }
+        }
+        else if (this.sessionModal.getIsOpen()) {
+            const popupWidth = this.sidebarVisible && termWidth > 75
+                ? termWidth - Math.min(this.sidebarWidth, Math.floor(termWidth * 0.45)) - 1
+                : termWidth;
+            const modalRendered = this.sessionModal.render(popupWidth);
+            centerLines = [];
+            const topPad = Math.max(0, Math.floor((centerHeight - modalRendered.length) / 2));
+            while (centerLines.length < topPad) {
+                centerLines.push(" ".repeat(popupWidth));
+            }
+            for (const ml of modalRendered) {
+                centerLines.push(ml);
             }
             while (centerLines.length < centerHeight) {
                 centerLines.push(" ".repeat(popupWidth));

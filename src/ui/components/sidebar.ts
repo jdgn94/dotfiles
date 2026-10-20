@@ -22,6 +22,11 @@ function formatTokens(count: number): string {
   return String(count);
 }
 
+export interface SidebarClickAction {
+  type: "toggle_plan" | "toggle_mcp" | "toggle_skills" | "open_diff";
+  file?: string;
+}
+
 export class Sidebar implements Component {
   private agent: AgentManager;
   private metrics: MetricsTracker;
@@ -35,6 +40,7 @@ export class Sidebar implements Component {
   private mcpExpanded = false;
   private skillsExpanded = false;
   private planExpanded = true;
+  private clickMap = new Map<number, SidebarClickAction>();
 
   constructor(
     agent: AgentManager,
@@ -80,9 +86,14 @@ export class Sidebar implements Component {
     return this.planExpanded;
   }
 
+  public handleClick(sidebarRowIndex: number): SidebarClickAction | null {
+    return this.clickMap.get(sidebarRowIndex) ?? null;
+  }
+
   public render(width: number): string[] {
     const safeWidth = Math.max(26, width);
     const lines: string[] = [];
+    this.clickMap.clear();
 
     // --- 1. SESSION SECTION (matches image-1) ---
     lines.push(style(" SESSION", colors.muted));
@@ -253,6 +264,7 @@ export class Sidebar implements Component {
       )} ${style(`(${summary.completed}/${summary.total})`, colors.bold, colors.text)}`;
       const planHint = style("[Ctrl+Y]", colors.muted);
       lines.push(this.spaceBetween(planHeader, planHint + " ", safeWidth));
+      this.clickMap.set(lines.length - 1, { type: "toggle_plan" });
 
       // 1. Current active task ("por cual tarea va")
       const activeTask =
@@ -308,6 +320,7 @@ export class Sidebar implements Component {
           colors.muted
         )}`
       );
+      this.clickMap.set(lines.length - 1, { type: "toggle_plan" });
     }
 
     // --- 8. COLLAPSIBLE MCP SERVERS SECTION ---
@@ -318,6 +331,7 @@ export class Sidebar implements Component {
     const mcpHeader = ` ${style(mcpArrow, colors.accent)} ${style("MCP Servers", colors.bold, colors.primary)} ${style(`(${mcpCount})`, colors.muted)}`;
     const mcpHint = style("[F3 / Alt+M]", colors.muted);
     lines.push(this.spaceBetween(mcpHeader, mcpHint + " ", safeWidth));
+    this.clickMap.set(lines.length - 1, { type: "toggle_mcp" });
 
     if (this.mcpExpanded) {
       if (mcpServers.length === 0) {
@@ -337,6 +351,7 @@ export class Sidebar implements Component {
     const skillsHeader = ` ${style(skillsArrow, colors.secondary)} ${style("Skills", colors.bold, colors.secondary)} ${style(`(${skillsCount})`, colors.muted)}`;
     const skillsHint = style("[F4 / Alt+S]", colors.muted);
     lines.push(this.spaceBetween(skillsHeader, skillsHint + " ", safeWidth));
+    this.clickMap.set(lines.length - 1, { type: "toggle_skills" });
 
     if (this.skillsExpanded) {
       if (skills.length === 0) {
@@ -390,6 +405,7 @@ export class Sidebar implements Component {
             safeWidth - 18
           )}${diffBadge}`;
           lines.push(fileText);
+          this.clickMap.set(lines.length - 1, { type: "open_diff", file: ch.file });
         }
         if (changes.length > 5) {
           lines.push(`   ${style(`... and ${changes.length - 5} more files`, colors.muted)}`);

@@ -28,8 +28,9 @@ export class InputBox implements Component, Focusable {
   private cursor = 0;
   private history: string[] = [];
   private historyIndex = -1;
-  private placeholder = "Type a prompt... (Enter to send, Ctrl+A to switch agent, / for commands)";
+  private placeholder = "Type a prompt... (Enter: send, Alt+Enter: newline, Ctrl+E: editor, /: commands)";
   private onSubmitCallback?: (text: string) => void;
+  private onOpenExternalEditorCallback?: () => void;
 
   private activeAgentName = "default";
   private activeAgentColor = colors.activeBorder;
@@ -41,6 +42,10 @@ export class InputBox implements Component, Focusable {
 
   public onSubmit(cb: (text: string) => void): void {
     this.onSubmitCallback = cb;
+  }
+
+  public onOpenExternalEditor(cb: () => void): void {
+    this.onOpenExternalEditorCallback = cb;
   }
 
   public setActiveAgent(name: string, color?: string, hasMultiple = true): void {
@@ -150,6 +155,24 @@ export class InputBox implements Component, Focusable {
   public handleInput(data: string): void {
     const isCommandMode = this.text.startsWith("/");
     const matching = isCommandMode ? this.getMatchingCommands() : [];
+
+    // Ctrl+E -> Open prompt in external editor ($EDITOR)
+    if (matchesKey(data, "ctrl+e") || data === "\x05") {
+      this.onOpenExternalEditorCallback?.();
+      return;
+    }
+
+    // Alt+Enter, Shift+Enter, \x1b\r, \x1b\n -> Insert newline for multiline prompt!
+    if (
+      data === "\x1b\r" ||
+      data === "\x1b\n" ||
+      matchesKey(data, "shift+enter") ||
+      matchesKey(data, "alt+enter")
+    ) {
+      this.text = this.text.slice(0, this.cursor) + "\n" + this.text.slice(this.cursor);
+      this.cursor += 1;
+      return;
+    }
 
     // Tab key in command mode -> Autocomplete selected command
     if (data === "\t" && isCommandMode && matching.length > 0) {
@@ -339,39 +362,87 @@ export class InputBox implements Component, Focusable {
     const innerWidth = safeWidth - 4;
     let contentDisplay = "";
 
-    if (this.text.length === 0) {
-      contentDisplay = style(this.placeholder.slice(0, innerWidth - 2), colors.muted);
-    } else {
-      // Horizontal windowing for long text
-      const maxVisible = Math.max(1, innerWidth - 2);
-      let sliceStart = 0;
-      if (this.cursor >= maxVisible) {
-        sliceStart = this.cursor - maxVisible + 1;
+    const textLines = this.text.split("\n");
+    const middleLines: string[] = [];
+
+    if (textLines.length > 1) {
+      // Calculate which line and column the cursor is currently at
+      let curRemaining = this.cursor;
+      let curLineIdx = 0;
+      let curColIdx = 0;
+      for (let i = 0; i < textLines.length; i++) {
+        const lineLen = textLines[i]?.length ?? 0;
+        if (curRemaining <= lineLen) {
+          curLineIdx = i;
+          curColIdx = curRemaining;
+          break;
+        }
+        curRemaining -= lineLen + 1;
       }
-      const visibleSub = this.text.slice(sliceStart, sliceStart + maxVisible);
-      const visibleCursor = this.cursor - sliceStart;
 
-      const beforeCursor = visibleSub.slice(0, visibleCursor);
-      const atCursor = visibleSub[visibleCursor] || " ";
-      const afterCursor = visibleSub.slice(visibleCursor + 1);
+      // Render up to 6 lines expanded
+      const maxRows = Math.min(6, textLines.length);
+      for (let i = 0; i < maxRows; i++) {
+        const rawLine = textLines[i] ?? "";
+        let lineDisplay = "";
 
-      contentDisplay = `${beforeCursor}\x1b[7m${atCursor}\x1b[27m${afterCursor}`;
+        if (i === curLineIdx) {
+          const before = rawLine.slice(0, curColIdx);
+          const at = rawLine[curColIdx] || " ";
+          const after = rawLine.slice(curColIdx + 1);
+          lineDisplay = `${before}\x1b[7m${at}\x1b[27m${after}`;
+        } else {
+          lineDisplay = rawLine;
+        }
+
+        const numPrefix = style(`${i + 1} > `, colors.muted);
+        const rowContent = `${numPrefix}${lineDisplay}`;
+        const rowVisual = visibleWidth(`${i + 1} > `) + visibleWidth(rawLine);
+        const padCount = Math.max(0, innerWidth - rowVisual);
+        middleLines.push(
+          `${style("│ ", borderColor)}${rowContent}${" ".repeat(padCount)}${style(
+            " │",
+            borderColor
+          )}`
+        );
+      }
+    } else {
+      if (this.text.length === 0) {
+        contentDisplay = style(this.placeholder.slice(0, innerWidth - 2), colors.muted);
+      } else {
+        // Horizontal windowing for long text
+        const maxVisible = Math.max(1, innerWidth - 2);
+        let sliceStart = 0;
+        if (this.cursor >= maxVisible) {
+          sliceStart = this.cursor - maxVisible + 1;
+        }
+        const visibleSub = this.text.slice(sliceStart, sliceStart + maxVisible);
+        const visibleCursor = this.cursor - sliceStart;
+
+        const beforeCursor = visibleSub.slice(0, visibleCursor);
+        const atCursor = visibleSub[visibleCursor] || " ";
+        const afterCursor = visibleSub.slice(visibleCursor + 1);
+
+        contentDisplay = `${beforeCursor}\x1b[7m${atCursor}\x1b[27m${afterCursor}`;
+      }
+
+      const textLen =
+        this.text.length === 0
+          ? this.placeholder.slice(0, innerWidth - 2).length
+          : Math.min(innerWidth - 2, this.text.length + 1);
+      const padCount = Math.max(0, innerWidth - 2 - textLen);
+      middleLines.push(
+        `${style("│ ", borderColor)}> ${contentDisplay}${" ".repeat(padCount)}${style(
+          " │",
+          borderColor
+        )}`
+      );
     }
-
-    const textLen =
-      this.text.length === 0
-        ? this.placeholder.slice(0, innerWidth - 2).length
-        : Math.min(innerWidth - 2, this.text.length + 1);
-    const padCount = Math.max(0, innerWidth - 2 - textLen);
-    const middle = `${style("│ ", borderColor)}> ${contentDisplay}${" ".repeat(padCount)}${style(
-      " │",
-      borderColor
-    )}`;
 
     // Clean rounded bottom border aligning with rounded top
     const bottom = `${style("╰" + "─".repeat(safeWidth - 2) + "╯", borderColor)}`;
 
-    lines.push(top, middle, bottom);
+    lines.push(top, ...middleLines, bottom);
     return lines;
   }
 }
