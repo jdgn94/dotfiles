@@ -168,6 +168,47 @@ export class AgentManager {
     getActiveTools() {
         return this.session?.getActiveToolNames() ?? [];
     }
+    async getAvailableModels() {
+        try {
+            // SAFETY: AgentSession exposes modelRuntime at runtime.
+            const runtime = this.session?.modelRuntime;
+            if (runtime?.getAvailable) {
+                const models = await runtime.getAvailable();
+                return models.map((m) => ({
+                    id: String(m.id),
+                    name: String(m.name || m.id),
+                    provider: String(m.provider || "default"),
+                    contextWindow: Number(m.contextWindow || 200000),
+                    reasoning: Boolean(m.reasoning),
+                }));
+            }
+        }
+        catch {
+            // ignore
+        }
+        return [];
+    }
+    async setModelById(modelId) {
+        try {
+            // SAFETY: AgentSession exposes modelRuntime and setModel at runtime.
+            const sessionObj = this.session;
+            if (sessionObj?.modelRuntime?.getAvailable && sessionObj.setModel) {
+                const models = await sessionObj.modelRuntime.getAvailable();
+                const found = models.find((m) => m.id.toLowerCase() === modelId.toLowerCase());
+                if (found) {
+                    await sessionObj.setModel(found);
+                    this.metrics.setModelInfo(found.name || found.id, found.contextWindow);
+                    this.lastAgentSwitchNotice = `Model set: ${found.id}`;
+                    this.notify();
+                    return true;
+                }
+            }
+        }
+        catch {
+            // ignore
+        }
+        return false;
+    }
     getCommands() {
         try {
             const exts = this.session?.resourceLoader?.getExtensions?.();
@@ -384,6 +425,20 @@ export class AgentManager {
                 }
             }
         }
+        // Check if the prompt starts with @subagent <prompt...>
+        const atAgentMatch = text.trim().match(/^@([a-zA-Z0-9_\-]+)(?:\s+([\s\S]+))?$/);
+        if (atAgentMatch) {
+            const targetName = atAgentMatch[1];
+            const targetPrompt = atAgentMatch[2]?.trim();
+            if (targetName && targetPrompt) {
+                const targetAgent = this.availableAgents.find((a) => a.id.toLowerCase() === targetName.toLowerCase() ||
+                    a.name.toLowerCase() === targetName.toLowerCase());
+                if (targetAgent) {
+                    await this.executeSubagentPrompt(targetAgent, targetPrompt, text);
+                    return;
+                }
+            }
+        }
         const activeAgent = this.getActiveAgent();
         // Push user message to UI
         this.messages.push({
@@ -401,6 +456,27 @@ export class AgentManager {
         this.notify();
         // Prepare prompt with active agent context if not default
         let effectivePrompt = text;
+        // Attach workspace files mentioned via @file
+        const fileMatches = text.match(/@([a-zA-Z0-9_\-./]+\.[a-zA-Z0-9]+)/g);
+        if (fileMatches && fileMatches.length > 0) {
+            let fileContext = "";
+            for (const m of fileMatches) {
+                const filePath = m.slice(1);
+                try {
+                    const resolved = path.resolve(this.cwd, filePath);
+                    if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
+                        const content = fs.readFileSync(resolved, "utf8");
+                        fileContext += `[Attached File: ${filePath}]\n\`\`\`\n${content}\n\`\`\`\n\n`;
+                    }
+                }
+                catch {
+                    // ignore
+                }
+            }
+            if (fileContext) {
+                effectivePrompt = `${fileContext}${effectivePrompt}`;
+            }
+        }
         if (activeAgent.id !== "default") {
             let agentHeader = `[Active Agent: ${activeAgent.name}]\n`;
             if (activeAgent.description) {
@@ -528,6 +604,48 @@ export class AgentManager {
                 }
             }
         }
+    }
+    clearMessages() {
+        this.messages = [];
+        this.notify();
+    }
+    async compact() {
+        try {
+            this.isWorking = true;
+            this.currentStatus = "Compacting context...";
+            this.notify();
+            if (this.session && typeof this.session.compact === "function") {
+                await this.session.compact();
+            }
+        }
+        catch {
+            // ignore
+        }
+        finally {
+            this.isWorking = false;
+            this.currentStatus = "Ready";
+            this.updateStats();
+            this.notify();
+        }
+    }
+    showCostBreakdown() {
+        const m = this.metrics.getMetrics();
+        const totalIn = m.input + m.cacheRead;
+        const hitRate = totalIn > 0 ? ((m.cacheRead / totalIn) * 100).toFixed(1) : "0.0";
+        const info = `📊 Token Economics & Cost Breakdown:
+• Model: ${this.getModelName()}
+• Context Window: ${m.contextWindow.toLocaleString()} tokens (${m.contextPercent}% used)
+• Input Tokens: ${m.input.toLocaleString()}
+• Output Tokens: ${m.output.toLocaleString()}
+• Cache Read: ${m.cacheRead.toLocaleString()} (${hitRate}% hit rate)
+• Estimated Cost: $${m.estimatedCostUsd.toFixed(4)} USD`;
+        this.messages.push({
+            id: "cost-" + Date.now(),
+            role: "system",
+            text: info,
+            timestamp: Date.now(),
+        });
+        this.notify();
     }
     async abort() {
         if (this.session) {

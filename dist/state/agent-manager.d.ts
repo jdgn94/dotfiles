@@ -70,6 +70,14 @@ export declare class AgentManager {
     getThinkingLevel(): string;
     cycleThinkingLevel(): string;
     getActiveTools(): string[];
+    getAvailableModels(): Promise<Array<{
+        id: string;
+        name: string;
+        provider: string;
+        contextWindow: number;
+        reasoning?: boolean;
+    }>>;
+    setModelById(modelId: string): Promise<boolean>;
     getCommands(): Array<{
         name: string;
         description: string;
@@ -90,6 +98,9 @@ export declare class AgentManager {
     onChange(listener: () => void): () => void;
     prompt(text: string): Promise<void>;
     private executeSubagentPrompt;
+    clearMessages(): void;
+    compact(): Promise<void>;
+    showCostBreakdown(): void;
     abort(): Promise<void>;
     private handleSessionEvent;
     private loadHistory;

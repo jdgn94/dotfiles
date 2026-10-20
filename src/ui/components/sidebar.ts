@@ -133,11 +133,11 @@ export class Sidebar implements Component {
 
     // --- 3. CONTEXT & PROMPT CACHE EFFICIENCY SECTION (Option 2) ---
     const m = this.metrics.getMetrics();
+    // Context bar uses dynamic warning (>60%) and error (>80%) threshold colors
     const contextLine = this.renderBar(
       " Context  ",
       m.contextPercent,
-      safeWidth,
-      "\x1b[38;2;180;160;235m"
+      safeWidth
     );
     lines.push(contextLine);
 
@@ -466,19 +466,34 @@ export class Sidebar implements Component {
     label: string,
     percent: number,
     width: number,
-    fillColor = "\x1b[38;2;180;160;235m"
+    fillColor?: string
   ): string {
     const clamped = Math.max(0, Math.min(100, percent));
+    let color = fillColor;
+    let badgeColor = colors.muted;
+
+    if (!color) {
+      if (clamped > 80) {
+        color = colors.error;
+        badgeColor = colors.error;
+      } else if (clamped > 60) {
+        color = colors.warning;
+        badgeColor = colors.warning;
+      } else {
+        color = "\x1b[38;2;180;160;235m"; // Default lavender
+      }
+    }
+
     const percentStr = ` | ${clamped}% `;
 
     const barWidth = Math.max(6, width - label.length - percentStr.length);
     const fillWidth = Math.round((clamped / 100) * barWidth);
     const emptyWidth = Math.max(0, barWidth - fillWidth);
 
-    const filled = `${fillColor}${"█".repeat(fillWidth)}${colors.reset}`;
+    const filled = `${color}${"█".repeat(fillWidth)}${colors.reset}`;
     const empty = `${colors.muted}${"░".repeat(emptyWidth)}${colors.reset}`;
 
-    return `${style(label, colors.muted)}${filled}${empty}${style(percentStr, colors.muted)}`;
+    return `${style(label, colors.muted)}${filled}${empty}${style(percentStr, badgeColor)}`;
   }
 
   private spaceBetween(left: string, right: string, targetWidth: number): string {

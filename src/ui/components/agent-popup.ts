@@ -11,6 +11,7 @@ export class AgentPopup implements Component {
   private agentManager: AgentManager;
   private selectedIndex = 0;
   private isOpen = false;
+  private searchQuery = "";
 
   constructor(agentManager: AgentManager) {
     this.agentManager = agentManager;
@@ -19,10 +20,12 @@ export class AgentPopup implements Component {
   public open(): void {
     this.isOpen = true;
     this.selectedIndex = 0;
+    this.searchQuery = "";
   }
 
   public close(): void {
     this.isOpen = false;
+    this.searchQuery = "";
   }
 
   public getIsOpen(): boolean {
@@ -31,9 +34,35 @@ export class AgentPopup implements Component {
 
   public invalidate(): void {}
 
+  public handleSearchInput(data: string): void {
+    if (data === "\x7f" || data === "\b") {
+      if (this.searchQuery.length > 0) {
+        this.searchQuery = this.searchQuery.slice(0, -1);
+        this.selectedIndex = 0;
+      }
+      return;
+    }
+    // Append printable character
+    if (!data.startsWith("\x1b") && data.length === 1) {
+      this.searchQuery += data;
+      this.selectedIndex = 0;
+    }
+  }
+
+  private filterAgents(agents: AgentDefinition[]): AgentDefinition[] {
+    const q = this.searchQuery.toLowerCase().trim();
+    if (!q) return agents;
+    return agents.filter(
+      (a) =>
+        a.name.toLowerCase().includes(q) ||
+        a.description.toLowerCase().includes(q) ||
+        a.id.toLowerCase().includes(q)
+    );
+  }
+
   private getAllItems(): AgentDefinition[] {
-    const primaries = this.agentManager.getPrimaryAgents();
-    const subagents = this.agentManager.getSubagents();
+    const primaries = this.filterAgents(this.agentManager.getPrimaryAgents());
+    const subagents = this.filterAgents(this.agentManager.getSubagents());
     return [...primaries, ...subagents];
   }
 
@@ -69,14 +98,15 @@ export class AgentPopup implements Component {
 
   public handleClick(rowOffset: number): AgentPopupResult | null {
     if (!this.isOpen) return null;
-    const primaries = this.agentManager.getPrimaryAgents();
-    const subagents = this.agentManager.getSubagents();
+    const primaries = this.filterAgents(this.agentManager.getPrimaryAgents());
+    const subagents = this.filterAgents(this.agentManager.getSubagents());
 
-    if (rowOffset >= 2 && rowOffset < 2 + primaries.length) {
-      this.selectedIndex = rowOffset - 2;
+    // Row 0 is header, Row 1 is Search bar, Row 2 is separator, Row 3 is primary title
+    if (rowOffset >= 4 && rowOffset < 4 + primaries.length) {
+      this.selectedIndex = rowOffset - 4;
       return this.selectCurrent();
     }
-    const subStart = 2 + primaries.length + 2;
+    const subStart = 4 + primaries.length + 2;
     if (rowOffset >= subStart && rowOffset < subStart + subagents.length) {
       this.selectedIndex = primaries.length + (rowOffset - subStart);
       return this.selectCurrent();
@@ -89,8 +119,9 @@ export class AgentPopup implements Component {
 
     const safeWidth = Math.max(30, width);
     const lines: string[] = [];
-    const primaries = this.agentManager.getPrimaryAgents();
-    const subagents = this.agentManager.getSubagents();
+    const primaries = this.filterAgents(this.agentManager.getPrimaryAgents());
+    const subagents = this.filterAgents(this.agentManager.getSubagents());
+    const totalMatching = primaries.length + subagents.length;
 
     // Header with rounded corners
     const title = " 🤖 AGENT & SUBAGENT SELECTOR ";
@@ -106,28 +137,66 @@ export class AgentPopup implements Component {
       )}${style(hint, colors.muted)}${style("╮", colors.activeBorder)}`
     );
 
-    // Section 1: Primary Agents
-    const pSecTitle = "  ── PRIMARY AGENTS ───────────────────────────────────────────────────";
-    lines.push(this.formatBoxLine(style(truncate(pSecTitle, safeWidth - 4), colors.secondary), safeWidth));
+    // Live Search Bar
+    const searchDisplay = this.searchQuery
+      ? `${style("   Search: ", colors.accent)}${style(this.searchQuery, colors.bold)}${style(
+          "█",
+          colors.secondary
+        )}`
+      : `${style("   Search: ", colors.muted)}${style(
+          "type to filter agents...",
+          colors.muted
+        )}`;
+    lines.push(this.formatBoxLine(searchDisplay, safeWidth));
+    lines.push(
+      this.formatBoxLine(style("  " + "─".repeat(safeWidth - 6), colors.border), safeWidth)
+    );
 
-    for (let i = 0; i < primaries.length; i++) {
-      const item = primaries[i];
-      if (!item) continue;
-      const isSel = i === this.selectedIndex;
-      lines.push(this.renderAgentRow(item, isSel, safeWidth));
-    }
+    if (totalMatching === 0) {
+      lines.push(this.formatBoxLine("", safeWidth));
+      lines.push(
+        this.formatBoxLine(
+          style("   No agents or subagents match your search", colors.muted),
+          safeWidth
+        )
+      );
+      lines.push(this.formatBoxLine("", safeWidth));
+    } else {
+      // Section 1: Primary Agents
+      if (primaries.length > 0) {
+        const pSecTitle = "  ── PRIMARY AGENTS ───────────────────────────────────────────────────";
+        lines.push(
+          this.formatBoxLine(
+            style(truncate(pSecTitle, safeWidth - 4), colors.secondary),
+            safeWidth
+          )
+        );
 
-    // Section 2: Specialized Subagents
-    lines.push(this.formatBoxLine("", safeWidth));
-    const sSecTitle = "  ── SPECIALIZED SUBAGENTS (invoke with /agent [name] [prompt]) ────────";
-    lines.push(this.formatBoxLine(style(truncate(sSecTitle, safeWidth - 4), colors.peach), safeWidth));
+        for (let i = 0; i < primaries.length; i++) {
+          const item = primaries[i];
+          if (!item) continue;
+          const isSel = i === this.selectedIndex;
+          lines.push(this.renderAgentRow(item, isSel, safeWidth));
+        }
+      }
 
-    for (let j = 0; j < subagents.length; j++) {
-      const item = subagents[j];
-      if (!item) continue;
-      const globalIdx = primaries.length + j;
-      const isSel = globalIdx === this.selectedIndex;
-      lines.push(this.renderAgentRow(item, isSel, safeWidth));
+      // Section 2: Specialized Subagents
+      if (subagents.length > 0) {
+        if (primaries.length > 0) lines.push(this.formatBoxLine("", safeWidth));
+        const sSecTitle =
+          "  ── SPECIALIZED SUBAGENTS (invoke with /agent [name] [prompt]) ────────";
+        lines.push(
+          this.formatBoxLine(style(truncate(sSecTitle, safeWidth - 4), colors.peach), safeWidth)
+        );
+
+        for (let j = 0; j < subagents.length; j++) {
+          const item = subagents[j];
+          if (!item) continue;
+          const globalIdx = primaries.length + j;
+          const isSel = globalIdx === this.selectedIndex;
+          lines.push(this.renderAgentRow(item, isSel, safeWidth));
+        }
+      }
     }
 
     lines.push(`${style("╰" + "─".repeat(safeWidth - 2) + "╯", colors.activeBorder)}`);
@@ -140,7 +209,10 @@ export class AgentPopup implements Component {
     const nameStr = `${agent.color}${agent.name.padEnd(22)}${colors.reset}`;
 
     const maxDesc = Math.max(10, width - 36);
-    const descStr = style(truncate(agent.description, maxDesc), isSelected ? colors.text : colors.muted);
+    const descStr = style(
+      truncate(agent.description, maxDesc),
+      isSelected ? colors.text : colors.muted
+    );
 
     const rowContent = `${pointer}${dot} ${nameStr} ${descStr}`;
     return this.formatBoxLine(rowContent, width);

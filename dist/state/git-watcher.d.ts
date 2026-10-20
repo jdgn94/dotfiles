@@ -27,6 +27,7 @@ export declare class GitWatcher {
     constructor(cwd?: string);
     init(): Promise<void>;
     getStatus(): GitStatus;
+    getWorkspaceFiles(): string[];
     onChange(listener: (status: GitStatus) => void): () => void;
     refresh(): Promise<void>;
     private notify;

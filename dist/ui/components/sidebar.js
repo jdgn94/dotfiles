@@ -88,7 +88,8 @@ export class Sidebar {
         lines.push("");
         // --- 3. CONTEXT & PROMPT CACHE EFFICIENCY SECTION (Option 2) ---
         const m = this.metrics.getMetrics();
-        const contextLine = this.renderBar(" Context  ", m.contextPercent, safeWidth, "\x1b[38;2;180;160;235m");
+        // Context bar uses dynamic warning (>60%) and error (>80%) threshold colors
+        const contextLine = this.renderBar(" Context  ", m.contextPercent, safeWidth);
         lines.push(contextLine);
         // Below context bar: e.g. "192k / 1M · $0.48 · ~150/s"
         const totalStr = formatTokens(m.total);
@@ -327,15 +328,30 @@ export class Sidebar {
         }
         return lines;
     }
-    renderBar(label, percent, width, fillColor = "\x1b[38;2;180;160;235m") {
+    renderBar(label, percent, width, fillColor) {
         const clamped = Math.max(0, Math.min(100, percent));
+        let color = fillColor;
+        let badgeColor = colors.muted;
+        if (!color) {
+            if (clamped > 80) {
+                color = colors.error;
+                badgeColor = colors.error;
+            }
+            else if (clamped > 60) {
+                color = colors.warning;
+                badgeColor = colors.warning;
+            }
+            else {
+                color = "\x1b[38;2;180;160;235m"; // Default lavender
+            }
+        }
         const percentStr = ` | ${clamped}% `;
         const barWidth = Math.max(6, width - label.length - percentStr.length);
         const fillWidth = Math.round((clamped / 100) * barWidth);
         const emptyWidth = Math.max(0, barWidth - fillWidth);
-        const filled = `${fillColor}${"█".repeat(fillWidth)}${colors.reset}`;
+        const filled = `${color}${"█".repeat(fillWidth)}${colors.reset}`;
         const empty = `${colors.muted}${"░".repeat(emptyWidth)}${colors.reset}`;
-        return `${style(label, colors.muted)}${filled}${empty}${style(percentStr, colors.muted)}`;
+        return `${style(label, colors.muted)}${filled}${empty}${style(percentStr, badgeColor)}`;
     }
     spaceBetween(left, right, targetWidth) {
         const strippedLeft = left.replace(/\x1b\[[0-9;]*m/g, "");

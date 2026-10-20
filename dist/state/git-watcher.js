@@ -1,4 +1,4 @@
-import { exec } from "node:child_process";
+import { exec, execSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import { promisify } from "node:util";
@@ -65,6 +65,24 @@ export class GitWatcher {
             ...this.status,
             changedFiles: [...this.status.changedFiles],
         };
+    }
+    getWorkspaceFiles() {
+        try {
+            const out = execSync("git ls-files", {
+                cwd: this.cwd,
+                encoding: "utf8",
+                stdio: ["ignore", "pipe", "ignore"],
+            });
+            const files = out.split("\n").filter(Boolean);
+            for (const ch of this.status.changedFiles) {
+                if (!files.includes(ch.file))
+                    files.push(ch.file);
+            }
+            return files;
+        }
+        catch {
+            return [];
+        }
     }
     onChange(listener) {
         this.listeners.push(listener);

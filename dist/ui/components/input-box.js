@@ -3,11 +3,17 @@ import * as path from "node:path";
 import { matchesKey, visibleWidth } from "@earendil-works/pi-tui";
 import { colors, style, truncate } from "../theme.js";
 const CORE_COMMANDS = [
+    { name: "models", description: "Browse and switch active AI models with search" },
+    { name: "agent", description: "Open interactive Agent & Subagent selector" },
+    { name: "agents", description: "Open interactive Agent & Subagent selector" },
     { name: "skills", description: "List all installed global skills" },
     { name: "mcp", description: "Show MCP server status and active tools" },
-    { name: "agent", description: "Switch or list available agents" },
-    { name: "status", description: "Show global metrics and session status" },
     { name: "diff", description: "View git diff of current session changes" },
+    { name: "session", description: "Browse and resume previous project sessions" },
+    { name: "cost", description: "Show detailed token economics & cost breakdown" },
+    { name: "compact", description: "Trigger context window compaction" },
+    { name: "clear", description: "Clear current conversation messages" },
+    { name: "status", description: "Show global metrics and session status" },
     { name: "todos", description: "View or toggle current plan tasks" },
     { name: "opsx-propose", description: "Propose a new OpenSpec change" },
     { name: "opsx-apply", description: "Apply tasks from an OpenSpec change" },
@@ -30,6 +36,54 @@ export class InputBox {
     // Slash commands autocomplete state
     availableCommands = [...CORE_COMMANDS];
     selectedCommandIndex = 0;
+    // @ mentions autocomplete state (files & subagents)
+    availableSubagents = [];
+    workspaceFiles = [];
+    selectedMentionIndex = 0;
+    setAvailableSubagents(agents) {
+        this.availableSubagents = agents;
+    }
+    setWorkspaceFiles(files) {
+        this.workspaceFiles = files;
+    }
+    getActiveMention() {
+        const textBeforeCursor = this.text.slice(0, this.cursor);
+        const match = textBeforeCursor.match(/@([a-zA-Z0-9_\-./]*)$/);
+        if (!match)
+            return null;
+        return {
+            query: match[1] ?? "",
+            atIndex: match.index ?? 0,
+        };
+    }
+    getMatchingMentions() {
+        const mention = this.getActiveMention();
+        if (!mention)
+            return [];
+        const q = mention.query.toLowerCase().trim();
+        const results = [];
+        // 1. Subagents first
+        for (const a of this.availableSubagents) {
+            if (!q || a.name.toLowerCase().includes(q) || a.description.toLowerCase().includes(q)) {
+                results.push({
+                    type: "agent",
+                    name: a.name,
+                    detail: a.description,
+                    color: a.color,
+                });
+            }
+        }
+        // 2. Workspace Files
+        for (const f of this.workspaceFiles) {
+            if (!q || f.toLowerCase().includes(q)) {
+                results.push({
+                    type: "file",
+                    name: f,
+                });
+            }
+        }
+        return results.slice(0, 6);
+    }
     onSubmit(cb) {
         this.onSubmitCallback = cb;
     }
@@ -132,6 +186,9 @@ export class InputBox {
     handleInput(data) {
         const isCommandMode = this.text.startsWith("/");
         const matching = isCommandMode ? this.getMatchingCommands() : [];
+        const activeMention = this.getActiveMention();
+        const matchingMentions = activeMention ? this.getMatchingMentions() : [];
+        const isMentionMode = activeMention !== null && matchingMentions.length > 0;
         // Ctrl+E -> Open prompt in external editor ($EDITOR)
         if (matchesKey(data, "ctrl+e") || data === "\x05") {
             this.onOpenExternalEditorCallback?.();
@@ -146,6 +203,19 @@ export class InputBox {
             this.cursor += 1;
             return;
         }
+        // Tab key in mention mode -> Autocomplete selected mention (@file or @agent)
+        if (data === "\t" && isMentionMode) {
+            const chosen = matchingMentions[this.selectedMentionIndex] ?? matchingMentions[0];
+            if (chosen && activeMention) {
+                const beforeAt = this.text.slice(0, activeMention.atIndex);
+                const afterCursor = this.text.slice(this.cursor);
+                const insertText = `@${chosen.name} `;
+                this.text = `${beforeAt}${insertText}${afterCursor}`;
+                this.cursor = beforeAt.length + insertText.length;
+                this.selectedMentionIndex = 0;
+            }
+            return;
+        }
         // Tab key in command mode -> Autocomplete selected command
         if (data === "\t" && isCommandMode && matching.length > 0) {
             const chosen = matching[this.selectedCommandIndex] ?? matching[0];
@@ -157,6 +227,19 @@ export class InputBox {
         }
         // Enter key
         if (data === "\r" || data === "\n") {
+            // If mention mode was active and cursor is directly after @query with no prompt yet: complete mention
+            if (isMentionMode && activeMention && !this.text.includes(" ")) {
+                const chosen = matchingMentions[this.selectedMentionIndex] ?? matchingMentions[0];
+                if (chosen) {
+                    const beforeAt = this.text.slice(0, activeMention.atIndex);
+                    const afterCursor = this.text.slice(this.cursor);
+                    const insertText = `@${chosen.name} `;
+                    this.text = `${beforeAt}${insertText}${afterCursor}`;
+                    this.cursor = beforeAt.length + insertText.length;
+                    this.selectedMentionIndex = 0;
+                    return;
+                }
+            }
             let finalSubmission = this.text.trim();
             if (isCommandMode &&
                 matching.length > 0 &&
@@ -208,6 +291,12 @@ export class InputBox {
             return;
         }
         if (matchesKey(data, "up")) {
+            // Up arrow: Navigate mentions popup if active
+            if (isMentionMode) {
+                this.selectedMentionIndex =
+                    (this.selectedMentionIndex - 1 + matchingMentions.length) % matchingMentions.length;
+                return;
+            }
             // Up arrow: Navigate commands popup if active, else history
             if (isCommandMode && matching.length > 0) {
                 this.selectedCommandIndex =
@@ -228,6 +317,12 @@ export class InputBox {
             return;
         }
         if (matchesKey(data, "down")) {
+            // Down arrow: Navigate mentions popup if active
+            if (isMentionMode) {
+                this.selectedMentionIndex =
+                    (this.selectedMentionIndex + 1) % matchingMentions.length;
+                return;
+            }
             // Down arrow: Navigate commands popup if active, else history
             if (isCommandMode && matching.length > 0) {
                 this.selectedCommandIndex =
@@ -259,6 +354,36 @@ export class InputBox {
         const safeWidth = Math.max(20, width);
         const borderColor = this.focused ? this.activeAgentColor : colors.border;
         const lines = [];
+        // --- @ Mentions Autocomplete Popup (@files / @agents) ---
+        const activeMention = this.getActiveMention();
+        const matchingMentions = activeMention ? this.getMatchingMentions() : [];
+        if (activeMention && matchingMentions.length > 0) {
+            const mTitle = " 󰋜 Mentions (@files / @agents) ";
+            const mHint = " [Tab: complete | Enter: select] ";
+            const mTitleLen = visibleWidth(mTitle);
+            const mHintLen = visibleWidth(mHint);
+            const remM = Math.max(0, safeWidth - 3 - mTitleLen - mHintLen);
+            lines.push(`${style("╭─", colors.border)}${style(mTitle, colors.bold, colors.accent)}${style("─".repeat(remM), colors.border)}${style(mHint, colors.muted)}${style("╮", colors.border)}`);
+            for (let i = 0; i < matchingMentions.length; i++) {
+                const isSel = i === this.selectedMentionIndex;
+                const item = matchingMentions[i];
+                if (!item)
+                    continue;
+                const prefix = isSel ? style(" > ", colors.bold, colors.accent) : "   ";
+                const icon = item.type === "agent" ? "🤖 " : "📄 ";
+                const itemColor = item.color || (item.type === "agent" ? colors.secondary : colors.primary);
+                const nameStyled = isSel
+                    ? style(`@${item.name}`.padEnd(24), colors.bold, colors.accent)
+                    : style(`@${item.name}`.padEnd(24), colors.bold, itemColor);
+                const maxDetail = Math.max(10, safeWidth - 36);
+                const detailStyled = style(truncate(item.detail || "", maxDetail), colors.muted);
+                const rowContent = `${prefix}${icon}${nameStyled} ${detailStyled}`;
+                const rowVisual = visibleWidth(rowContent);
+                const pad = Math.max(0, safeWidth - 2 - rowVisual);
+                lines.push(`${style("│", colors.border)}${rowContent}${" ".repeat(pad)}${style("│", colors.border)}`);
+            }
+            lines.push(`${style("╰" + "─".repeat(safeWidth - 2) + "╯", colors.border)}`);
+        }
         // --- Slash Commands Autocomplete Popup (renders floating above the input box) ---
         const matching = this.getMatchingCommands();
         if (matching.length > 0) {
