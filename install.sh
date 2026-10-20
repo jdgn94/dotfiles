@@ -157,6 +157,22 @@ if [ -d "$PI_DIR/npm" ] && command -v npm >/dev/null 2>&1; then
   (cd "$PI_DIR/npm" && npm install --silent 2>/dev/null || true)
 fi
 
+# Compilar e instalar pi-tui-plus (CLI pi-plus)
+if [ -d "$DOTS_DIR/pi-tui-plus" ]; then
+  log_info "Instalando y compilando pi-tui-plus (pi-plus CLI)..."
+  (
+    cd "$DOTS_DIR/pi-tui-plus"
+    if command -v pnpm >/dev/null 2>&1; then
+      pnpm install --silent 2>/dev/null || pnpm install
+      pnpm run build --silent 2>/dev/null || pnpm run build
+    elif command -v npm >/dev/null 2>&1; then
+      npm install --silent 2>/dev/null || npm install
+      npm run build --silent 2>/dev/null || npm run build
+    fi
+    npm link --silent 2>/dev/null || npm link || true
+  )
+fi
+
 # --- 5. Desplegar Configuración de Claude Code ---
 log_info "Desplegando configuración de Claude Code..."
 CLAUDE_DIR="$HOME_DIR/.claude"

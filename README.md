@@ -17,6 +17,7 @@ dotsfiles/
 ├── install.sh                  # Instalador universal nativo para Linux / macOS
 ├── install.ps1                 # Instalador universal nativo para Windows (PowerShell 7+)
 ├── tsconfig.json               # Configuración TypeScript
+├── pi-tui-plus/                # TUI avanzado split-view para Pi Coding Agent (CLI `pi-plus`)
 ├── secrets/                    # Plantillas de credenciales y tokens centralizados
 │   ├── tokens.env.example      # Variables de entorno para tokens MCP y APIs
 │   ├── tokens.json.example     # Formato JSON para secrets centralizados

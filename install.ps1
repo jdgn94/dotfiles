@@ -194,6 +194,27 @@ if ((Get-Command npm -ErrorAction SilentlyContinue) -and (Test-Path (Join-Path $
     }
 }
 
+# Compilar e instalar pi-tui-plus
+$PiTuiPlusDir = Join-Path $DOTS_DIR "pi-tui-plus"
+if (Test-Path $PiTuiPlusDir) {
+    Write-Info "Compilando e instalando pi-tui-plus (pi-plus CLI)..."
+    Push-Location $PiTuiPlusDir
+    try {
+        if (Get-Command pnpm -ErrorAction SilentlyContinue) {
+            pnpm install --silent
+            pnpm run build --silent
+        } elseif (Get-Command npm -ErrorAction SilentlyContinue) {
+            npm install --silent
+            npm run build --silent
+        }
+        npm link 2>$null
+    } catch {
+        Write-Warn "Fallo no crítico en compilación de pi-tui-plus"
+    } finally {
+        Pop-Location
+    }
+}
+
 # --- 5. Deploy Claude Code Configuration ---
 Write-Info "Desplegando configuración de Claude Code..."
 $ClaudeDir = Join-Path $USER_HOME ".claude"
