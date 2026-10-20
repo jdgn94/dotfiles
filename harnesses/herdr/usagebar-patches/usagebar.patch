@@ -1,0 +1,183 @@
+diff --git a/bin/run-limits-pane.sh b/bin/run-limits-pane.sh
+index c6fd809..44f1ed5 100755
+--- a/bin/run-limits-pane.sh
++++ b/bin/run-limits-pane.sh
+@@ -1,4 +1,5 @@
+ #!/bin/bash
+ set -euo pipefail
+ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+-exec "$SCRIPT_DIR/run-usagebar.sh" limits "$@"
++export USAGEBAR_EXCLUDE="codex,grok,kilo"
++exec "$SCRIPT_DIR/run-usagebar.sh" limits --all "$@"
+diff --git a/internal/limits/activeproviders.go b/internal/limits/activeproviders.go
+index 07a756e..0d1b386 100644
+--- a/internal/limits/activeproviders.go
++++ b/internal/limits/activeproviders.go
+@@ -61,6 +61,9 @@ func activeProviderSetWith(profiles []claude.ClaudeProfile, codexProfiles []code
+ 		case "opencode":
+ 			hasOpenCodePane = true
+ 			continue
++		case "antigravity", "antigravity-cli", "agy", "gemini":
++			set["agy"] = true
++			continue
+ 		}
+ 		if providerID, ok := resolve(pane); ok {
+ 			if providerID == "claude" || claude.IsClaudeProviderID(providerID, profiles) {
+diff --git a/internal/limits/antigravitylimits.go b/internal/limits/antigravitylimits.go
+index c088961..62fa45a 100644
+--- a/internal/limits/antigravitylimits.go
++++ b/internal/limits/antigravitylimits.go
+@@ -12,6 +12,8 @@
+ package limits
+ 
+ import (
++	"math"
++	"strconv"
+ 	"time"
+ 
+ 	"github.com/senna-lang/herdr-agent-usage/internal/providers/antigravity"
+@@ -52,16 +54,21 @@ func CollectAntigravityLimits(nowMs int64, opts CollectAntigravityLimitsOptions)
+ 	}
+ 
+ 	snap, ok := antigravity.LatestFreshSnapshot(sessionsDir, nowMs)
++	isStale := false
+ 	if !ok {
+-		note := "no statusLine observation yet — see docs/antigravity-contract.md"
+-		return ProviderLimits{ProviderID: providerID, Label: label, Source: "none", FetchedAtMs: nowMs, Note: &note}
++		snap, ok = antigravity.LatestSnapshot(sessionsDir)
++		if !ok {
++			note := "no statusLine observation yet — see docs/antigravity-contract.md"
++			return ProviderLimits{ProviderID: providerID, Label: label, Source: "none", FetchedAtMs: nowMs, Note: &note}
++		}
++		isStale = true
+ 	}
+ 
+ 	pl := ProviderLimits{
+ 		ProviderID:  providerID,
+ 		Label:       label,
+ 		Source:      "antigravity statusLine",
+-		FetchedAtMs: nowMs,
++		FetchedAtMs: snap.UpdatedAtMs,
+ 	}
+ 	if snap.PlanTier != "" {
+ 		plan := snap.PlanTier
+@@ -73,6 +80,11 @@ func CollectAntigravityLimits(nowMs int64, opts CollectAntigravityLimitsOptions)
+ 	if w, ok := snap.Quota["3p-weekly"]; ok {
+ 		pl.Secondary = quotaLimitWindow(w)
+ 	}
++	if isStale {
++		ageMin := int(math.Max(0, math.Round(float64(nowMs-snap.UpdatedAtMs)/60_000)))
++		note := "stale ~" + strconv.Itoa(ageMin) + "m ago"
++		pl.Note = &note
++	}
+ 	return pl
+ }
+ 
+diff --git a/internal/limits/collect.go b/internal/limits/collect.go
+index 0f7e056..b9688cb 100644
+--- a/internal/limits/collect.go
++++ b/internal/limits/collect.go
+@@ -6,7 +6,9 @@
+ package limits
+ 
+ import (
++	"os"
+ 	"path/filepath"
++	"strings"
+ 
+ 	"github.com/senna-lang/herdr-agent-usage/internal/providers/antigravity"
+ 	"github.com/senna-lang/herdr-agent-usage/internal/providers/kilo"
+@@ -214,6 +216,53 @@ func CollectAllProviderLimits(cwd *string, nowMs int64, opts CollectOptions) []P
+ 		grokSpecs = []GrokProfileCollector{{ID: "grok", Label: "Grok"}}
+ 	}
+ 
++	if env := os.Getenv("USAGEBAR_PROVIDERS"); env != "" {
++		allowed := make(map[string]bool)
++		for _, id := range strings.Split(env, ",") {
++			id = strings.TrimSpace(id)
++			if id != "" {
++				allowed[id] = true
++				if id == "antigravity" {
++					allowed["agy"] = true
++				}
++			}
++		}
++		if opts.Only == nil {
++			opts.Only = allowed
++		} else {
++			opts.Only = IntersectFilters(opts.Only, allowed)
++		}
++	}
++	if env := os.Getenv("USAGEBAR_EXCLUDE"); env != "" {
++		if opts.Only == nil {
++			opts.Only = make(map[string]bool)
++			for _, spec := range claudeSpecs {
++				opts.Only[spec.ID] = true
++			}
++			for _, spec := range codexSpecs {
++				opts.Only[spec.ID] = true
++			}
++			for _, spec := range openCodeSpecs {
++				opts.Only[spec.ID] = true
++			}
++			for _, spec := range grokSpecs {
++				opts.Only[spec.ID] = true
++			}
++			for _, spec := range singleCollectorQuotaSpecs {
++				opts.Only[spec.id] = true
++			}
++		}
++		for _, id := range strings.Split(env, ",") {
++			id = strings.TrimSpace(id)
++			if id != "" && opts.Only != nil {
++				delete(opts.Only, id)
++				if id == "antigravity" {
++					delete(opts.Only, "agy")
++				}
++			}
++		}
++	}
++
+ 	base := make([]ProviderLimits, 0, len(claudeSpecs)+len(codexSpecs)+len(openCodeSpecs)+len(grokSpecs)+len(singleCollectorQuotaSpecs))
+ 	for _, spec := range claudeSpecs {
+ 		if opts.Only == nil || opts.Only[spec.ID] {
+diff --git a/internal/providers/antigravity/resolve.go b/internal/providers/antigravity/resolve.go
+index 722caab..060f1f4 100644
+--- a/internal/providers/antigravity/resolve.go
++++ b/internal/providers/antigravity/resolve.go
+@@ -167,6 +167,20 @@ func LatestFreshSnapshot(sessionsDir string, nowMs int64) (Snapshot, bool) {
+ 	return latest, found
+ }
+ 
++// LatestSnapshot returns the most recently updated snapshot across every
++// session under sessionsDir regardless of freshness age.
++func LatestSnapshot(sessionsDir string) (Snapshot, bool) {
++	var latest Snapshot
++	found := false
++	for _, snap := range ListSnapshots(sessionsDir) {
++		if !found || snap.UpdatedAtMs > latest.UpdatedAtMs {
++			latest = snap
++			found = true
++		}
++	}
++	return latest, found
++}
++
+ // toContextUsage converts a snapshot into the shared domain type.
+ func toContextUsage(snap Snapshot) *core.ContextUsage {
+ 	usage := core.ContextUsage{ContextTokens: snap.ContextTokens, Cache: snap.Cache}
+diff --git a/internal/providers/antigravity/statuslinecmd.go b/internal/providers/antigravity/statuslinecmd.go
+index 3d1b525..9050cd7 100644
+--- a/internal/providers/antigravity/statuslinecmd.go
++++ b/internal/providers/antigravity/statuslinecmd.go
+@@ -28,7 +28,9 @@ func RunStatusLineIn(sessionsDir string, payload []byte, paneID string, nowMs in
+ 	if err := WriteSnapshot(sessionsDir, snap); err != nil {
+ 		return "", err
+ 	}
+-	PruneStale(sessionsDir, nowMs, SnapshotFreshnessMs)
++	// Prune snapshots older than 14 days to preserve weekly quota across sessions
++	const quotaSnapshotRetentionMs int64 = 14 * 24 * 60 * 60 * 1000
++	PruneStale(sessionsDir, nowMs, quotaSnapshotRetentionMs)
+ 	return statusLineText(snap), nil
+ }
+ 

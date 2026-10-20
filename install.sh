@@ -256,7 +256,11 @@ if command -v herdr >/dev/null 2>&1; then
     log_info "Instalando plugin herdr-agent-usage (usagebar)..."
     herdr plugin install senna-lang/herdr-agent-usage -y 2>/dev/null || true
   fi
-  # Asegurar que el panel de límites use --all para incluir siempre Antigravity
+  # Aplicar parches de usagebar (soporte para Antigravity y exclusión de agentes no utilizados)
+  USAGEBAR_DIR="$(find "$HOME_DIR/.config/herdr/plugins/github" -maxdepth 1 -name "usagebar-*" 2>/dev/null | head -n 1 || true)"
+  if [ -n "$USAGEBAR_DIR" ] && [ -f "$DOTS_DIR/harnesses/herdr/usagebar-patches/usagebar.patch" ]; then
+    (cd "$USAGEBAR_DIR" && git apply "$DOTS_DIR/harnesses/herdr/usagebar-patches/usagebar.patch" 2>/dev/null || true && go build -o bin/usagebar ./cmd/usagebar 2>/dev/null || true)
+  fi
   USAGEBAR_RUN_LIMITS="$(find "$HOME_DIR/.config/herdr/plugins/github" -name "run-limits-pane.sh" 2>/dev/null | head -n 1 || true)"
   if [ -n "$USAGEBAR_RUN_LIMITS" ] && [ -f "$DOTS_DIR/harnesses/herdr/usagebar-patches/run-limits-pane.sh" ]; then
     cp "$DOTS_DIR/harnesses/herdr/usagebar-patches/run-limits-pane.sh" "$USAGEBAR_RUN_LIMITS"

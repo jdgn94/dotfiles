@@ -1,4 +1,5 @@
 #!/bin/bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export USAGEBAR_EXCLUDE="codex,grok,kilo"
 exec "$SCRIPT_DIR/run-usagebar.sh" limits --all "$@"
