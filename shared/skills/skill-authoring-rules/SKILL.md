@@ -5,7 +5,7 @@ description: Use when creating, refactoring, or generating new agent skills to e
 
 # Skill Authoring Rules
 
-Universal quality standard for authoring, maintaining, and modularizing skills across all harnesses, applicable equally to **global skills** (`~/.agents/skills/`) and **project-local skills** (`.agents/skills/`, `.hermes/skills/`).
+Universal quality standard for authoring, maintaining, and modularizing skills across all harnesses, applicable equally to **global skills** (`~/.agents/skills/`) and **project-local skills** (`.agents/skills/`). Never use tool-specific directories like `.hermes/skills` or `.claude/skills`.
 
 ## Core Rules
 

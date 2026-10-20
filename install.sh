@@ -171,9 +171,13 @@ if [ -d "$DOTS_DIR/harnesses/claude/hooks" ]; then
   chmod +x "$CLAUDE_DIR/hooks/"*.sh 2>/dev/null || true
 fi
 
-# Rellenar CLAUDE.md apuntando a las reglas comunes
-AGENTS_MD="$HOME_DIR/.agents/rules/AGENTS.md"
-printf '# Global Claude Instructions\nImporting common rules and instructions from dotsfiles:\n@%s\n' "$AGENTS_MD" > "$CLAUDE_DIR/CLAUDE.md"
+# Desplegar CLAUDE.md con directivas de skills y reglas comunes
+if [ -f "$DOTS_DIR/harnesses/claude/CLAUDE.md" ]; then
+  cp "$DOTS_DIR/harnesses/claude/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
+else
+  AGENTS_MD="$HOME_DIR/.agents/rules/AGENTS.md"
+  printf '# Global Claude Instructions\nImporting common rules and instructions from dotsfiles:\n@%s\n' "$AGENTS_MD" > "$CLAUDE_DIR/CLAUDE.md"
+fi
 
 # Asegurar MCPs en Claude Code
 if command -v claude >/dev/null 2>&1; then

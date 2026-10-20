@@ -204,13 +204,18 @@ if (-not (Test-Path (Join-Path $ClaudeDir "settings.json")) -and (Test-Path (Joi
     Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "claude" "settings.json") -Destination (Join-Path $ClaudeDir "settings.json")
 }
 
-$AgentsMdPath = (Join-Path $AgentsTarget "rules" "AGENTS.md").Replace('\', '/')
-$ClaudeMdContent = @"
+$ClaudeMdSrc = Join-Path $DOTS_DIR "harnesses" "claude" "CLAUDE.md"
+if (Test-Path $ClaudeMdSrc) {
+    Copy-Item -Path $ClaudeMdSrc -Destination (Join-Path $ClaudeDir "CLAUDE.md") -Force
+} else {
+    $AgentsMdPath = (Join-Path $AgentsTarget "rules" "AGENTS.md").Replace('\', '/')
+    $ClaudeMdContent = @"
 # Global Claude Instructions
 Importing common rules and instructions from dotsfiles:
 @$AgentsMdPath
 "@
-Set-Content -Path (Join-Path $ClaudeDir "CLAUDE.md") -Value $ClaudeMdContent -Encoding UTF8
+    Set-Content -Path (Join-Path $ClaudeDir "CLAUDE.md") -Value $ClaudeMdContent -Encoding UTF8
+}
 
 if (Get-Command claude -ErrorAction SilentlyContinue) {
     claude mcp add -s user playwright -- npx -y @playwright/mcp@latest --headless 2>$null

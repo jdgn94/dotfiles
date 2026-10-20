@@ -15,8 +15,11 @@
    - Specify file paths clearly.
    - Adhere to the language idioms and type safety requirements of the respective project.
 
-4. **Universal Skill Generation & Anti-Bloat Standards**:
+4. **Universal Skill Storage, Generation & Anti-Bloat Standards**:
    - Applies globally to all harnesses (`claude`, `opencode`, `pi`, `hermes`, `agy`) and to both project-local and global skills.
+   - **Canonical Storage Locations (NO Tool-Specific Folders)**:
+     - **Project-Local Skills**: Must be stored strictly in `.agents/skills/<name>/SKILL.md` at the project root. Never use `.hermes/skills` or `.claude/skills`.
+     - **Global Skills**: Must be stored strictly in `~/.agents/skills/<name>/SKILL.md`. All harnesses access and link to this single source of truth.
    - **Zero Redundancy / Lean Core**: Exclude unnecessary prose, conversational filler, and redundant explanations. Include only high-density, actionable operational knowledge.
    - **Hermes Progressive Disclosure**: Keep `SKILL.md` lean (core mental model, triggers, concise numbered steps, pitfalls).
    - **Multi-File Separation**: When reference documentation, large schemas, cheatsheets, or multi-step domain workflows are involved, do NOT cram them into a single monolithic file. Split them into modular companion files (e.g., `references/<topic>.md`) or distinct composable skills.

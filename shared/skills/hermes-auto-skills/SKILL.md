@@ -63,7 +63,7 @@ Follow the Hermes Agent multi-tier loading pattern:
 
 ### 6. Scope Placement (Global vs Project-Local)
 - **Global Skills**: Write to `~/.agents/skills/<name>/SKILL.md` (the canonical cross-harness root). It automatically mirrors to Claude, Pi, OpenCode, Hermes, and Antigravity.
-- **Project-Local Skills**: Write to `<repo-root>/.agents/skills/<name>/SKILL.md` (or `<repo-root>/.hermes/skills/`) when the operational workflow is strictly specific to the current repository.
+- **Project-Local Skills**: Write strictly to `<repo-root>/.agents/skills/<name>/SKILL.md` when the operational workflow is specific to the current repository. Never write to tool-specific paths (like `.hermes/skills` or `.claude/skills`).
 
 ### 7. Author the Compressed SKILL.md Document
 

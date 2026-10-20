@@ -59,7 +59,7 @@ How to confirm the skill works correctly.
 | Scope            | Path                                                 | Usage                                                                          |
 |------------------|------------------------------------------------------|--------------------------------------------------------------------------------|
 | Canonical Global | `~/.agents/skills/<name>/SKILL.md`                   | Shared across ALL harnesses (`claude`, `opencode`, `pi`, `hermes`, `antigravity`) |
-| Project-local    | `.agents/skills/<name>/SKILL.md` or `.hermes/skills/` | Scoped strictly to the active repository / workspace                           |
+| Project-local    | `.agents/skills/<name>/SKILL.md`                     | Scoped strictly to the active repository / workspace                           |
 
 All global skills authored or generated MUST be placed in `~/.agents/skills/` (the canonical source of truth) so they are automatically mirrored/symlinked to all configured harnesses.
 
