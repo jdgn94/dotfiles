@@ -104,6 +104,11 @@ export class AppLayout implements Component, Focusable {
         this.tui.requestRender();
         return;
       }
+      if (trimmed === "/new") {
+        this.agent.newSession().catch(() => {});
+        this.tui.requestRender();
+        return;
+      }
       if (trimmed === "/clear") {
         this.agent.clearMessages();
         this.tui.requestRender();

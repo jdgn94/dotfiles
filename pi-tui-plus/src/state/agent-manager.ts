@@ -773,6 +773,73 @@ export class AgentManager {
     this.notify();
   }
 
+  public async newSession(): Promise<void> {
+    try {
+      this.isWorking = true;
+      this.currentStatus = "Creating clean session...";
+      this.notify();
+
+      if (this.unsubscribeSession) {
+        try {
+          this.unsubscribeSession();
+        } catch {
+          // ignore
+        }
+        this.unsubscribeSession = undefined;
+      }
+
+      if (this.session && typeof this.session.dispose === "function") {
+        try {
+          this.session.dispose();
+        } catch {
+          // ignore
+        }
+      }
+
+      const result = await createAgentSession({
+        cwd: this.cwd,
+      });
+      this.session = result.session;
+      this.defaultTools = this.session.getActiveToolNames();
+
+      const model = this.session.model;
+      if (model) {
+        this.metrics.setModelInfo(model.name, (model as any).contextWindow);
+      }
+
+      this.metrics.reset();
+      this.messages = [];
+      this.hasWarned85 = false;
+      this.isAutoCompacting = false;
+      this.streamingText = "";
+      this.streamingThinking = "";
+      this.toolLogger.clear();
+
+      this.unsubscribeSession = this.session.subscribe((event: any) => {
+        this.handleSessionEvent(event);
+      });
+
+      this.updateStats();
+      this.messages.push({
+        id: "sys-" + Date.now(),
+        role: "system",
+        text: "✨ Started a brand new session with a completely clean context.",
+        timestamp: Date.now(),
+      });
+    } catch (err: any) {
+      this.messages.push({
+        id: "err-" + Date.now(),
+        role: "system",
+        text: `Error creating new session: ${err?.message || String(err)}`,
+        timestamp: Date.now(),
+      });
+    } finally {
+      this.isWorking = false;
+      this.currentStatus = "Ready";
+      this.notify();
+    }
+  }
+
   public async compact(): Promise<void> {
     try {
       this.isWorking = true;

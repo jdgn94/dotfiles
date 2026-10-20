@@ -16,6 +16,9 @@ export interface MentionOption {
 }
 
 const CORE_COMMANDS: SlashCommand[] = [
+  { name: "new", description: "Start a fresh session with a completely clean context" },
+  { name: "clear", description: "Clear conversation messages from view without resetting session" },
+  { name: "compact", description: "Trigger context window compaction" },
   { name: "models", description: "Browse and switch active AI models with search" },
   { name: "agent", description: "Open interactive Agent & Subagent selector" },
   { name: "agents", description: "Open interactive Agent & Subagent selector" },
@@ -24,8 +27,6 @@ const CORE_COMMANDS: SlashCommand[] = [
   { name: "diff", description: "View git diff of current session changes" },
   { name: "session", description: "Browse and resume previous project sessions" },
   { name: "cost", description: "Show detailed token economics & cost breakdown" },
-  { name: "compact", description: "Trigger context window compaction" },
-  { name: "clear", description: "Clear current conversation messages" },
   { name: "status", description: "Show global metrics and session status" },
   { name: "todos", description: "View or toggle current plan tasks" },
   { name: "opsx-propose", description: "Propose a new OpenSpec change" },
@@ -157,7 +158,7 @@ export class InputBox implements Component, Focusable {
     const query = this.text.slice(1).toLowerCase().trim();
     if (!query) {
       // Return top commands when only "/" is typed
-      return this.availableCommands.slice(0, 6);
+      return this.availableCommands.slice(0, 10);
     }
     return this.availableCommands
       .filter(
@@ -165,7 +166,7 @@ export class InputBox implements Component, Focusable {
           c.name.toLowerCase().startsWith(query) ||
           c.name.toLowerCase().includes(query)
       )
-      .slice(0, 6);
+      .slice(0, 10);
   }
 
   public getAttachedImageAtCursor(): string | null {

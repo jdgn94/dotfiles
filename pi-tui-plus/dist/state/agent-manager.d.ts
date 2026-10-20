@@ -101,6 +101,7 @@ export declare class AgentManager {
     prompt(text: string): Promise<void>;
     private executeSubagentPrompt;
     clearMessages(): void;
+    newSession(): Promise<void>;
     compact(): Promise<void>;
     checkContextThresholds(): Promise<void>;
     showCostBreakdown(): void;

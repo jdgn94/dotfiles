@@ -244,25 +244,27 @@ if (Get-Command claude -ErrorAction SilentlyContinue) {
     claude mcp add -s user fetch -- uvx mcp-server-fetch 2>$null
 }
 
-# --- 6. Deploy OpenCode Configuration ---
-Write-Info "Desplegando configuración de OpenCode..."
-$OpenCodeDir = Join-Path $USER_HOME ".config" "opencode"
-New-Item -ItemType Directory -Path (Join-Path $OpenCodeDir "plugins") -Force | Out-Null
-New-Item -ItemType Directory -Path (Join-Path $OpenCodeDir "skills") -Force | Out-Null
+# --- 6. Deploy OpenCode & OpenCode2 Configuration ---
+Write-Info "Desplegando configuración de OpenCode y OpenCode2..."
+foreach ($oName in @('opencode', 'opencode2')) {
+    $OpenCodeDir = Join-Path $USER_HOME ".config" $oName
+    New-Item -ItemType Directory -Path (Join-Path $OpenCodeDir "plugins") -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $OpenCodeDir "skills") -Force | Out-Null
 
-if (-not (Test-Path (Join-Path $OpenCodeDir "opencode.jsonc")) -and (Test-Path (Join-Path $DOTS_DIR "harnesses" "opencode" "opencode.jsonc"))) {
-    Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "opencode" "opencode.jsonc") -Destination (Join-Path $OpenCodeDir "opencode.jsonc")
+    if (-not (Test-Path (Join-Path $OpenCodeDir "opencode.jsonc")) -and (Test-Path (Join-Path $DOTS_DIR "harnesses" "opencode" "opencode.jsonc"))) {
+        Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "opencode" "opencode.jsonc") -Destination (Join-Path $OpenCodeDir "opencode.jsonc")
+    }
+    if (Test-Path (Join-Path $DOTS_DIR "harnesses" "opencode" "tui.jsonc")) {
+        Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "opencode" "tui.jsonc") -Destination (Join-Path $OpenCodeDir "tui.jsonc") -Force
+    }
+    if (Test-Path (Join-Path $DOTS_DIR "harnesses" "opencode" "herdr-tui-session.js")) {
+        Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "opencode" "herdr-tui-session.js") -Destination (Join-Path $OpenCodeDir "herdr-tui-session.js") -Force
+    }
+    if (Test-Path (Join-Path $DOTS_DIR "harnesses" "opencode" "plugins")) {
+        Copy-Item -Path "$DOTS_DIR\harnesses\opencode\plugins\*" -Destination (Join-Path $OpenCodeDir "plugins") -Recurse -Force
+    }
+    Set-Content -Path (Join-Path $OpenCodeDir "AGENTS.md") -Value "> **Cross-Agent Parity**: follow the rule in \`$AgentsMdPath\`." -Encoding UTF8
 }
-if (Test-Path (Join-Path $DOTS_DIR "harnesses" "opencode" "tui.jsonc")) {
-    Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "opencode" "tui.jsonc") -Destination (Join-Path $OpenCodeDir "tui.jsonc") -Force
-}
-if (Test-Path (Join-Path $DOTS_DIR "harnesses" "opencode" "herdr-tui-session.js")) {
-    Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "opencode" "herdr-tui-session.js") -Destination (Join-Path $OpenCodeDir "herdr-tui-session.js") -Force
-}
-if (Test-Path (Join-Path $DOTS_DIR "harnesses" "opencode" "plugins")) {
-    Copy-Item -Path "$DOTS_DIR\harnesses\opencode\plugins\*" -Destination (Join-Path $OpenCodeDir "plugins") -Recurse -Force
-}
-Set-Content -Path (Join-Path $OpenCodeDir "AGENTS.md") -Value "> **Cross-Agent Parity**: follow the rule in \`$AgentsMdPath\`." -Encoding UTF8
 
 # --- 7. Deploy Hermes Configuration ---
 Write-Info "Desplegando configuración de Hermes..."
@@ -335,6 +337,7 @@ $HarnessSkillDirs = @(
     (Join-Path $USER_HOME ".pi" "agent" "skills"),
     (Join-Path $USER_HOME ".claude" "skills"),
     (Join-Path $USER_HOME ".config" "opencode" "skills"),
+    (Join-Path $USER_HOME ".config" "opencode2" "skills"),
     (Join-Path $USER_HOME ".hermes" "skills"),
     (Join-Path $USER_HOME ".gemini" "config" "skills"),
     (Join-Path $USER_HOME ".gemini" "antigravity-cli" "skills")

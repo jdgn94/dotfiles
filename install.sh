@@ -70,8 +70,10 @@ install_harness_binary() {
         log_warn "npm o brew requerido para instalar claude"
       fi
       ;;
-    opencode)
-      if command -v npm >/dev/null 2>&1; then
+    opencode|opencode2)
+      if command -v opencode >/dev/null 2>&1 || command -v opencode2 >/dev/null 2>&1; then
+        log_success "opencode/opencode2 ya está instalado"
+      elif command -v npm >/dev/null 2>&1; then
         npm install -g opencode-ai || true
       else
         curl -fsSL https://opencode.ai/install.sh | bash || log_warn "Fallo al descargar opencode"
@@ -102,6 +104,14 @@ install_harness_binary() {
 for tool in pi claude opencode hermes agy herdr; do
   install_harness_binary "$tool" || true
 done
+
+# Garantizar paridad entre ejecutables opencode y opencode2
+mkdir -p "$HOME_DIR/.local/bin"
+if command -v opencode >/dev/null 2>&1 && ! command -v opencode2 >/dev/null 2>&1; then
+  ln -sf "$(command -v opencode)" "$HOME_DIR/.local/bin/opencode2"
+elif command -v opencode2 >/dev/null 2>&1 && ! command -v opencode >/dev/null 2>&1; then
+  ln -sf "$(command -v opencode2)" "$HOME_DIR/.local/bin/opencode"
+fi
 
 # --- 2. Configurar Directorio Central de Tokens / Secrets ---
 log_info "Configurando secretos centralizados en ~/.config/dotsfiles/ ..."
@@ -202,21 +212,21 @@ if command -v claude >/dev/null 2>&1; then
   claude mcp add -s user fetch -- uvx mcp-server-fetch 2>/dev/null || true
 fi
 
-# --- 6. Desplegar Configuración de OpenCode ---
-log_info "Desplegando configuración de OpenCode..."
-OPENCODE_DIR="$HOME_DIR/.config/opencode"
-mkdir -p "$OPENCODE_DIR/plugins" "$OPENCODE_DIR/skills"
-if [ ! -f "$OPENCODE_DIR/opencode.jsonc" ]; then
-  cp "$DOTS_DIR/harnesses/opencode/opencode.jsonc" "$OPENCODE_DIR/opencode.jsonc"
-fi
-[ -f "$DOTS_DIR/harnesses/opencode/tui.jsonc" ] && cp "$DOTS_DIR/harnesses/opencode/tui.jsonc" "$OPENCODE_DIR/tui.jsonc"
-[ -f "$DOTS_DIR/harnesses/opencode/herdr-tui-session.js" ] && cp "$DOTS_DIR/harnesses/opencode/herdr-tui-session.js" "$OPENCODE_DIR/herdr-tui-session.js"
-if [ -d "$DOTS_DIR/harnesses/opencode/plugins" ]; then
-  cp -r "$DOTS_DIR/harnesses/opencode/plugins/"* "$OPENCODE_DIR/plugins/" 2>/dev/null || true
-fi
-
-# Configurar AGENTS.md en opencode
-printf '> **Cross-Agent Parity**: follow the rule in `%s`.\n' "$AGENTS_MD" > "$OPENCODE_DIR/AGENTS.md"
+# --- 6. Desplegar Configuración de OpenCode y OpenCode2 ---
+log_info "Desplegando configuración de OpenCode y OpenCode2..."
+for o_name in opencode opencode2; do
+  O_DIR="$HOME_DIR/.config/$o_name"
+  mkdir -p "$O_DIR/plugins" "$O_DIR/skills"
+  if [ ! -f "$O_DIR/opencode.jsonc" ]; then
+    cp "$DOTS_DIR/harnesses/opencode/opencode.jsonc" "$O_DIR/opencode.jsonc"
+  fi
+  [ -f "$DOTS_DIR/harnesses/opencode/tui.jsonc" ] && cp "$DOTS_DIR/harnesses/opencode/tui.jsonc" "$O_DIR/tui.jsonc"
+  [ -f "$DOTS_DIR/harnesses/opencode/herdr-tui-session.js" ] && cp "$DOTS_DIR/harnesses/opencode/herdr-tui-session.js" "$O_DIR/herdr-tui-session.js"
+  if [ -d "$DOTS_DIR/harnesses/opencode/plugins" ]; then
+    cp -r "$DOTS_DIR/harnesses/opencode/plugins/"* "$O_DIR/plugins/" 2>/dev/null || true
+  fi
+  printf '> **Cross-Agent Parity**: follow the rule in `%s`.\n' "$AGENTS_MD" > "$O_DIR/AGENTS.md"
+done
 
 # --- 7. Desplegar Configuración de Hermes ---
 log_info "Desplegando configuración de Hermes..."
@@ -333,6 +343,7 @@ HARNESS_SKILL_DIRS=(
   "$HOME_DIR/.pi/agent/skills"
   "$HOME_DIR/.claude/skills"
   "$HOME_DIR/.config/opencode/skills"
+  "$HOME_DIR/.config/opencode2/skills"
   "$HOME_DIR/.hermes/skills"
   "$HOME_DIR/.gemini/config/skills"
   "$HOME_DIR/.gemini/antigravity-cli/skills"
@@ -349,13 +360,14 @@ for s_dir in "$DOTS_DIR/shared/skills"/*; do
 done
 
 # B) Enlazar skills individuales/específicas de cada harness si existen en dotsfiles
-for harness in pi claude opencode hermes antigravity; do
+for harness in pi claude opencode opencode2 hermes antigravity; do
   harness_custom_skills="$DOTS_DIR/harnesses/$harness/skills"
   if [ -d "$harness_custom_skills" ]; then
     case "$harness" in
       pi) target="$HOME_DIR/.pi/agent/skills" ;;
       claude) target="$HOME_DIR/.claude/skills" ;;
       opencode) target="$HOME_DIR/.config/opencode/skills" ;;
+      opencode2) target="$HOME_DIR/.config/opencode2/skills" ;;
       hermes) target="$HOME_DIR/.hermes/skills" ;;
       antigravity) target="$HOME_DIR/.gemini/antigravity-cli/skills" ;;
     esac

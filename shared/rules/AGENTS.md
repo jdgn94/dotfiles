@@ -30,6 +30,7 @@ Only agents actually installed are listed here. `Skill path` is where global SKI
 | Agent            | detection      | Global skill path                    | Plugin / MCP config                          | Notes                                                      |
 |------------------|----------------|--------------------------------------|----------------------------------------------|------------------------------------------------------------|
 | opencode         | `opencode`     | `~/.config/opencode/skills/`         | `~/.config/opencode/opencode.jsonc`          | plugins: npm; mcp: `mcp` key                               |
+| opencode2        | `opencode2`    | `~/.config/opencode2/skills/`        | `~/.config/opencode2/opencode.jsonc`         | alias / wrapper for opencode                               |
 | claude-code      | `claude`       | `~/.claude/skills/`                  | `~/.claude.json` (mcpServers)                | plugins: marketplaces in `~/.claude/plugins/`              |
 | hermes-agent     | `hermes`       | `~/.hermes/skills/`                  | `~/.hermes/config.yaml`                      | skills dir may also hold curated hub                       |
 | antigravity      | `antigravity`  | `~/.gemini/config/skills/`           | `~/.gemini/config/mcp_config.json`           | GUI app; rule delivered via skills                         |

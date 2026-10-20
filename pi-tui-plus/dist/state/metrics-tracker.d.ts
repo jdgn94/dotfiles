@@ -26,6 +26,7 @@ export declare class MetricsTracker {
     private firstTokenTime?;
     private listeners;
     getMetrics(): TokenMetrics;
+    reset(): void;
     onChange(listener: () => void): () => void;
     setModelInfo(modelName: string, contextWindow?: number): void;
     onPromptStart(): void;

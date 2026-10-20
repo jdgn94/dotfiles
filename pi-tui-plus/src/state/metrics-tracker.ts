@@ -60,6 +60,28 @@ export class MetricsTracker {
     return { ...this.metrics };
   }
 
+  public reset(): void {
+    const window = this.metrics.contextWindow;
+    this.metrics = {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      total: 0,
+      contextWindow: window,
+      contextPercent: 0,
+      estimatedCostUsd: 0,
+      speedTokensPerSec: 0,
+      currentTurnTokens: 0,
+      currentTurnDurationSec: 0,
+      latencyMs: 0,
+      totalTurns: 0,
+    };
+    this.turnStartTime = undefined;
+    this.firstTokenTime = undefined;
+    this.notify();
+  }
+
   public onChange(listener: () => void): () => void {
     this.listeners.push(listener);
     return () => {
