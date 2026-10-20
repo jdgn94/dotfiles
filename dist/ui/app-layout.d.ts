@@ -1,4 +1,4 @@
-import { type Component, type Focusable, type TUI } from "@earendil-works/pi-tui";
+import { type Component, type Focusable, type TUI, type TuiMouseEvent, type TuiMouseEventResult } from "@earendil-works/pi-tui";
 import { type AgentManager } from "../state/agent-manager.js";
 import { type GitWatcher } from "../state/git-watcher.js";
 import { type MetricsTracker } from "../state/metrics-tracker.js";
@@ -27,6 +27,7 @@ export declare class AppLayout implements Component, Focusable {
     private syncAnimationTimer;
     invalidate(): void;
     private openExternalEditor;
+    handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined;
     handleInput(data: string): void;
     render(width: number): string[];
     private padTo;

@@ -2,7 +2,14 @@ import { execSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { matchesKey, type Component, type Focusable, type TUI } from "@earendil-works/pi-tui";
+import {
+  matchesKey,
+  type Component,
+  type Focusable,
+  type TUI,
+  type TuiMouseEvent,
+  type TuiMouseEventResult,
+} from "@earendil-works/pi-tui";
 import { type AgentManager } from "../state/agent-manager.js";
 import { type GitWatcher } from "../state/git-watcher.js";
 import { type MetricsTracker } from "../state/metrics-tracker.js";
@@ -196,6 +203,129 @@ export class AppLayout implements Component, Focusable {
       this.tui.start();
       this.tui.requestRender();
     }
+  }
+
+  public handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined {
+    // Handle left button click and press
+    if (event.type !== "click" && event.type !== "press") {
+      return undefined;
+    }
+    if (event.button !== "left") {
+      return undefined;
+    }
+
+    const col = event.x;
+    const row = event.y;
+    const termWidth = Math.max(
+      40,
+      (this.tui as { terminal?: { columns?: number } })?.terminal?.columns ??
+        process.stdout.columns ??
+        80
+    );
+    const termHeight =
+      (this.tui as { terminal?: { rows?: number } })?.terminal?.rows ??
+      process.stdout.rows ??
+      24;
+
+    // 1. Modals open: close or select
+    if (this.diffViewer.getIsOpen()) {
+      this.diffViewer.close();
+      this.tui.requestRender();
+      return { handled: true, render: true };
+    }
+    if (this.sessionModal.getIsOpen()) {
+      this.sessionModal.close();
+      this.tui.requestRender();
+      return { handled: true, render: true };
+    }
+    if (this.agentPopup.getIsOpen()) {
+      const popupStartRow = 3;
+      const rowOffset = row - popupStartRow;
+      const res = this.agentPopup.handleClick(rowOffset);
+      if (res) {
+        if (res.action === "selected_primary") {
+          this.syncInputBoxState();
+        } else if (res.action === "selected_subagent") {
+          this.inputBox.setText(`/agent ${res.agent.name} `);
+          this.inputBox.setActiveAgent(res.agent.name, res.agent.color, true);
+        }
+      }
+      this.tui.requestRender();
+      return { handled: true, render: true };
+    }
+
+    // 2. Click on Header area -> open Agent selector
+    if (row <= 1 && col >= termWidth - 32) {
+      this.agentPopup.open();
+      this.tui.requestRender();
+      return { handled: true, render: true };
+    }
+
+    // 3. Click on Status bar row (bottom row)
+    if (row >= termHeight - 1) {
+      if (col >= 30 && col < 46) {
+        this.agent.nextAgent();
+        this.syncInputBoxState();
+        this.tui.requestRender();
+        return { handled: true, render: true };
+      }
+      if (col >= 46 && col < 58) {
+        this.agent.cycleThinkingLevel();
+        this.tui.requestRender();
+        return { handled: true, render: true };
+      }
+      if (col >= 58 && col < 70) {
+        this.diffViewer.open();
+        this.tui.requestRender();
+        return { handled: true, render: true };
+      }
+      if (col >= 70 && col < 80) {
+        this.sidebar.toggleMcp();
+        this.tui.requestRender();
+        return { handled: true, render: true };
+      }
+      if (col >= 80 && col < 90) {
+        this.sidebar.toggleSkills();
+        this.tui.requestRender();
+        return { handled: true, render: true };
+      }
+      if (col >= 90) {
+        process.exit(0);
+      }
+    }
+
+    // 4. Click on Right Sidebar (dynamic clickMap)
+    const sbWidth = Math.min(this.sidebarWidth, Math.floor(termWidth * 0.45));
+    const chatWidth = termWidth - sbWidth - 1;
+    if (col > chatWidth) {
+      // Header takes rows 0 and 1, so sidebar row 0 is at screen row 2
+      const sidebarRowIndex = row - 2;
+      const action = this.sidebar.handleClick(sidebarRowIndex);
+      if (action) {
+        if (action.type === "toggle_plan") {
+          this.sidebar.togglePlan();
+          this.tui.requestRender();
+          return { handled: true, render: true };
+        }
+        if (action.type === "toggle_mcp") {
+          this.sidebar.toggleMcp();
+          this.tui.requestRender();
+          return { handled: true, render: true };
+        }
+        if (action.type === "toggle_skills") {
+          this.sidebar.toggleSkills();
+          this.tui.requestRender();
+          return { handled: true, render: true };
+        }
+        if (action.type === "open_diff") {
+          this.diffViewer.open(action.file);
+          this.tui.requestRender();
+          return { handled: true, render: true };
+        }
+      }
+    }
+
+    return undefined;
   }
 
   public handleInput(data: string): void {
