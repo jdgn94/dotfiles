@@ -68,6 +68,8 @@ export class AgentManager {
   private isWorking = false;
   private currentStatus = "Ready";
   private turnStartTime = 0;
+  private hasWarned85 = false;
+  private isAutoCompacting = false;
   private unsubscribeSession?: () => void;
   private listeners: Array<() => void> = [];
 
@@ -664,6 +666,8 @@ export class AgentManager {
           // ignore notification failure
         }
       }
+
+      await this.checkContextThresholds();
     }
   }
 
@@ -758,11 +762,14 @@ export class AgentManager {
           // ignore
         }
       }
+
+      await this.checkContextThresholds();
     }
   }
 
   public clearMessages(): void {
     this.messages = [];
+    this.hasWarned85 = false;
     this.notify();
   }
 
@@ -778,8 +785,71 @@ export class AgentManager {
       // ignore
     } finally {
       this.isWorking = false;
+      this.hasWarned85 = false;
       this.currentStatus = "Ready";
       this.updateStats();
+      this.notify();
+    }
+  }
+
+  public async checkContextThresholds(): Promise<void> {
+    if (!this.session || this.isAutoCompacting) return;
+
+    const m = this.metrics.getMetrics();
+    const percent = m.contextPercent;
+
+    if (percent < 80) {
+      this.hasWarned85 = false;
+    }
+
+    // Auto-compaction at 95%
+    if (percent >= 95) {
+      this.isAutoCompacting = true;
+      const initialTotal = m.total;
+      this.messages.push({
+        id: "auto-compact-" + Date.now(),
+        role: "system",
+        text: `⚡ Context window reached ${percent}% ceiling (${m.total.toLocaleString()} / ${m.contextWindow.toLocaleString()} tokens).\nAuto-compacting conversation memory to prevent context overflow...`,
+        timestamp: Date.now(),
+      });
+      this.notify();
+
+      try {
+        await this.compact();
+        const postM = this.metrics.getMetrics();
+        const reclaimed = Math.max(0, initialTotal - postM.total);
+        this.messages.push({
+          id: "auto-compact-done-" + Date.now(),
+          role: "system",
+          text: `✓ Context auto-compacted successfully: now at ${postM.contextPercent}% (${postM.total.toLocaleString()} / ${postM.contextWindow.toLocaleString()} tokens). Reclaimed ${reclaimed.toLocaleString()} tokens.`,
+          timestamp: Date.now(),
+        });
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        this.messages.push({
+          id: "auto-compact-err-" + Date.now(),
+          role: "system",
+          text: `⚠️ Auto-compaction encountered an issue: ${errMsg}`,
+          timestamp: Date.now(),
+        });
+      } finally {
+        this.isAutoCompacting = false;
+        this.hasWarned85 = false;
+        this.updateStats();
+        this.notify();
+      }
+      return;
+    }
+
+    // Warning alert at 85%
+    if (percent >= 85 && !this.hasWarned85) {
+      this.hasWarned85 = true;
+      this.messages.push({
+        id: "warn-85-" + Date.now(),
+        role: "system",
+        text: `⚠️ Context window warning: currently at ${percent}% (${m.total.toLocaleString()} / ${m.contextWindow.toLocaleString()} tokens).\nRun the command /compact to compress conversation memory and reclaim space before reaching the 95% ceiling.`,
+        timestamp: Date.now(),
+      });
       this.notify();
     }
   }
@@ -873,6 +943,7 @@ export class AgentManager {
         this.streamingText = "";
         this.streamingThinking = "";
         this.updateStats();
+        this.checkContextThresholds().catch(() => {});
         this.notify();
         break;
       }

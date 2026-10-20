@@ -41,6 +41,8 @@ export declare class AgentManager {
     private isWorking;
     private currentStatus;
     private turnStartTime;
+    private hasWarned85;
+    private isAutoCompacting;
     private unsubscribeSession?;
     private listeners;
     private availableAgents;
@@ -100,6 +102,7 @@ export declare class AgentManager {
     private executeSubagentPrompt;
     clearMessages(): void;
     compact(): Promise<void>;
+    checkContextThresholds(): Promise<void>;
     showCostBreakdown(): void;
     abort(): Promise<void>;
     private handleSessionEvent;
