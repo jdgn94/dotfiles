@@ -24,7 +24,7 @@ Trigger auto-skill extraction when:
 - Trivial one-line code edits or typos.
 - Ephemeral, purely project-specific business logic that has zero applicability elsewhere.
 
-## Hermes Reflection Protocol
+## Hermes Reflection & Auto-Generation Protocol
 
 Execute these steps sequentially when generating or refining a skill:
 
@@ -40,21 +40,39 @@ Ask:
 - Replace them with clear variable placeholders (e.g. `<target-dir>`, `<package-name>`, `<config-path>`).
 - Focus on the transferable principle, not the isolated incident.
 
-### 3. Check Existing Skills ("Patch, Don't Duplicate")
+### 3. Compressive Distillation (Hermes Anti-Bloat Standard)
+- **High Signal-to-Noise**: Eliminate fluff, conversational preamble, narrative storytelling, and theoretical padding.
+- **Synthesize Structure**: Extract decision rules, frameworks, concrete command patterns, and anti-patterns — never paste raw terminal transcripts or duplicate entire manual pages.
+- **Irreducible Essence**: If deleting a line or paragraph does not diminish execution success, prune it.
+
+### 4. Modular Separation (Progressive Disclosure)
+Follow the Hermes Agent multi-tier loading pattern:
+- **Keep `SKILL.md` Lean**: The root `SKILL.md` must stay under 200–250 lines. It acts as the primary orchestrator (mental model, trigger conditions, core procedure, pitfalls).
+- **Extract Large References to Separate Files**: When a skill requires deep API schemas, complex templates, extensive cheat sheets, or multi-domain references:
+  - Do NOT cram them into a single monolithic `SKILL.md`.
+  - Author a dedicated file under `<skill-dir>/references/<topic>.md` or `<skill-dir>/templates/`.
+  - Reference files cost zero context tokens until explicitly opened via progressive disclosure (`skill_view(name, path)`).
+- **Scope Division**: If the learned knowledge solves two fundamentally separate engineering tasks, generate two companion skills and cross-reference them.
+
+### 5. Check Existing Skills ("Patch, Don't Duplicate")
 - Always call `list_skills` before creating a new skill.
 - If a skill on the same domain or topic already exists (e.g., `condition-based-waiting`, `portal-file-chooser`):
   - Do NOT create a duplicate skill.
-  - Review the existing `SKILL.md` and use `save_skill` with `mode: "patch"` to incorporate the new edge case, pitfall, or improved procedure.
+  - Review the existing `SKILL.md` and use `save_skill` with `mode: "patch"` to incorporate the new edge case, pitfall, or modular reference file.
 - If the domain is distinct, proceed with `mode: "create"`.
 
-### 4. Author the Hermes SKILL.md Document
+### 6. Scope Placement (Global vs Project-Local)
+- **Global Skills**: Write to `~/.agents/skills/<name>/SKILL.md` (the canonical cross-harness root). It automatically mirrors to Claude, Pi, OpenCode, Hermes, and Antigravity.
+- **Project-Local Skills**: Write to `<repo-root>/.agents/skills/<name>/SKILL.md` (or `<repo-root>/.hermes/skills/`) when the operational workflow is strictly specific to the current repository.
+
+### 7. Author the Compressed SKILL.md Document
 
 The skill must be written in **strictly English** and adhere to the following schema:
 
 ```markdown
 ---
 name: kebab-case-name
-description: Use when [specific triggering conditions, symptoms, and context]. Keep under 250 chars.
+description: Use when [specific triggering conditions, symptoms, and context]. Keep under 120 chars.
 ---
 
 # Title
@@ -77,10 +95,10 @@ Numbered, actionable, sequential steps with concrete code/shell snippets.
 Precise command, test, or checklist to confirm the solution works.
 ```
 
-### 5. Persistence via `save_skill`
+### 8. Persistence via `save_skill`
 Call the `save_skill` tool with:
 - `name`: lowercase-hyphenated string matching `^[a-z0-9]+(-[a-z0-9]+)*$`
-- `description`: crisp trigger string starting with `Use when...`
+- `description`: crisp trigger string starting with `Use when...` (under 120 chars)
 - `content`: the markdown body
 - `mode`: `"create"` (for new skills) or `"patch"` (when improving an existing skill)
 

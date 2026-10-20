@@ -56,20 +56,32 @@ How to confirm the skill works correctly.
 
 ## Location
 
-| Scope | Path |
-|-------|------|
-| Project (cross-tool) | `.agents/skills/<name>/SKILL.md` |
-| Global (opencode) | `~/.config/opencode/skills/<name>/SKILL.md` |
+| Scope            | Path                                                 | Usage                                                                          |
+|------------------|------------------------------------------------------|--------------------------------------------------------------------------------|
+| Canonical Global | `~/.agents/skills/<name>/SKILL.md`                   | Shared across ALL harnesses (`claude`, `opencode`, `pi`, `hermes`, `antigravity`) |
+| Project-local    | `.agents/skills/<name>/SKILL.md` or `.hermes/skills/` | Scoped strictly to the active repository / workspace                           |
 
-Project skills go in `.agents/skills/` so they are usable by any Agent-Skills-compatible tool (opencode, Claude, Codex, etc.). Global opencode-only skills go in `~/.config/opencode/skills/`.
+All global skills authored or generated MUST be placed in `~/.agents/skills/` (the canonical source of truth) so they are automatically mirrored/symlinked to all configured harnesses.
 
-## Rules
+## Rules & Compression Standard
 
-1. **Patch, don't duplicate** — if a skill is outdated or incomplete, edit it directly. Never create a second skill for the same topic.
-2. **Archive, never delete** — move obsolete skills to `./.archive/<name>/` rather than deleting. They can be restored if needed.
-3. **Keep descriptions short** — the description appears in the skill index. Keep it under 60 characters for routing efficiency (Hermes standard).
-4. **Test before deploying** — verify the skill is discoverable and the frontmatter is valid before considering it done.
-5. **Cross-reference** — link to related skills by name rather than duplicating content.
+1. **Zero Redundancy (Strict Anti-Bloat)**:
+   - Include ONLY necessary, actionable operational knowledge.
+   - Do NOT pad with introductions, verbose narrative, or theoretical tutorials.
+   - Synthesize structure, decision rules, and anti-patterns — never copy source documentation verbatim.
+2. **Decompose into Separate Files**:
+   - Keep `SKILL.md` lean (under 200–250 lines).
+   - If reference documentation, API schemas, large examples, or cheatsheets are needed, extract them into separate files under `references/<topic>.md`.
+   - Following Hermes Agent progressive disclosure, reference files cost zero tokens until loaded on demand.
+3. **Patch, Don't Duplicate**:
+   - Always check existing skills first (`list_skills`).
+   - If a skill on that topic exists, edit or patch it directly. Never create a second skill for the same topic.
+4. **Archive, Never Delete**:
+   - Move obsolete skills to `./.archive/<name>/` rather than deleting.
+5. **Keep Descriptions Concise**:
+   - Under 100 characters, starting with "Use when...", describing triggering conditions in third person for routing efficiency.
+6. **Cross-reference**:
+   - Link to companion skills or `references/` files rather than duplicating content across files.
 
 ## Example
 
