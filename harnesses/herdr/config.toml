@@ -83,3 +83,36 @@ command = "usagebar.open-limits"
 key = "prefix+m"
 type = "plugin_action"
 command = "usagebar.refresh"
+
+# Paleta de comandos interactiva fzf (Prefix+Espacio o Ctrl+Shift+P)
+[[keys.command]]
+key = "prefix+space"
+type = "plugin_action"
+command = "jt.command-palette.open"
+
+[[keys.command]]
+key = "ctrl+shift+p"
+type = "plugin_action"
+command = "jt.command-palette.open"
+
+# Monitor de CPU y RAM de espacios y agentes (Prefix+r o Alt+r)
+[[keys.command]]
+key = "prefix+r"
+type = "plugin_action"
+command = "ez-corp.space-usage.monitor"
+
+[[keys.command]]
+key = "alt+r"
+type = "plugin_action"
+command = "ez-corp.space-usage.monitor"
+
+# Panel de revisión de código y diffs (reviewr - Prefix+d o Alt+d)
+[[keys.command]]
+key = "prefix+d"
+type = "plugin_action"
+command = "persiyanov.reviewr.toggle"
+
+[[keys.command]]
+key = "alt+d"
+type = "plugin_action"
+command = "persiyanov.reviewr.toggle"

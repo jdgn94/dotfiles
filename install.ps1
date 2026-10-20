@@ -214,6 +214,8 @@ Set-Content -Path (Join-Path $ClaudeDir "CLAUDE.md") -Value $ClaudeMdContent -En
 
 if (Get-Command claude -ErrorAction SilentlyContinue) {
     claude mcp add -s user playwright -- npx -y @playwright/mcp@latest --headless 2>$null
+    claude mcp add -s user memory -- npx -y @modelcontextprotocol/server-memory 2>$null
+    claude mcp add -s user fetch -- uvx mcp-server-fetch 2>$null
 }
 
 # --- 6. Deploy OpenCode Configuration ---
@@ -289,6 +291,10 @@ if (Get-Command herdr -ErrorAction SilentlyContinue) {
     herdr plugin action invoke herdr.auto-title.restart 2>$null
     herdr plugin install adihex/herdr-agent-icons -y 2>$null
     herdr plugin action invoke local.agent-icons.install-font 2>$null
+    herdr plugin install JanTvrdik/herdr-command-palette -y 2>$null
+    herdr plugin install persiyanov/herdr-reviewr -y 2>$null
+    herdr plugin install tdi/herdr-worktree-setup -y 2>$null
+    herdr plugin install ezcorp-org/herdr-pc-ram-and-cpu-usage-overlay -y 2>$null
     herdr integration install pi 2>$null
     herdr integration install claude 2>$null
     herdr integration install opencode 2>$null

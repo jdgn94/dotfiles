@@ -115,12 +115,31 @@ Integración visual de logos para los agentes de IA en el sidebar lateral izquie
 
 ---
 
-## 🌐 Automatización y Verificación E2E (`@playwright/mcp`)
+## 🧩 Plugins Esenciales de Herdr
 
-Todos los harnesses (`pi`, `claude`, `opencode`, `antigravity`) cuentan con el servidor MCP oficial de **Playwright** configurado de forma universal:
-- **Pruebas en navegador real**: Los agentes pueden abrir navegadores Chromium/WebKit en modo headless o con interfaz, navegar a URLs locales (`http://localhost:3000`), hacer clics, rellenar formularios y probar flujos de usuario completos.
-- **Feedback visual y screenshots**: Permite a los agentes tomar capturas de pantalla de la interfaz para inspeccionar visualmente el diseño y verificar estilos.
-- **Inspección de errores**: Lee errores en la consola de JavaScript (`browser_console_messages`) y solicitudes HTTP fallidas (`browser_network_requests`).
+Herdr cuenta con un conjunto curado de plugins de productividad:
+- **`JanTvrdik/herdr-command-palette`**: Paleta interactiva FZF (`Ctrl+Shift+P` o `Prefix + Espacio`) para invocar acciones y comandos de plugins sin memorizar atajos.
+- **`persiyanov/herdr-reviewr`**: Panel de revisión de código y diffs (`Prefix + d` o `Alt + d`) para inspeccionar cambios de agentes y enviar comentarios de línea.
+- **`ezcorp-org/herdr-pc-ram-and-cpu-usage-overlay`**: Monitor de consumo de CPU y RAM (`Prefix + r` o `Alt + r`) por workspace y agente en tiempo real.
+- **`tdi/herdr-worktree-setup`**: Hook automático que prepara ramas y worktrees (copia `.env`, `direnv allow`, instala dependencias).
+
+---
+
+## 🌐 Servidores MCP Universales
+
+Configurados en todos los harnesses (`pi`, `claude`, `opencode`, `antigravity`):
+- **`playwright` (`@playwright/mcp`)**: Pruebas en navegador real, capturas de pantalla, clics, formularios e inspección de errores de consola y red.
+- **`memory` (`@modelcontextprotocol/server-memory`)**: Grafo de conocimiento persistente con entidades, relaciones y observaciones recordadas entre sesiones.
+- **`fetch` (`mcp-server-fetch`)**: Consulta y extracción directa de páginas web y documentación en Markdown.
+
+---
+
+## 🧠 Skills Compartidas Destacadas (`shared/skills/`)
+
+- **`tdd-agent-workflow`**: Ciclo estricto Red-Green-Refactor para evitar código sin pruebas ni alucinaciones.
+- **`conventional-git-flow`**: Ramas estandarizadas (`feat/`, `fix/`), commits semánticos y resúmenes de PR.
+- **`dependency-guard`**: Auditoría previa al añadir dependencias (evalúa alternativas nativas, salud del paquete y vulnerabilidades).
+- **`vulnerability-auditor`**: Auditoría de seguridad adversaria que genera reportes técnicos para IA (`_AI.md`) y educativos para el usuario (`_USER.md`).
 
 ---
 

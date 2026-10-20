@@ -178,6 +178,8 @@ printf '# Global Claude Instructions\nImporting common rules and instructions fr
 # Asegurar MCPs en Claude Code
 if command -v claude >/dev/null 2>&1; then
   claude mcp add -s user playwright -- npx -y @playwright/mcp@latest --headless 2>/dev/null || true
+  claude mcp add -s user memory -- npx -y @modelcontextprotocol/server-memory 2>/dev/null || true
+  claude mcp add -s user fetch -- uvx mcp-server-fetch 2>/dev/null || true
 fi
 
 # --- 6. Desplegar Configuración de OpenCode ---
@@ -275,6 +277,22 @@ if command -v herdr >/dev/null 2>&1; then
     log_info "Instalando plugin herdr-agent-icons..."
     herdr plugin install adihex/herdr-agent-icons -y 2>/dev/null || true
     herdr plugin action invoke local.agent-icons.install-font 2>/dev/null || true
+  fi
+  if ! herdr plugin list 2>/dev/null | grep -q "jt.command-palette"; then
+    log_info "Instalando plugin herdr-command-palette..."
+    herdr plugin install JanTvrdik/herdr-command-palette -y 2>/dev/null || true
+  fi
+  if ! herdr plugin list 2>/dev/null | grep -q "persiyanov.reviewr"; then
+    log_info "Instalando plugin herdr-reviewr..."
+    herdr plugin install persiyanov/herdr-reviewr -y 2>/dev/null || true
+  fi
+  if ! herdr plugin list 2>/dev/null | grep -q "tdi.worktree-setup"; then
+    log_info "Instalando plugin herdr-worktree-setup..."
+    herdr plugin install tdi/herdr-worktree-setup -y 2>/dev/null || true
+  fi
+  if ! herdr plugin list 2>/dev/null | grep -q "ez-corp.space-usage"; then
+    log_info "Instalando plugin herdr-pc-ram-and-cpu-usage-overlay..."
+    herdr plugin install ezcorp-org/herdr-pc-ram-and-cpu-usage-overlay -y 2>/dev/null || true
   fi
 fi
 

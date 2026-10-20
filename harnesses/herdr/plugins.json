@@ -1,5 +1,158 @@
 [
   {
+    "plugin_id": "ez-corp.space-usage",
+    "name": "PC RAM & CPU Usage Overlay",
+    "version": "1.12.0",
+    "min_herdr_version": "0.7.5",
+    "description": "CPU and RAM usage per space, grouped under the branch name.",
+    "manifest_path": "/home/juan/.config/herdr/plugins/github-installations/ez-corp.space-usage-2ecf2abc9b18/686729-0/checkout/herdr-plugin.toml",
+    "plugin_root": "/home/juan/.config/herdr/plugins/github-installations/ez-corp.space-usage-2ecf2abc9b18/686729-0/checkout",
+    "enabled": true,
+    "platforms": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "build": [
+      {
+        "platforms": [
+          "linux",
+          "macos",
+          "windows"
+        ],
+        "command": [
+          "cargo",
+          "build",
+          "--release"
+        ]
+      }
+    ],
+    "startup": [
+      {
+        "platforms": [
+          "linux",
+          "macos",
+          "windows"
+        ],
+        "command": [
+          "./target/release/space-usage",
+          "--restore"
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "id": "icons",
+        "title": "Preview icon tiers",
+        "command": [
+          "./target/release/space-usage",
+          "--icons"
+        ]
+      },
+      {
+        "id": "monitor",
+        "title": "Open system monitor",
+        "contexts": [
+          "workspace",
+          "tab",
+          "pane",
+          "global"
+        ],
+        "command": [
+          "herdr",
+          "plugin",
+          "pane",
+          "open",
+          "--plugin",
+          "ez-corp.space-usage",
+          "--entrypoint",
+          "monitor",
+          "--placement",
+          "overlay",
+          "--focus"
+        ]
+      },
+      {
+        "id": "report",
+        "title": "Space usage report",
+        "contexts": [
+          "workspace"
+        ],
+        "command": [
+          "./target/release/space-usage",
+          "--once"
+        ]
+      },
+      {
+        "id": "status-disable",
+        "title": "Disable sidebar usage status",
+        "command": [
+          "./target/release/space-usage",
+          "--disable"
+        ]
+      },
+      {
+        "id": "status-enable",
+        "title": "Enable sidebar usage status",
+        "command": [
+          "./target/release/space-usage",
+          "--enable"
+        ]
+      },
+      {
+        "id": "status-toggle",
+        "title": "Toggle sidebar usage status",
+        "command": [
+          "./target/release/space-usage",
+          "--toggle"
+        ]
+      }
+    ],
+    "events": [
+      {
+        "on": "workspace.focused",
+        "platforms": [
+          "linux",
+          "macos",
+          "windows"
+        ],
+        "command": [
+          "./target/release/space-usage",
+          "--restore"
+        ]
+      }
+    ],
+    "panes": [
+      {
+        "id": "dashboard",
+        "title": "Space usage",
+        "placement": "overlay",
+        "command": [
+          "./target/release/space-usage",
+          "--interval",
+          "2"
+        ]
+      },
+      {
+        "id": "monitor",
+        "title": "System monitor",
+        "placement": "overlay",
+        "command": [
+          "./target/release/space-usage",
+          "--monitor"
+        ]
+      }
+    ],
+    "source": {
+      "kind": "github",
+      "owner": "ezcorp-org",
+      "repo": "herdr-pc-ram-and-cpu-usage-overlay",
+      "resolved_commit": "9872a499181b5a52472da3f74b9c567d3898069f",
+      "managed_path": "/home/juan/.config/herdr/plugins/github-installations/ez-corp.space-usage-2ecf2abc9b18/686729-0/checkout",
+      "installed_unix_ms": 1792536274356
+    }
+  },
+  {
     "plugin_id": "herdr-projects",
     "name": "Projects",
     "version": "0.2.25",
@@ -698,6 +851,53 @@
     }
   },
   {
+    "plugin_id": "jt.command-palette",
+    "name": "Command Palette (fzf)",
+    "version": "0.1.0",
+    "min_herdr_version": "0.7.0",
+    "description": "An fzf command palette for herdr: pops up a fuzzy-searchable list of every action exposed by every installed plugin (via `herdr plugin action list`) and invokes the one you pick. The picker runs in an overlay pane so fzf gets a real TTY; the origin workspace's cwd is forwarded so context-aware actions resolve the right repo.",
+    "manifest_path": "/home/juan/.config/herdr/plugins/github/jt.command-palette-24905dca5f16/herdr-plugin.toml",
+    "plugin_root": "/home/juan/.config/herdr/plugins/github/jt.command-palette-24905dca5f16",
+    "enabled": true,
+    "platforms": [
+      "linux",
+      "macos"
+    ],
+    "actions": [
+      {
+        "id": "open",
+        "title": "Command palette (all plugin actions)",
+        "contexts": [
+          "workspace"
+        ],
+        "command": [
+          "bash",
+          "open.sh"
+        ]
+      }
+    ],
+    "panes": [
+      {
+        "id": "palette",
+        "title": "Command palette",
+        "placement": "overlay",
+        "command": [
+          "bash",
+          "-c",
+          "exec \"$HERDR_PLUGIN_ROOT/palette.sh\""
+        ]
+      }
+    ],
+    "source": {
+      "kind": "github",
+      "owner": "JanTvrdik",
+      "repo": "herdr-command-palette",
+      "resolved_commit": "eab940018c2135ac23718efa11e23e9dddcd2a75",
+      "managed_path": "/home/juan/.config/herdr/plugins/github/jt.command-palette-24905dca5f16",
+      "installed_unix_ms": 1792536165715
+    }
+  },
+  {
     "plugin_id": "local.agent-icons",
     "name": "Agent Icons",
     "version": "0.3.0",
@@ -753,6 +953,162 @@
       "resolved_commit": "13426dd7b505bebe991dbec98ce46b78a79830ba",
       "managed_path": "/home/juan/.config/herdr/plugins/github/local.agent-icons-da004f570912",
       "installed_unix_ms": 1792338933814
+    }
+  },
+  {
+    "plugin_id": "persiyanov.reviewr",
+    "name": "reviewr",
+    "version": "0.48.0",
+    "min_herdr_version": "0.9.3",
+    "description": "Review agent-written diffs beside the chat and add line comments to the agent input.",
+    "manifest_path": "/home/juan/.config/herdr/plugins/github-installations/persiyanov.reviewr-e87b654a74f8/686300-0/checkout/herdr-plugin.toml",
+    "plugin_root": "/home/juan/.config/herdr/plugins/github-installations/persiyanov.reviewr-e87b654a74f8/686300-0/checkout",
+    "enabled": true,
+    "platforms": [
+      "macos",
+      "linux",
+      "windows"
+    ],
+    "build": [
+      {
+        "platforms": [
+          "macos",
+          "linux"
+        ],
+        "command": [
+          "bash",
+          "herdr/install.sh"
+        ]
+      },
+      {
+        "platforms": [
+          "windows"
+        ],
+        "command": [
+          "powershell",
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "herdr/install.ps1"
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "id": "close",
+        "title": "reviewr: close pane",
+        "contexts": [
+          "pane",
+          "workspace"
+        ],
+        "command": [
+          "bin/herdr-reviewr",
+          "--action",
+          "close"
+        ]
+      },
+      {
+        "id": "open",
+        "title": "reviewr: open pane",
+        "contexts": [
+          "pane",
+          "workspace"
+        ],
+        "command": [
+          "bin/herdr-reviewr",
+          "--action",
+          "open"
+        ]
+      },
+      {
+        "id": "toggle",
+        "title": "reviewr: toggle pane",
+        "contexts": [
+          "pane",
+          "workspace"
+        ],
+        "command": [
+          "bin/herdr-reviewr",
+          "--action",
+          "toggle"
+        ]
+      }
+    ],
+    "events": [
+      {
+        "on": "worktree.created",
+        "command": [
+          "bin/herdr-reviewr",
+          "--action",
+          "auto-open"
+        ]
+      },
+      {
+        "on": "worktree.opened",
+        "command": [
+          "bin/herdr-reviewr",
+          "--action",
+          "auto-open"
+        ]
+      }
+    ],
+    "panes": [
+      {
+        "id": "pane",
+        "title": "reviewr",
+        "placement": "split",
+        "command": [
+          "bin/herdr-reviewr"
+        ]
+      }
+    ],
+    "source": {
+      "kind": "github",
+      "owner": "persiyanov",
+      "repo": "herdr-reviewr",
+      "resolved_commit": "a253b1bfe4b34182af3204b7fcc42ccfed1b87d9",
+      "managed_path": "/home/juan/.config/herdr/plugins/github-installations/persiyanov.reviewr-e87b654a74f8/686300-0/checkout",
+      "installed_unix_ms": 1792536259660
+    }
+  },
+  {
+    "plugin_id": "tdi.worktree-setup",
+    "name": "Worktree Setup",
+    "version": "0.3.0",
+    "min_herdr_version": "0.7.0",
+    "description": "Run per-project setup steps when a worktree is created",
+    "manifest_path": "/home/juan/.config/herdr/plugins/github-installations/tdi.worktree-setup-17117017c595/686507-0/checkout/herdr-plugin.toml",
+    "plugin_root": "/home/juan/.config/herdr/plugins/github-installations/tdi.worktree-setup-17117017c595/686507-0/checkout",
+    "enabled": true,
+    "platforms": [
+      "linux",
+      "macos"
+    ],
+    "build": [
+      {
+        "command": [
+          "npm",
+          "ci"
+        ]
+      }
+    ],
+    "events": [
+      {
+        "on": "worktree.created",
+        "command": [
+          "node",
+          "src/setup.js"
+        ]
+      }
+    ],
+    "source": {
+      "kind": "github",
+      "owner": "tdi",
+      "repo": "herdr-worktree-setup",
+      "resolved_commit": "c13ef573452b211b6097ddd0ce197be88e9a4b53",
+      "managed_path": "/home/juan/.config/herdr/plugins/github-installations/tdi.worktree-setup-17117017c595/686507-0/checkout",
+      "installed_unix_ms": 1792536265784
     }
   },
   {
