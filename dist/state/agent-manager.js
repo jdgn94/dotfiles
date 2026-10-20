@@ -425,16 +425,16 @@ export class AgentManager {
                 }
             }
         }
-        // Check if the prompt starts with @subagent <prompt...>
-        const atAgentMatch = text.trim().match(/^@([a-zA-Z0-9_\-]+)(?:\s+([\s\S]+))?$/);
+        // Check if the prompt starts with @subagent or @agent-subagent <prompt...>
+        const atAgentMatch = text.trim().match(/^@(agent-)?([a-zA-Z0-9_\-]+)(?:\s+([\s\S]+))?$/i);
         if (atAgentMatch) {
-            const targetName = atAgentMatch[1];
-            const targetPrompt = atAgentMatch[2]?.trim();
-            if (targetName && targetPrompt) {
+            const targetName = atAgentMatch[2];
+            const subPrompt = atAgentMatch[3]?.trim();
+            if (targetName && subPrompt) {
                 const targetAgent = this.availableAgents.find((a) => a.id.toLowerCase() === targetName.toLowerCase() ||
                     a.name.toLowerCase() === targetName.toLowerCase());
                 if (targetAgent) {
-                    await this.executeSubagentPrompt(targetAgent, targetPrompt, text);
+                    await this.executeSubagentPrompt(targetAgent, subPrompt, text);
                     return;
                 }
             }

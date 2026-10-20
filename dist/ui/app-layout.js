@@ -229,10 +229,12 @@ export class AppLayout {
             const res = this.agentPopup.handleClick(rowOffset);
             if (res) {
                 if (res.action === "selected_primary") {
+                    this.inputBox.setText(`@${res.agent.name} `);
+                    this.inputBox.setActiveAgent(res.agent.name, res.agent.color, true);
                     this.syncInputBoxState();
                 }
                 else if (res.action === "selected_subagent") {
-                    this.inputBox.setText(`/agent ${res.agent.name} `);
+                    this.inputBox.setText(`@${res.agent.name} `);
                     this.inputBox.setActiveAgent(res.agent.name, res.agent.color, true);
                 }
             }
@@ -405,10 +407,12 @@ export class AppLayout {
             if (matchesKey(data, "enter") || data === "\r" || data === "\n") {
                 const res = this.agentPopup.selectCurrent();
                 if (res.action === "selected_primary") {
+                    this.inputBox.setText(`@${res.agent.name} `);
+                    this.inputBox.setActiveAgent(res.agent.name, res.agent.color, true);
                     this.syncInputBoxState();
                 }
                 else if (res.action === "selected_subagent") {
-                    this.inputBox.setText(`/agent ${res.agent.name} `);
+                    this.inputBox.setText(`@${res.agent.name} `);
                     this.inputBox.setActiveAgent(res.agent.name, res.agent.color, true);
                 }
                 this.tui.requestRender();
