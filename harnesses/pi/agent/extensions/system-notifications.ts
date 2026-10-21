@@ -69,10 +69,10 @@ export default function (pi: ExtensionAPI) {
           .filter(Boolean)
           .join(" • ");
       }
-      if (!body) body = "Pi ha formulado una pregunta y requiere tu respuesta.";
+      if (!body) body = "Pi asked a question and requires your input.";
 
       sendDesktopNotification({
-        title: "❓ Pregunta de Pi",
+        title: "❓ Question from Pi",
         body: truncate(body, 200),
         icon: "dialog-question",
         urgency: "normal",
@@ -86,9 +86,9 @@ export default function (pi: ExtensionAPI) {
       const input = event.input as { reason?: string; message?: string };
       if (input?.reason === "need_decision" || input?.reason === "interview_request") {
         isWaitingInput = true;
-        const body = input.message || "Pi solicita una decisión o entrevista para continuar.";
+        const body = input.message || "Pi requires a decision or interview to proceed.";
         sendDesktopNotification({
-          title: "⚖️ Decisión requerida",
+          title: "⚖️ Decision required",
           body: truncate(body, 200),
           icon: "dialog-warning",
           urgency: "normal",
@@ -103,17 +103,17 @@ export default function (pi: ExtensionAPI) {
     isWaitingInput = true;
     if (event.kind === "confirm") {
       sendDesktopNotification({
-        title: "⚠️ Confirmación requerida",
-        body: event.title ? truncate(event.title, 180) : "Pi requiere tu confirmación para proceder.",
+        title: "⚠️ Confirmation required",
+        body: event.title ? truncate(event.title, 180) : "Pi requires your confirmation to proceed.",
         icon: "dialog-warning",
         urgency: "normal",
       });
     } else if (event.kind === "input" || event.kind === "select") {
       sendDesktopNotification({
-        title: event.kind === "input" ? "⌨️ Entrada requerida" : "📋 Selección requerida",
+        title: event.kind === "input" ? "⌨️ Input required" : "📋 Selection required",
         body: event.title
           ? truncate(event.title, 180)
-          : `Pi está esperando ${event.kind === "input" ? "tu texto" : "tu selección"}.`,
+          : `Pi is waiting for your ${event.kind === "input" ? "text" : "selection"}.`,
         icon: "dialog-information",
         urgency: "normal",
       });
@@ -127,23 +127,23 @@ export default function (pi: ExtensionAPI) {
   // 4. Agent completion / cancellation
   pi.on("agent_settled", async (event) => {
     const elapsed = Date.now() - turnStartTime;
-    const cwd = process.cwd().split(/[\\/]/).filter(Boolean).at(-1) || "proyecto";
+    const cwd = process.cwd().split(/[\\/]/).filter(Boolean).at(-1) || "project";
 
     if (!event.aborted) {
       // Notify only if there was meaningful activity (tool calls or > 2.5s)
       if (turnToolCallsCount > 0 || elapsed > 2500) {
         const durationSec = (elapsed / 1000).toFixed(1);
         sendDesktopNotification({
-          title: "✅ Tarea completada",
-          body: `Pi ha terminado la tarea en ${cwd} (${durationSec}s)`,
+          title: "✅ Task completed",
+          body: `Pi finished the task in ${cwd} (${durationSec}s)`,
           icon: "emblem-default",
           urgency: "normal",
         });
       }
     } else {
       sendDesktopNotification({
-        title: "⏹️ Tarea cancelada",
-        body: `La ejecución en ${cwd} fue cancelada.`,
+        title: "⏹️ Task cancelled",
+        body: `Execution in ${cwd} was cancelled.`,
         icon: "dialog-warning",
         urgency: "low",
       });
@@ -153,33 +153,33 @@ export default function (pi: ExtensionAPI) {
 
   // Register /notify command
   pi.registerCommand("notify", {
-    description: "Configurar o probar notificaciones del sistema (/notify [test|on|off|status])",
+    description: "Configure or test desktop system notifications (/notify [test|on|off|status])",
     handler: async (args, ctx) => {
       const subcommand = String(args || "").trim().toLowerCase();
 
       if (subcommand === "test") {
         sendDesktopNotification({
-          title: "🔔 Notificación de prueba",
-          body: "Las notificaciones de Pi están funcionando correctamente en tu escritorio.",
+          title: "🔔 Test notification",
+          body: "Pi notifications are working correctly on your desktop.",
           icon: "dialog-information",
           urgency: "normal",
         });
-        ctx.ui.notify("Notificación de prueba enviada al sistema.", "info");
+        ctx.ui.notify("Test notification sent to system.", "info");
       } else if (subcommand === "on") {
         notificationsEnabled = true;
-        ctx.ui.notify("Notificaciones de escritorio activadas.", "info");
+        ctx.ui.notify("Desktop notifications enabled.", "info");
       } else if (subcommand === "off") {
         notificationsEnabled = false;
-        ctx.ui.notify("Notificaciones de escritorio desactivadas.", "info");
+        ctx.ui.notify("Desktop notifications disabled.", "info");
       } else if (subcommand === "toggle") {
         notificationsEnabled = !notificationsEnabled;
         ctx.ui.notify(
-          `Notificaciones de escritorio ${notificationsEnabled ? "activadas" : "desactivadas"}.`,
+          `Desktop notifications ${notificationsEnabled ? "enabled" : "disabled"}.`,
           "info"
         );
       } else {
         ctx.ui.notify(
-          `Estado de notificaciones: ${notificationsEnabled ? "ACTIVADAS" : "DESACTIVADAS"}. Usa /notify [test|on|off|toggle]`,
+          `Notifications status: ${notificationsEnabled ? "ENABLED" : "DISABLED"}. Use /notify [test|on|off|toggle]`,
           "info"
         );
       }

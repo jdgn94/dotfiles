@@ -1,185 +1,183 @@
 # 🌌 Dotsfiles - Multi-Agent Harnesses & Configurations
 
-Configuración centralizada y unificada de dotfiles para harness de agentes de IA:
-- **Pi Coding Agent (`pi`)**
+Centralized and unified dotfiles configuration for AI coding agent harnesses:
+- **Pi Coding Agent (`pi`)** & **Pi-TUI-Plus (`pi-plus`)**
 - **Claude Code (`claude`)**
-- **OpenCode (`opencode`)**
+- **OpenCode & OpenCode2 (`opencode` / `opencode2`)**
 - **Hermes Agent (`hermes`)**
 - **Antigravity CLI / Desktop (`agy` / `antigravity`)**
-- **Herdr (`herdr`)** (Gestor de sesiones y terminales de agentes)
+- **Herdr (`herdr`)** (Agent session manager & terminal multiplexer)
 
 ---
 
-## 📁 Arquitectura del Repositorio
+## 📁 Repository Architecture
 
 ```text
 dotsfiles/
-├── install.sh                  # Instalador universal nativo para Linux / macOS
-├── install.ps1                 # Instalador universal nativo para Windows (PowerShell 7+)
-├── tsconfig.json               # Configuración TypeScript
-├── pi-tui-plus/                # TUI avanzado split-view para Pi Coding Agent (CLI `pi-plus`)
-├── secrets/                    # Plantillas de credenciales y tokens centralizados
-│   ├── tokens.env.example      # Variables de entorno para tokens MCP y APIs
-│   ├── tokens.json.example     # Formato JSON para secrets centralizados
-│   └── load-secrets.ts         # Módulo utilitario para cargar tokens en harness/plugins
-├── shared/                     # Configuraciones compartidas entre todos los harnesses
-│   ├── rules/                  # Reglas globales (AGENTS.md, COMMON_RULES.md)
-│   └── skills/                 # Skills compartidas canónicas (enlazadas a ~/.agents/skills)
-└── harnesses/                  # Configuraciones específicas por harness
-    ├── pi/                     # Configuración de Pi (.pi/agent)
+├── install.sh                  # Universal native installer for Linux / macOS
+├── install.ps1                 # Universal native installer for Windows (PowerShell 7+)
+├── tsconfig.json               # TypeScript configuration
+├── pi-tui-plus/                # Advanced split-view TUI for Pi Coding Agent (`pi-plus` CLI)
+├── secrets/                    # Centralized credentials and token templates
+│   ├── tokens.env.example      # Environment variables for MCP tokens and APIs
+│   ├── tokens.json.example     # JSON format for centralized secrets
+│   └── load-secrets.ts         # Utility module for loading tokens in harnesses/plugins
+├── shared/                     # Shared canonical configurations across all harnesses
+│   ├── rules/                  # Global rules (AGENTS.md, COMMON_RULES.md)
+│   └── skills/                 # Canonical shared skills (linked to ~/.agents/skills)
+└── harnesses/                  # Harness-specific configurations
+    ├── pi/                     # Pi configuration (.pi/agent)
     │   ├── agent/              # settings.json, agents, extensions, npm packages
-    │   └── skills/             # Skills exclusivas de Pi
-    ├── claude/                 # Configuración de Claude Code (.claude)
-    │   ├── settings.json       # Configuración global
-    │   ├── hooks/              # Hooks de Claude
-    │   └── skills/             # Skills exclusivas de Claude
-    ├── opencode/               # Configuración de OpenCode (.config/opencode)
-    │   ├── opencode.jsonc      # Configuración de modelos, mcp, plugins
-    │   ├── tui.jsonc           # Configuración TUI
-    │   ├── plugins/            # Plugins de OpenCode
-    │   └── skills/             # Skills exclusivas de OpenCode
-    ├── hermes/                 # Configuración de Hermes Agent (.hermes)
-    │   ├── config.yaml         # Configuración global y toolsets
-    │   └── skills/             # Skills exclusivas de Hermes
-    ├── antigravity/            # Configuración de Antigravity (.gemini)
-    │   ├── config.json         # Plugins y configuración
-    │   ├── mcp_config.json     # Servidores MCP
-    │   ├── agy-settings.json   # Configuración de la CLI `agy`
-    │   └── skills/             # Skills exclusivas de Antigravity
-    └── herdr/                  # Configuración de Herdr (.config/herdr)
-        ├── config.toml         # Configuración del servidor/cliente y keybindings
-        ├── plugins.json        # Registro de plugins instalados (Projects, herdr-sidebar)
-        └── state/              # Estado persistente preconfigurado (dock right, preview pane, nvim)
+    │   └── skills/             # Pi-exclusive skills
+    ├── claude/                 # Claude Code configuration (.claude)
+    │   ├── CLAUDE.md           # Global Claude instructions & skill discovery rules
+    │   ├── settings.json       # Global settings
+    │   ├── hooks/              # Claude hooks
+    │   └── skills/             # Claude-exclusive skills
+    ├── opencode/               # OpenCode / OpenCode2 configuration (.config/opencode)
+    │   ├── opencode.jsonc      # Model, MCP, and plugin configuration
+    │   ├── tui.jsonc           # TUI configuration
+    │   ├── plugins/            # OpenCode plugins
+    │   └── skills/             # OpenCode-exclusive skills
+    ├── hermes/                 # Hermes Agent configuration (.hermes)
+    │   ├── config.yaml         # Global configuration and toolsets
+    │   └── skills/             # Hermes-exclusive skills
+    ├── antigravity/            # Antigravity configuration (.gemini)
+    │   ├── config.json         # Plugins and settings
+    │   ├── mcp_config.json     # MCP servers
+    │   ├── agy-settings.json   # `agy` CLI configuration
+    │   └── skills/             # Antigravity-exclusive skills
+    └── herdr/                  # Herdr configuration (.config/herdr)
+        ├── config.toml         # Server/client configuration and keybindings
+        ├── plugins.json        # Installed plugins registry
+        └── state/              # Preconfigured persistent state (dock right, preview pane, nvim)
 ```
 
 ---
 
-## 🗂️ Herdr: Barra Lateral Tipo VS Code (`herdr-sidebar`)
+## 🗂️ Herdr: VS Code-Style Sidebar (`herdr-sidebar`)
 
-Herdr cuenta con el plugin oficial **`herdr-sidebar`**, que ofrece una experiencia idéntica a la barra lateral de VS Code en la terminal:
+Herdr features the official **`herdr-sidebar`** plugin, providing a VS Code-style sidebar experience directly in the terminal:
 
-- **Dock a la derecha**: Anclado en el lado derecho de la pantalla.
-- **Siempre visible (`auto_open`)**: Se acopla automáticamente en cada nueva pestaña o espacio de trabajo sin robar foco, funcionando como una barra lateral persistente (puedes alternarlo u ocultarlo en cualquier momento con `Alt + e`).
-- **División Consola vs Archivos (50/50 o adaptable)**:
-  - Lado izquierdo: Espacio dedicado a terminales y agentes (`pi`, `claude`, `opencode`). Si no hay previsualización abierta, ocupan el espacio completo.
-  - Lado derecho: Árbol de archivos y panel de previsualización en split.
-- **Confinado a la raíz del proyecto**: Explora desde el root del workspace activo sin subir a carpetas padre.
-- **Visualizador de imágenes en terminal**: Previsualización gráfica nativa con protocolo Kitty/Ghostty para formatos `.png`, `.jpg`, `.webp`, `.svg`, `.gif`.
-- **Markdown formateado + Edición inmediata**:
-  - Los archivos `.md` muestran renderizado estilizado con tablas, listas y syntax highlighting.
-  - Presiona **`e`** dentro del visor o configura clic directo para saltar a editar con **Neovim (`nvim`)**.
-- **Source Control (Git) integrado**: Panel de GitLens con diffs interactivos, staging y mensajes de commit.
-- **Búsqueda instantánea**:
-  - `Ctrl + P`: Búsqueda difusa rápida de archivos por nombre.
-  - `Ctrl + F`: Búsqueda global de contenido por texto/regex en todo el proyecto.
+- **Docked on the Right**: Pinned to the right side of the screen.
+- **Always Visible (`auto_open`)**: Automatically docks on each new tab or workspace without stealing focus, functioning as a persistent sidebar (toggleable via `Alt + e`).
+- **Terminal vs Files Split (50/50 or adaptive)**:
+  - Left side: Dedicated area for terminal panes and AI agents (`pi`, `claude`, `opencode`). Expands to full width when no preview is open.
+  - Right side: File tree and split preview pane.
+- **Root-Confined Exploration**: Navigates from the active workspace root without traversing into parent directories.
+- **In-Terminal Image Viewer**: Native graphical previews using Kitty/Ghostty protocol for `.png`, `.jpg`, `.webp`, `.svg`, and `.gif`.
+- **Formatted Markdown & Direct Editing**:
+  - `.md` files render with tables, checklists, and syntax highlighting.
+  - Press **`e`** inside the viewer or click to jump into **Neovim (`nvim`)**.
+- **Integrated Source Control (Git)**: GitLens-style panel with interactive diffs, staging, and AI commit messages.
+- **Instant Search**:
+  - `Ctrl + P`: Fuzzy file search by name.
+  - `Ctrl + F`: Global project text search with regex and filters.
 
-### Atajos de teclado en Herdr:
-- **`Alt + e`** o **`Prefix + e`** (`Ctrl+b` luego `e`): Alterna (abre/cierra) la barra lateral a la derecha.
-- **`Prefix + p`** (`Ctrl+b` luego `p`): Selector de archivos estilo `Ctrl+P`.
-- **`Prefix + g`** (`Ctrl+b` luego `g`): Acceso directo al panel de Source Control (Git).
-- **`Prefix + f`** (`Ctrl+b` luego `f`): Acceso directo a la búsqueda global de contenido.
-- **`1`, `2`, `3`**: Conmuta entre Explorer, Búsqueda y Source Control.
-- **`s`**: Abre el menú interactivo de ajustes del sidebar.
-
----
-
-## ⏱️ Herdr: Monitor de Cuotas y Límites de Agentes (`usagebar`)
-
-Integración idéntica al monitor de cuotas de Orca (`senna-lang/herdr-agent-usage`):
-- **Ventana emergente de límites (Limits Pane)**:
-  - Muestra el consumo y tiempo restante de reinicio para **Claude Code** (5h / 7d), **OpenCode Go** (5h / 7d / 30d) y **Antigravity / Gemini** (5h / semanal), además de backends API pay-as-you-go y medidores de contexto de la sesión.
-- **Métricas integradas en la barra lateral**:
-  - Filas de estado automáticas en el sidebar con `$provider`, `$limit`, estado del prompt-cache y ventana de contexto `$context`.
-- **Alertas preventivas (Toasts)**: Notificaciones en terminal cuando un límite baja del 50%, 20%, 10% o 5%.
-
-### Atajos para monitorear cuotas en Herdr:
-- **`Alt + u`** o **`Prefix + u`** (`Ctrl+b` luego `u`): Abre el panel emergente detallado de cuotas y uso de todos los agentes.
-- **`Prefix + m`** (`Ctrl+b` luego `m`): Refresca manualmente los medidores y límites de los agentes.
+### Herdr Keyboard Shortcuts:
+- **`Alt + e`** or **`Prefix + e`** (`Ctrl+b` then `e`): Toggle the right sidebar.
+- **`Prefix + p`** (`Ctrl+b` then `p`): Quick Open file picker (`Ctrl+P` style).
+- **`Prefix + g`** (`Ctrl+b` then `g`): Direct access to Source Control (Git).
+- **`Prefix + f`** (`Ctrl+b` then `f`): Direct access to global project search.
+- **`1`, `2`, `3`**: Switch between Explorer, Search, and Source Control.
+- **`s`**: Open sidebar settings menu.
 
 ---
 
-## 🏷️ Herdr: Autonombrado Contextual de Pestañas (`herdr.auto-title`)
+## ⏱️ Herdr: Agent Usage & Quota Monitor (`usagebar`)
 
-Gestión inteligente de títulos para pestañas y paneles en Herdr:
-- **Agentes de IA**: Extrae y muestra la tarea y tema exacto que está ejecutando el agente activo (Claude Code, Pi, OpenCode), ej. `1 · dotsfiles › herdr auto-title`.
-- **Editores de código**: Al abrir Neovim, renombra la pestaña con el archivo en edición (`nvim › install.sh`).
-- **Ramas Git**: Refleja la rama activa de desarrollo.
-- **Respeto a nombres manuales**: Si renombras una pestaña con `Prefix + Shift + t`, el plugin lo detecta y deja intacto tu nombre personalizado.
+Subscription and rate-limit monitor identical to Orca (`senna-lang/herdr-agent-usage`):
+- **Limits Popup Pane (`Alt + u` / `Prefix + u`)**:
+  - Real-time remaining quota and reset countdowns for **Claude Code** (5h / 7d), **OpenCode Go** (5h / 7d / 30d), and **Antigravity / Gemini** (5h / weekly), along with session context utilization.
+  - Unused providers (Codex, Grok, Kilo) are excluded automatically.
+- **Integrated Sidebar Status Rows**:
+  - Automatic status rows showing `$provider`, `$limit`, prompt-cache status, and session `$context`.
+- **Preventive Toast Alerts**: In-terminal notifications when a quota window drops below 50%, 20%, 10%, or 5%.
 
----
-
-## 🎨 Herdr: Iconos de Agentes (`adihex/herdr-agent-icons`)
-
-Integración visual de logos para los agentes de IA en el sidebar lateral izquierdo:
-- **Logotipos Vectoriales Oficiales**: Asigna e inyecta iconos tipográficos reales de cada agente activo (`Claude`, `OpenCode`, `Pi`, `Codex`, `Gemini / Antigravity`, `Hermes`, etc.) en la fila de agentes del sidebar mediante el token `$icon`.
-- **Fuente PUA dedicada**: Utiliza `AgentIcons.otf` instalada en `~/.local/share/fonts` con fallback automático a emojis.
+### Quota Monitor Shortcuts in Herdr:
+- **`Alt + u`** or **`Prefix + u`** (`Ctrl+b` then `u`): Open the detailed Agent Usage limits pane.
+- **`Prefix + m`** (`Ctrl+b` then `m`): Manually refresh metrics and provider limits.
 
 ---
 
-## 🧩 Plugins Esenciales de Herdr
+## 🏷️ Herdr: Contextual Tab Auto-Naming (`herdr.auto-title`)
 
-Herdr cuenta con un conjunto curado de plugins de productividad:
-- **`JanTvrdik/herdr-command-palette`**: Paleta interactiva FZF (`Ctrl+Shift+P` o `Prefix + Espacio`) para invocar acciones y comandos de plugins sin memorizar atajos.
-- **`persiyanov/herdr-reviewr`**: Panel de revisión de código y diffs (`Prefix + d` o `Alt + d`) para inspeccionar cambios de agentes y enviar comentarios de línea.
-- **`ezcorp-org/herdr-pc-ram-and-cpu-usage-overlay`**: Monitor de consumo de CPU y RAM (`Prefix + r` o `Alt + r`) por workspace y agente en tiempo real.
-- **`tdi/herdr-worktree-setup`**: Hook automático que prepara ramas y worktrees (copia `.env`, `direnv allow`, instala dependencias).
-
----
-
-## 🌐 Servidores MCP Universales
-
-Configurados en todos los harnesses (`pi`, `claude`, `opencode`, `antigravity`):
-- **`playwright` (`@playwright/mcp`)**: Pruebas en navegador real, capturas de pantalla, clics, formularios e inspección de errores de consola y red.
-- **`memory` (`@modelcontextprotocol/server-memory`)**: Grafo de conocimiento persistente con entidades, relaciones y observaciones recordadas entre sesiones.
-- **`fetch` (`mcp-server-fetch`)**: Consulta y extracción directa de páginas web y documentación en Markdown.
+Intelligent tab and pane title management:
+- **AI Agents**: Extracts and displays the exact task and topic executed by the active agent (`1 · dotsfiles › herdr auto-title`).
+- **Code Editors**: When launching Neovim, renames the tab to reflect the active buffer (`nvim › install.sh`).
+- **Git Branches**: Displays active branch name.
+- **Manual Title Respect**: Custom names assigned via `Prefix + Shift + t` are detected and preserved.
 
 ---
 
-## 🧠 Skills Compartidas Destacadas (`shared/skills/`)
+## 🎨 Herdr: Agent Brand Icons (`adihex/herdr-agent-icons`)
 
-- **`tdd-agent-workflow`**: Ciclo estricto Red-Green-Refactor para evitar código sin pruebas ni alucinaciones.
-- **`conventional-git-flow`**: Ramas estandarizadas (`feat/`, `fix/`), commits semánticos y resúmenes de PR.
-- **`dependency-guard`**: Auditoría previa al añadir dependencias (evalúa alternativas nativas, salud del paquete y vulnerabilidades).
-- **`vulnerability-auditor`**: Auditoría de seguridad adversaria que genera reportes técnicos para IA (`_AI.md`) y educativos para el usuario (`_USER.md`).
-
----
-
-## 🔑 Gestión Centralizada de Tokens y MCPs
-
-Para no duplicar credenciales ni exponer tokens en el repositorio:
-1. El instalador crea copias seguras en `~/.config/dotsfiles/`:
-   - `~/.config/dotsfiles/tokens.env` (para shells y variables de entorno `{env:VAR}`)
-   - `~/.config/dotsfiles/tokens.json` (para integraciones JSON/TS)
-2. Modifica esos archivos con tus claves personales (`CONTEXT7_API_KEY`, `GITHUB_TOKEN`, `ANTHROPIC_API_KEY`, etc.).
-3. Las configuraciones de los harness apuntan a estas variables (por ejemplo, en `opencode.jsonc`: `"Authorization": "Bearer {env:CONTEXT7_API_KEY}"`).
+Visual icon integration for AI coding agents in the sidebar:
+- **Official Vector Logos**: Renders authentic typographic glyphs for active agents (`Claude`, `OpenCode`, `Pi`, `Codex`, `Gemini / Antigravity`, `Hermes`, etc.) via the `$icon` token.
+- **Dedicated PUA Font**: Utilizes `AgentIcons.otf` installed under `~/.local/share/fonts` with automatic emoji fallbacks.
 
 ---
 
-## 🚀 Instalación y Despliegue
+## 🧩 Essential Herdr Plugins
 
-### En Linux y macOS
-Ejecuta con cualquier terminal:
+Curated suite of productivity plugins:
+- **`JanTvrdik/herdr-command-palette`**: Interactive FZF command palette (`Ctrl+Shift+P` or `Prefix + Space`) to search and execute any plugin action without memorizing chords.
+- **`persiyanov/herdr-reviewr`**: Interactive code review panel (`Prefix + d` or `Alt + d`) to inspect agent diffs and submit inline comments.
+- **`ezcorp-org/herdr-pc-ram-and-cpu-usage-overlay`**: Real-time CPU and RAM monitor (`Prefix + r` or `Alt + r`) per workspace and agent.
+- **`tdi/herdr-worktree-setup`**: Automated hook executing environment setup on worktree creation (copies `.env`, runs `direnv allow`, installs dependencies).
+
+---
+
+## 🌐 Universal MCP Servers
+
+Configured across all harnesses (`pi`, `claude`, `opencode`, `antigravity`):
+- **`playwright` (`@playwright/mcp`)**: Real browser automation, visual screenshots, clicks, form fills, console errors, and network inspection.
+- **`memory` (`@modelcontextprotocol/server-memory`)**: Persistent knowledge graph storing entities, relations, and observations across sessions.
+- **`fetch` (`mcp-server-fetch`)**: Direct web page retrieval and clean Markdown content extraction.
+
+---
+
+## 🧠 Shared Canonical Skills (`shared/skills/`)
+
+- **`tdd-agent-workflow`**: Strict Red-Green-Refactor test-driven development cycle.
+- **`conventional-git-flow`**: Standardized branch naming (`feat/`, `fix/`), semantic commits, and pull request summaries.
+- **`dependency-guard`**: Evaluation standard before adding third-party libraries (prioritizes native APIs, audits maintenance and bundle size).
+- **`vulnerability-auditor`**: Adversarial security reviews producing technical specifications for AI (`_AI.md`) and educational explanations for users (`_USER.md`).
+
+---
+
+## 🔑 Centralized Secrets & Tokens Management
+
+To avoid duplicating credentials or exposing keys in git:
+1. The installer creates restricted files in `~/.config/dotsfiles/`:
+   - `~/.config/dotsfiles/tokens.env` (for shell environments and `{env:VAR}` syntax)
+   - `~/.config/dotsfiles/tokens.json` (for JSON and TypeScript integrations)
+2. Define your personal API keys in those files (`ANTHROPIC_API_KEY`, `GITHUB_TOKEN`, `CONTEXT7_API_KEY`, etc.).
+3. Harness configurations reference these variables securely.
+
+---
+
+## 🚀 Installation & Deployment
+
+### Linux & macOS
+Run from any terminal:
 ```bash
 ./install.sh
-# o
+# or
 bash install.sh
 ```
 
-### En Windows (PowerShell 7+)
-Abre PowerShell 7 (`pwsh`) y ejecuta:
+### Windows (PowerShell 7+)
+Open PowerShell 7 (`pwsh`) and run:
 ```powershell
 pwsh -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-### ¿Qué hace el instalador?
-1. **Detección e instalación nativa**: Comprueba si los binarios (`pi`, `claude`, `opencode`, `hermes`, `agy`, `herdr`) están instalados; si falta alguno, los instala mediante los gestores nativos de paquetes (`npm`, `brew`, `yay`, `winget`, `scoop` o scripts oficiales).
-2. **Secretos seguros**: Crea `~/.config/dotsfiles/tokens.env` y `tokens.json` con permisos restringidos.
-3. **Fuente única de verdad compartida**: Enlaza `~/.agents` a `shared/`.
-4. **Despliegue de cada harness**:
-   - Copia configuraciones, extensiones, agentes y reglas base.
-   - Instala paquetes y dependencias npm necesarias.
-   - Configura instrucciones compartidas (`AGENTS.md`) en cada harness.
-   - Activa hooks e integraciones con Herdr.
-5. **Sincronización de Skills**:
-   - Enlaza todas las **skills compartidas** (`shared/skills/*`) a los directorios de skills de cada harness.
-   - Enlaza las **skills individuales** de cada harness (`harnesses/<nombre>/skills/*`) a su respectiva carpeta.
+### What does the installer do?
+1. **Native Detection & Installation**: Checks if binaries (`pi`, `claude`, `opencode`/`opencode2`, `hermes`, `agy`, `herdr`) are installed; installs missing ones via package managers (`npm`, `brew`, `yay`, `winget`, `scoop`).
+2. **Selective OpenCode Configuration**: Detects which version is installed (`opencode` or `opencode2`) and deploys configuration exclusively for that version.
+3. **Pi-TUI-Plus Compilation**: Builds `pi-tui-plus/` and links the `pi-plus` CLI globally.
+4. **Secure Secrets Store**: Generates `~/.config/dotsfiles/tokens.env` and `tokens.json` with restricted permissions.
+5. **Canonical Single Source of Truth**: Links `~/.agents` to `shared/`.
+6. **Harness Deployment**: Deploys configuration files, plugins, rules, and Herdr hooks.
+7. **Canonical Skills Distribution**: Links all shared skills (`shared/skills/*`) to each harness's skills directory.

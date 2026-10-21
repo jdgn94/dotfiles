@@ -96,6 +96,11 @@ export class AppLayout {
                 this.tui.requestRender();
                 return;
             }
+            if (trimmed === "/help") {
+                this.agent.showHelpMessage();
+                this.tui.requestRender();
+                return;
+            }
             if (trimmed === "/mcp") {
                 this.sidebar.toggleMcp();
                 this.tui.requestRender();
@@ -104,7 +109,7 @@ export class AppLayout {
                 this.sidebar.toggleSkills();
                 this.tui.requestRender();
             }
-            else if (trimmed === "/todos") {
+            else if (trimmed === "/todos" || trimmed === "/plan") {
                 this.sidebar.togglePlan();
                 this.tui.requestRender();
                 return;

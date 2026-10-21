@@ -775,6 +775,41 @@ export class AgentManager {
         });
         this.notify();
     }
+    showHelpMessage() {
+        const text = `📖 Pi-TUI-Plus Command & Shortcuts Reference:
+
+Core Commands:
+• /new          Start a fresh session with a completely clean context
+• /clear        Clear conversation messages from viewport without resetting session
+• /compact      Trigger context window compaction
+• /models       Interactive AI model selector with search
+• /agents       Switch active primary agent or subagent
+• /skills       View all installed global and project skills
+• /mcp          Toggle MCP servers & tool drawers
+• /todos, /plan Toggle live execution plan & task checklist
+• /diff         Open interactive Git diff viewer
+• /session      Browse and resume previous project sessions
+• /cost         Show detailed token economics & cost breakdown
+• /stats        Show cumulative global metrics & session status
+• /learn        Analyze recent task and synthesize an auto-skill
+• /rollback     Revert uncommitted working tree changes
+• /exit         Quit Pi
+
+Keyboard Shortcuts:
+• [Shift+Tab]   Switch active agent role
+• [Ctrl+T]      Cycle thinking effort (off / low / medium / high)
+• [Ctrl+E]      Open prompt in external editor ($EDITOR)
+• [PageUp/Down] Scroll conversation history
+• [F3 / Alt+M]  Toggle MCP drawer
+• [F4 / Alt+S]  Toggle Skills drawer`;
+        this.messages.push({
+            id: "help-" + Date.now(),
+            role: "system",
+            text,
+            timestamp: Date.now(),
+        });
+        this.notify();
+    }
     async abort() {
         if (this.session) {
             await this.session.abort();

@@ -27,7 +27,7 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
   Linux*)  OS="linux" ;;
   *)       OS="unknown" ;;
 esac
-log_info "Sistema detectado: $OS"
+log_info "Detected OS: $OS"
 
 # --- Helper: Link or copy ---
 link_or_copy() {
@@ -35,58 +35,74 @@ link_or_copy() {
   mkdir -p "$(dirname "$dst")"
   rm -rf "$dst"
   if ln -sf "$src" "$dst" 2>/dev/null; then
-    echo "  -> Enlace creado: $dst -> $src"
+    echo "  -> Linked: $dst -> $src"
   else
     cp -r "$src" "$dst"
-    echo "  -> Copiado: $dst (symlinks no soportados)"
+    echo "  -> Copied: $dst (symlinks not supported)"
   fi
 }
 
 # --- 1. Harnesses Native Installation ---
-log_info "Comprobando e instalando harnesses faltantes..."
+log_info "Checking and installing missing harnesses..."
+
+# Detect which OpenCode executable is present (opencode or opencode2)
+OPENCODE_CMD=""
+if command -v opencode2 >/dev/null 2>&1; then
+  OPENCODE_CMD="opencode2"
+  log_success "Detected installed binary: opencode2 ($(command -v opencode2))"
+elif command -v opencode >/dev/null 2>&1; then
+  OPENCODE_CMD="opencode"
+  log_success "Detected installed binary: opencode ($(command -v opencode))"
+fi
 
 install_harness_binary() {
   local name="$1"
   if command -v "$name" >/dev/null 2>&1; then
-    log_success "$name ya está instalado ($(command -v "$name"))"
+    log_success "$name is already installed ($(command -v "$name"))"
     return 0
   fi
 
-  log_info "Instalando $name..."
+  log_info "Installing $name..."
   case "$name" in
     pi)
       if command -v npm >/dev/null 2>&1; then
-        npm install -g @earendil-works/pi-coding-agent || log_warn "Fallo al instalar pi vía npm"
+        npm install -g @earendil-works/pi-coding-agent || log_warn "Failed to install pi via npm"
       else
-        log_warn "npm no encontrado; instala Node.js para instalar pi"
+        log_warn "npm not found; please install Node.js to install pi"
       fi
       ;;
     claude)
       if command -v npm >/dev/null 2>&1; then
-        npm install -g @anthropic-ai/claude-code || log_warn "Fallo al instalar claude vía npm"
+        npm install -g @anthropic-ai/claude-code || log_warn "Failed to install claude via npm"
       elif command -v brew >/dev/null 2>&1; then
         brew install claude-code || true
       else
-        log_warn "npm o brew requerido para instalar claude"
+        log_warn "npm or brew required to install claude"
       fi
       ;;
-    opencode|opencode2)
-      if command -v opencode >/dev/null 2>&1 || command -v opencode2 >/dev/null 2>&1; then
-        log_success "opencode/opencode2 ya está instalado"
+    opencode)
+      if [ -n "$OPENCODE_CMD" ]; then
+        log_success "$OPENCODE_CMD is already installed"
       elif command -v npm >/dev/null 2>&1; then
         npm install -g opencode-ai || true
+        OPENCODE_CMD="opencode"
       else
-        curl -fsSL https://opencode.ai/install.sh | bash || log_warn "Fallo al descargar opencode"
+        curl -fsSL https://opencode.ai/install.sh | bash || log_warn "Failed to download opencode"
+        if command -v opencode2 >/dev/null 2>&1; then
+          OPENCODE_CMD="opencode2"
+        elif command -v opencode >/dev/null 2>&1; then
+          OPENCODE_CMD="opencode"
+        fi
       fi
       ;;
     hermes)
       if command -v curl >/dev/null 2>&1; then
-        curl -fsSL https://raw.githubusercontent.com/nousresearch/hermes-agent/main/install.sh | bash || log_warn "No se pudo instalar hermes automáticamente"
+        curl -fsSL https://raw.githubusercontent.com/nousresearch/hermes-agent/main/install.sh | bash || log_warn "Failed to install hermes automatically"
       fi
       ;;
     antigravity|agy)
       if [ "$OS" = "linux" ] && command -v yay >/dev/null 2>&1; then
-        yay -S --noconfirm antigravity-cli || log_warn "Fallo al instalar antigravity-cli vía yay"
+        yay -S --noconfirm antigravity-cli || log_warn "Failed to install antigravity-cli via yay"
       elif command -v npm >/dev/null 2>&1; then
         npm install -g antigravity-cli || true
       fi
@@ -105,71 +121,63 @@ for tool in pi claude opencode hermes agy herdr; do
   install_harness_binary "$tool" || true
 done
 
-# Garantizar paridad entre ejecutables opencode y opencode2
-mkdir -p "$HOME_DIR/.local/bin"
-if command -v opencode >/dev/null 2>&1 && ! command -v opencode2 >/dev/null 2>&1; then
-  ln -sf "$(command -v opencode)" "$HOME_DIR/.local/bin/opencode2"
-elif command -v opencode2 >/dev/null 2>&1 && ! command -v opencode >/dev/null 2>&1; then
-  ln -sf "$(command -v opencode2)" "$HOME_DIR/.local/bin/opencode"
-fi
-
-# --- 2. Configurar Directorio Central de Tokens / Secrets ---
-log_info "Configurando secretos centralizados en ~/.config/dotsfiles/ ..."
+# --- 2. Configure Central Tokens / Secrets Directory ---
+log_info "Setting up centralized secrets in ~/.config/dotsfiles/ ..."
 DOTSFILES_CONFIG_DIR="$HOME_DIR/.config/dotsfiles"
 mkdir -p "$DOTSFILES_CONFIG_DIR"
 
 if [ ! -f "$DOTSFILES_CONFIG_DIR/tokens.env" ]; then
   cp "$DOTS_DIR/secrets/tokens.env.example" "$DOTSFILES_CONFIG_DIR/tokens.env"
   chmod 600 "$DOTSFILES_CONFIG_DIR/tokens.env"
-  log_info "Creado $DOTSFILES_CONFIG_DIR/tokens.env (completa tus claves allí)"
+  log_info "Created $DOTSFILES_CONFIG_DIR/tokens.env (fill your API keys there)"
 else
-  log_info "$DOTSFILES_CONFIG_DIR/tokens.env ya existe. No se sobreescribe."
+  log_info "$DOTSFILES_CONFIG_DIR/tokens.env already exists. Preserving."
 fi
 
 if [ ! -f "$DOTSFILES_CONFIG_DIR/tokens.json" ]; then
   cp "$DOTS_DIR/secrets/tokens.json.example" "$DOTSFILES_CONFIG_DIR/tokens.json"
   chmod 600 "$DOTSFILES_CONFIG_DIR/tokens.json"
-  log_info "Creado $DOTSFILES_CONFIG_DIR/tokens.json"
+  log_info "Created $DOTSFILES_CONFIG_DIR/tokens.json"
 fi
 
-# --- 3. Configurar ~/.agents (Fuente de la verdad compartida) ---
-log_info "Enlazando ~/.agents a $DOTS_DIR/shared ..."
+# --- 3. Configure ~/.agents (Single Canonical Source of Truth) ---
+log_info "Linking ~/.agents to $DOTS_DIR/shared ..."
 AGENTS_LINK="$HOME_DIR/.agents"
 rm -rf "$AGENTS_LINK"
 ln -s "$DOTS_DIR/shared" "$AGENTS_LINK"
 log_success "~/.agents -> $DOTS_DIR/shared"
 
-# --- 4. Desplegar Configuración de PI ---
-log_info "Desplegando configuración de Pi Coding Agent..."
+# --- 4. Deploy Pi Coding Agent Configuration ---
+log_info "Deploying Pi Coding Agent configuration..."
 PI_DIR="$HOME_DIR/.pi/agent"
 mkdir -p "$PI_DIR/agents" "$PI_DIR/extensions" "$PI_DIR/npm" "$PI_DIR/pi-subagents" "$PI_DIR/skills"
 
-# Copiar configuraciones base
+# Copy base configurations
 cp "$DOTS_DIR/harnesses/pi/agent/settings.json" "$PI_DIR/settings.json"
 [ -f "$DOTS_DIR/harnesses/pi/agent/mcp.json" ] && cp "$DOTS_DIR/harnesses/pi/agent/mcp.json" "$PI_DIR/mcp.json"
 [ -f "$DOTS_DIR/harnesses/pi/agent/pi-slate.json" ] && cp "$DOTS_DIR/harnesses/pi/agent/pi-slate.json" "$PI_DIR/pi-slate.json"
 [ -f "$DOTS_DIR/harnesses/pi/agent/mcp-onboarding.json" ] && cp "$DOTS_DIR/harnesses/pi/agent/mcp-onboarding.json" "$PI_DIR/mcp-onboarding.json"
 [ -f "$DOTS_DIR/harnesses/pi/agent/npm/package.json" ] && cp "$DOTS_DIR/harnesses/pi/agent/npm/package.json" "$PI_DIR/npm/package.json"
 
-# Copiar agentes de Pi
+# Copy Pi agents
 if [ -d "$DOTS_DIR/harnesses/pi/agent/agents" ]; then
   cp -r "$DOTS_DIR/harnesses/pi/agent/agents/"* "$PI_DIR/agents/" 2>/dev/null || true
 fi
 
-# Copiar extensiones de Pi
+# Copy Pi extensions
 if [ -d "$DOTS_DIR/harnesses/pi/agent/extensions" ]; then
   cp -r "$DOTS_DIR/harnesses/pi/agent/extensions/"* "$PI_DIR/extensions/" 2>/dev/null || true
 fi
 
-# Instalar dependencias npm de Pi si no están instaladas
+# Install Pi npm dependencies
 if [ -d "$PI_DIR/npm" ] && command -v npm >/dev/null 2>&1; then
-  log_info "Instalando dependencias de extensiones de Pi..."
+  log_info "Installing Pi extension dependencies..."
   (cd "$PI_DIR/npm" && npm install --silent 2>/dev/null || true)
 fi
 
-# Compilar e instalar pi-tui-plus (CLI pi-plus)
+# Build and link pi-tui-plus (pi-plus CLI)
 if [ -d "$DOTS_DIR/pi-tui-plus" ]; then
-  log_info "Instalando y compilando pi-tui-plus (pi-plus CLI)..."
+  log_info "Building and linking pi-tui-plus (pi-plus CLI)..."
   (
     cd "$DOTS_DIR/pi-tui-plus"
     if command -v pnpm >/dev/null 2>&1; then
@@ -183,8 +191,8 @@ if [ -d "$DOTS_DIR/pi-tui-plus" ]; then
   )
 fi
 
-# --- 5. Desplegar Configuración de Claude Code ---
-log_info "Desplegando configuración de Claude Code..."
+# --- 5. Deploy Claude Code Configuration ---
+log_info "Deploying Claude Code configuration..."
 CLAUDE_DIR="$HOME_DIR/.claude"
 mkdir -p "$CLAUDE_DIR/hooks" "$CLAUDE_DIR/skills"
 if [ -f "$DOTS_DIR/harnesses/claude/settings.json" ]; then
@@ -197,7 +205,7 @@ if [ -d "$DOTS_DIR/harnesses/claude/hooks" ]; then
   chmod +x "$CLAUDE_DIR/hooks/"*.sh 2>/dev/null || true
 fi
 
-# Desplegar CLAUDE.md con directivas de skills y reglas comunes
+# Deploy CLAUDE.md with skill directives and common rules
 if [ -f "$DOTS_DIR/harnesses/claude/CLAUDE.md" ]; then
   cp "$DOTS_DIR/harnesses/claude/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
 else
@@ -205,17 +213,17 @@ else
   printf '# Global Claude Instructions\nImporting common rules and instructions from dotsfiles:\n@%s\n' "$AGENTS_MD" > "$CLAUDE_DIR/CLAUDE.md"
 fi
 
-# Asegurar MCPs en Claude Code
+# Ensure MCP servers in Claude Code
 if command -v claude >/dev/null 2>&1; then
   claude mcp add -s user playwright -- npx -y @playwright/mcp@latest --headless 2>/dev/null || true
   claude mcp add -s user memory -- npx -y @modelcontextprotocol/server-memory 2>/dev/null || true
   claude mcp add -s user fetch -- uvx mcp-server-fetch 2>/dev/null || true
 fi
 
-# --- 6. Desplegar Configuración de OpenCode y OpenCode2 ---
-log_info "Desplegando configuración de OpenCode y OpenCode2..."
-for o_name in opencode opencode2; do
-  O_DIR="$HOME_DIR/.config/$o_name"
+# --- 6. Deploy OpenCode Configuration (Only for detected version) ---
+if [ -n "$OPENCODE_CMD" ]; then
+  log_info "Deploying configuration for $OPENCODE_CMD..."
+  O_DIR="$HOME_DIR/.config/$OPENCODE_CMD"
   mkdir -p "$O_DIR/plugins" "$O_DIR/skills"
   if [ ! -f "$O_DIR/opencode.jsonc" ]; then
     cp "$DOTS_DIR/harnesses/opencode/opencode.jsonc" "$O_DIR/opencode.jsonc"
@@ -226,18 +234,18 @@ for o_name in opencode opencode2; do
     cp -r "$DOTS_DIR/harnesses/opencode/plugins/"* "$O_DIR/plugins/" 2>/dev/null || true
   fi
   printf '> **Cross-Agent Parity**: follow the rule in `%s`.\n' "$AGENTS_MD" > "$O_DIR/AGENTS.md"
-done
+fi
 
-# --- 7. Desplegar Configuración de Hermes ---
-log_info "Desplegando configuración de Hermes..."
+# --- 7. Deploy Hermes Configuration ---
+log_info "Deploying Hermes Agent configuration..."
 HERMES_DIR="$HOME_DIR/.hermes"
 mkdir -p "$HERMES_DIR/skills"
 if [ ! -f "$HERMES_DIR/config.yaml" ] && [ -f "$DOTS_DIR/harnesses/hermes/config.yaml" ]; then
   cp "$DOTS_DIR/harnesses/hermes/config.yaml" "$HERMES_DIR/config.yaml"
 fi
 
-# --- 8. Desplegar Configuración de Antigravity (agy / desktop) ---
-log_info "Desplegando configuración de Antigravity (agy)..."
+# --- 8. Deploy Antigravity (agy / desktop) Configuration ---
+log_info "Deploying Antigravity (agy) configuration..."
 GEMINI_CONFIG="$HOME_DIR/.gemini/config"
 GEMINI_AGY="$HOME_DIR/.gemini/antigravity-cli"
 mkdir -p "$GEMINI_CONFIG/skills" "$GEMINI_CONFIG/hooks" "$GEMINI_AGY/skills"
@@ -253,12 +261,12 @@ if [ -d "$DOTS_DIR/harnesses/antigravity/hooks" ]; then
   chmod +x "$GEMINI_CONFIG/hooks/"*.sh 2>/dev/null || true
 fi
 
-# --- 9. Desplegar Configuración de Herdr & herdr-sidebar ---
-log_info "Desplegando configuración de Herdr y herdr-sidebar..."
+# --- 9. Deploy Herdr Configuration & Plugins ---
+log_info "Deploying Herdr configuration and plugins..."
 HERDR_DIR="$HOME_DIR/.config/herdr"
 mkdir -p "$HERDR_DIR"
 
-# Copiar scripts auxiliares de dotsfiles (statusline, etc.)
+# Copy helper scripts
 DOTS_BIN_DIR="$HOME_DIR/.config/dotsfiles/bin"
 mkdir -p "$DOTS_BIN_DIR"
 if [ -d "$DOTS_DIR/bin" ]; then
@@ -266,11 +274,11 @@ if [ -d "$DOTS_DIR/bin" ]; then
   chmod +x "$DOTS_BIN_DIR/"*.sh 2>/dev/null || true
 fi
 
-# Copiar configuraciones de Herdr
+# Copy Herdr configurations
 cp "$DOTS_DIR/harnesses/herdr/config.toml" "$HERDR_DIR/config.toml"
 cp "$DOTS_DIR/harnesses/herdr/plugins.json" "$HERDR_DIR/plugins.json"
 
-# Desplegar estado persistente de herdr-sidebar (dock right, preview pane, nvim editor)
+# Deploy persistent state for herdr-sidebar
 HERDR_SIDEBAR_STATE_DIR="$HOME_DIR/.local/state/herdr/plugins/herdr-sidebar"
 mkdir -p "$HERDR_SIDEBAR_STATE_DIR"
 if [ -d "$DOTS_DIR/harnesses/herdr/state" ]; then
@@ -278,17 +286,17 @@ if [ -d "$DOTS_DIR/harnesses/herdr/state" ]; then
   cp "$DOTS_DIR/harnesses/herdr/state/editor-command.txt" "$HERDR_SIDEBAR_STATE_DIR/editor-command.txt" 2>/dev/null || true
 fi
 
-# Instalar plugins esenciales de Herdr si aún no están instalados
+# Install essential Herdr plugins
 if command -v herdr >/dev/null 2>&1; then
   if ! herdr plugin list 2>/dev/null | grep -q "herdr-sidebar"; then
-    log_info "Instalando plugin herdr-sidebar..."
+    log_info "Installing plugin herdr-sidebar..."
     herdr plugin install alexarthurs/herdr-sidebar/plugins/herdr-sidebar -y 2>/dev/null || true
   fi
   if ! herdr plugin list 2>/dev/null | grep -q "usagebar"; then
-    log_info "Instalando plugin herdr-agent-usage (usagebar)..."
+    log_info "Installing plugin herdr-agent-usage (usagebar)..."
     herdr plugin install senna-lang/herdr-agent-usage -y 2>/dev/null || true
   fi
-  # Aplicar parches de usagebar (soporte para Antigravity y exclusión de agentes no utilizados)
+  # Apply usagebar patches (Antigravity support & provider exclusion)
   USAGEBAR_DIR="$(find "$HOME_DIR/.config/herdr/plugins/github" -maxdepth 1 -name "usagebar-*" 2>/dev/null | head -n 1 || true)"
   if [ -n "$USAGEBAR_DIR" ] && [ -f "$DOTS_DIR/harnesses/herdr/usagebar-patches/usagebar.patch" ]; then
     (cd "$USAGEBAR_DIR" && git apply "$DOTS_DIR/harnesses/herdr/usagebar-patches/usagebar.patch" 2>/dev/null || true && go build -o bin/usagebar ./cmd/usagebar 2>/dev/null || true)
@@ -299,57 +307,60 @@ if command -v herdr >/dev/null 2>&1; then
     chmod +x "$USAGEBAR_RUN_LIMITS"
   fi
   if ! herdr plugin list 2>/dev/null | grep -q "herdr.auto-title"; then
-    log_info "Instalando plugin herdr-auto-title..."
+    log_info "Installing plugin herdr-auto-title..."
     herdr plugin install kryptamine/herdr-auto-title -y 2>/dev/null || true
     herdr plugin action invoke herdr.auto-title.restart 2>/dev/null || true
   fi
   if ! herdr plugin list 2>/dev/null | grep -q "local.agent-icons"; then
-    log_info "Instalando plugin herdr-agent-icons..."
+    log_info "Installing plugin herdr-agent-icons..."
     herdr plugin install adihex/herdr-agent-icons -y 2>/dev/null || true
     herdr plugin action invoke local.agent-icons.install-font 2>/dev/null || true
   fi
   if ! herdr plugin list 2>/dev/null | grep -q "jt.command-palette"; then
-    log_info "Instalando plugin herdr-command-palette..."
+    log_info "Installing plugin herdr-command-palette..."
     herdr plugin install JanTvrdik/herdr-command-palette -y 2>/dev/null || true
   fi
   if ! herdr plugin list 2>/dev/null | grep -q "persiyanov.reviewr"; then
-    log_info "Instalando plugin herdr-reviewr..."
+    log_info "Installing plugin herdr-reviewr..."
     herdr plugin install persiyanov/herdr-reviewr -y 2>/dev/null || true
   fi
   if ! herdr plugin list 2>/dev/null | grep -q "tdi.worktree-setup"; then
-    log_info "Instalando plugin herdr-worktree-setup..."
+    log_info "Installing plugin herdr-worktree-setup..."
     herdr plugin install tdi/herdr-worktree-setup -y 2>/dev/null || true
   fi
   if ! herdr plugin list 2>/dev/null | grep -q "ez-corp.space-usage"; then
-    log_info "Instalando plugin herdr-pc-ram-and-cpu-usage-overlay..."
+    log_info "Installing plugin herdr-pc-ram-and-cpu-usage-overlay..."
     herdr plugin install ezcorp-org/herdr-pc-ram-and-cpu-usage-overlay -y 2>/dev/null || true
   fi
 fi
 
-# Integraciones de Herdr automáticas si el comando herdr está disponible
+# Enable Herdr integrations
 if command -v herdr >/dev/null 2>&1; then
-  log_info "Activando integraciones de Herdr en agentes instalados..."
+  log_info "Enabling Herdr integrations on installed agents..."
   herdr integration install pi 2>/dev/null || true
   herdr integration install claude 2>/dev/null || true
-  herdr integration install opencode 2>/dev/null || true
+  if [ -n "$OPENCODE_CMD" ]; then
+    herdr integration install opencode 2>/dev/null || true
+  fi
   herdr integration install hermes 2>/dev/null || true
   herdr integration install antigravity-cli 2>/dev/null || true
 fi
 
-# --- 10. Distribuir Skills Compartidas y Específicas a Cada Harness ---
-log_info "Distribuyendo skills compartidas a cada harness..."
+# --- 10. Distribute Shared Skills to Each Installed Harness ---
+log_info "Distributing shared canonical skills to harnesses..."
 
 HARNESS_SKILL_DIRS=(
   "$HOME_DIR/.pi/agent/skills"
   "$HOME_DIR/.claude/skills"
-  "$HOME_DIR/.config/opencode/skills"
-  "$HOME_DIR/.config/opencode2/skills"
   "$HOME_DIR/.hermes/skills"
   "$HOME_DIR/.gemini/config/skills"
   "$HOME_DIR/.gemini/antigravity-cli/skills"
 )
+if [ -n "$OPENCODE_CMD" ]; then
+  HARNESS_SKILL_DIRS+=("$HOME_DIR/.config/$OPENCODE_CMD/skills")
+fi
 
-# A) Enlazar todas las skills compartidas en cada harness
+# Link all shared canonical skills
 for s_dir in "$DOTS_DIR/shared/skills"/*; do
   [ -d "$s_dir" ] || continue
   skill_name="$(basename "$s_dir")"
@@ -359,26 +370,32 @@ for s_dir in "$DOTS_DIR/shared/skills"/*; do
   done
 done
 
-# B) Enlazar skills individuales/específicas de cada harness si existen en dotsfiles
-for harness in pi claude opencode opencode2 hermes antigravity; do
+# Link harness-specific skills if any exist in dotsfiles
+for harness in pi claude hermes antigravity; do
   harness_custom_skills="$DOTS_DIR/harnesses/$harness/skills"
   if [ -d "$harness_custom_skills" ]; then
     case "$harness" in
       pi) target="$HOME_DIR/.pi/agent/skills" ;;
       claude) target="$HOME_DIR/.claude/skills" ;;
-      opencode) target="$HOME_DIR/.config/opencode/skills" ;;
-      opencode2) target="$HOME_DIR/.config/opencode2/skills" ;;
       hermes) target="$HOME_DIR/.hermes/skills" ;;
       antigravity) target="$HOME_DIR/.gemini/antigravity-cli/skills" ;;
     esac
     for s_dir in "$harness_custom_skills"/*; do
       [ -d "$s_dir" ] || continue
       skill_name="$(basename "$s_dir")"
-      log_info "Instalando skill individual de $harness: $skill_name"
+      log_info "Installing custom skill for $harness: $skill_name"
       link_or_copy "$s_dir" "$target/$skill_name"
     done
   fi
 done
 
-log_success "¡Instalación y sincronización completada exitosamente!"
-log_info "Recuerda editar ~/.config/dotsfiles/tokens.env con tus credenciales y reiniciar tus terminales/agentes."
+if [ -n "$OPENCODE_CMD" ] && [ -d "$DOTS_DIR/harnesses/opencode/skills" ]; then
+  for s_dir in "$DOTS_DIR/harnesses/opencode/skills"/*; do
+    [ -d "$s_dir" ] || continue
+    skill_name="$(basename "$s_dir")"
+    log_info "Installing custom skill for $OPENCODE_CMD: $skill_name"
+    link_or_copy "$s_dir" "$HOME_DIR/.config/$OPENCODE_CMD/skills/$skill_name"
+  done
+fi
+
+log_success "Dotsfiles deployment completed successfully!"

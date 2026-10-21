@@ -2,18 +2,19 @@
 <#
 .SYNOPSIS
     Universal dotsfiles installer for Windows (PowerShell 7+).
-    Deploys configurations, shared/individual skills, centralized secrets, and installs harnesses natively.
+    Deploys configurations, shared skills, centralized secrets, and harnesses.
 .DESCRIPTION
     Installs:
     - Centralized secrets in $HOME\.config\dotsfiles\
     - Symlinks / directory links for ~/.agents -> shared
     - Pi coding agent configuration & npm dependencies
-    - Claude Code configuration & rules pointer
-    - OpenCode configuration, plugins & instructions
+    - Pi-TUI-Plus (pi-plus CLI) build and global link
+    - Claude Code configuration & rules directives
+    - OpenCode / OpenCode2 configuration, plugins & instructions
     - Hermes configuration
     - Antigravity / agy configuration
-    - Herdr configuration & integration hooks
-    - Distributes shared and custom skills to all harnesses
+    - Herdr configuration & plugins
+    - Distributes shared canonical skills to all harnesses
 #>
 
 [CmdletBinding()]
@@ -23,7 +24,7 @@ $ErrorActionPreference = 'Stop'
 
 # Ensure running in PowerShell 7+
 if ($PSVersionTable.PSVersion.Major -lt 7) {
-    Write-Error "Este script requiere PowerShell 7 o superior (pwsh). Versión actual: $($PSVersionTable.PSVersion)"
+    Write-Error "This script requires PowerShell 7 or higher (pwsh). Current version: $($PSVersionTable.PSVersion)"
     exit 1
 }
 
@@ -31,9 +32,10 @@ $DOTS_DIR = $PSScriptRoot
 $USER_HOME = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
 
 function Write-Info { param([string]$Message) Write-Host "[INFO] $Message" -ForegroundColor Cyan }
-Write-Info "Iniciando instalación de dotsfiles para Windows..."
 function Write-Success { param([string]$Message) Write-Host "[OK] $Message" -ForegroundColor Green }
 function Write-Warn { param([string]$Message) Write-Host "[WARN] $Message" -ForegroundColor Yellow }
+
+Write-Info "Starting dotsfiles installation for Windows..."
 
 function Link-OrCopy {
     param(
@@ -49,39 +51,42 @@ function Link-OrCopy {
     }
 
     try {
-        if (Test-Path -Path $Source -PathType Container) {
-            # Directory symlink or junction
-            New-Item -ItemType SymbolicLink -Path $Destination -Target $Source -Force -ErrorAction Stop | Out-Null
-        } else {
-            # File symlink or hardlink
-            New-Item -ItemType SymbolicLink -Path $Destination -Target $Source -Force -ErrorAction Stop | Out-Null
-        }
-        Write-Host "  -> Enlace creado: $Destination -> $Source"
+        New-Item -ItemType SymbolicLink -Path $Destination -Target $Source -Force -ErrorAction Stop | Out-Null
+        Write-Host "  -> Linked: $Destination -> $Source"
     } catch {
-        # Fallback to copy if developer mode / privileges don't allow symlinks
         Copy-Item -Path $Source -Destination $Destination -Recurse -Force
-        Write-Host "  -> Copiado: $Destination"
+        Write-Host "  -> Copied: $Destination (symlinks not supported)"
     }
 }
 
-# --- 1. Native Installation of Harnesses via winget / npm / choco / scoop ---
-Write-Info "Comprobando e instalando harnesses nativos..."
+# --- 1. Native Installation of Harnesses via winget / npm / scoop ---
+Write-Info "Checking and installing native harnesses..."
+
+# Detect which OpenCode executable is present (opencode or opencode2)
+$OpenCodeCmd = $null
+if (Get-Command opencode2 -ErrorAction SilentlyContinue) {
+    $OpenCodeCmd = "opencode2"
+    Write-Success "Detected installed binary: opencode2"
+} elseif (Get-Command opencode -ErrorAction SilentlyContinue) {
+    $OpenCodeCmd = "opencode"
+    Write-Success "Detected installed binary: opencode"
+}
 
 function Install-NativeTool {
     param([string]$Name)
 
     if (Get-Command $Name -ErrorAction SilentlyContinue) {
-        Write-Success "$Name ya se encuentra instalado."
+        Write-Success "$Name is already installed."
         return
     }
 
-    Write-Info "Instalando $Name..."
+    Write-Info "Installing $Name..."
     switch ($Name) {
         'pi' {
             if (Get-Command npm -ErrorAction SilentlyContinue) {
                 npm install -g @earendil-works/pi-coding-agent
             } else {
-                Write-Warn "npm no encontrado; instala Node.js primero para pi."
+                Write-Warn "npm not found; please install Node.js first for pi."
             }
         }
         'claude' {
@@ -92,15 +97,18 @@ function Install-NativeTool {
             }
         }
         'opencode' {
-            if (Get-Command npm -ErrorAction SilentlyContinue) {
+            if ($OpenCodeCmd) {
+                Write-Success "$OpenCodeCmd is already installed."
+            } elseif (Get-Command npm -ErrorAction SilentlyContinue) {
                 npm install -g opencode-ai
+                $script:OpenCodeCmd = "opencode"
             }
         }
         'hermes' {
             if (Get-Command scoop -ErrorAction SilentlyContinue) {
                 scoop install hermes
             } else {
-                Write-Warn "Instala hermes para Windows según la documentación oficial o uv/pipx."
+                Write-Warn "Please install hermes for Windows according to official documentation or uv/pipx."
             }
         }
         'agy' {
@@ -123,7 +131,7 @@ foreach ($tool in @('pi', 'claude', 'opencode', 'hermes', 'agy', 'herdr')) {
 }
 
 # --- 2. Centralized Secrets in ~/.config/dotsfiles/ ---
-Write-Info "Configurando almacén central de tokens y secretos..."
+Write-Info "Configuring centralized secrets store..."
 $DotsConfigDir = Join-Path $USER_HOME ".config" "dotsfiles"
 if (-not (Test-Path $DotsConfigDir)) {
     New-Item -ItemType Directory -Path $DotsConfigDir -Force | Out-Null
@@ -134,23 +142,23 @@ $JsonFile = Join-Path $DotsConfigDir "tokens.json"
 
 if (-not (Test-Path $EnvFile)) {
     Copy-Item -Path (Join-Path $DOTS_DIR "secrets" "tokens.env.example") -Destination $EnvFile
-    Write-Info "Creado $EnvFile (completa tus credenciales allí)"
+    Write-Info "Created $EnvFile (fill your API credentials there)"
 }
 
 if (-not (Test-Path $JsonFile)) {
     Copy-Item -Path (Join-Path $DOTS_DIR "secrets" "tokens.json.example") -Destination $JsonFile
-    Write-Info "Creado $JsonFile"
+    Write-Info "Created $JsonFile"
 }
 
-# --- 3. Setup ~/.agents Shared Truth ---
-Write-Info "Enlazando ~/.agents a shared..."
-$SharedDir = Join-Path $DOTS_DIR "shared"
+# --- 3. Link ~/.agents (Canonical Single Source of Truth) ---
+Write-Info "Linking ~/.agents to $DOTS_DIR\shared ..."
 $AgentsTarget = Join-Path $USER_HOME ".agents"
-Link-OrCopy -Source $SharedDir -Destination $AgentsTarget
-Write-Success "$AgentsTarget enlazado a $SharedDir"
+$SharedSource = Join-Path $DOTS_DIR "shared"
+Link-OrCopy -Source $SharedSource -Destination $AgentsTarget
+Write-Success "~/.agents -> $SharedSource"
 
-# --- 4. Deploy Pi Configuration ---
-Write-Info "Desplegando configuración de Pi Coding Agent..."
+# --- 4. Deploy Pi Coding Agent Configuration ---
+Write-Info "Deploying Pi Coding Agent configuration..."
 $PiAgentDir = Join-Path $USER_HOME ".pi" "agent"
 New-Item -ItemType Directory -Path (Join-Path $PiAgentDir "agents") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $PiAgentDir "extensions") -Force | Out-Null
@@ -169,35 +177,35 @@ if (Test-Path (Join-Path $DOTS_DIR "harnesses" "pi" "agent" "npm" "package.json"
     Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "pi" "agent" "npm" "package.json") -Destination (Join-Path $PiAgentDir "npm" "package.json") -Force
 }
 
-# Agentes de Pi
+# Pi agents
 $PiAgentsSrc = Join-Path $DOTS_DIR "harnesses" "pi" "agent" "agents"
 if (Test-Path $PiAgentsSrc) {
     Copy-Item -Path "$PiAgentsSrc\*" -Destination (Join-Path $PiAgentDir "agents") -Recurse -Force
 }
 
-# Extensiones de Pi
+# Pi extensions
 $PiExtSrc = Join-Path $DOTS_DIR "harnesses" "pi" "agent" "extensions"
 if (Test-Path $PiExtSrc) {
     Copy-Item -Path "$PiExtSrc\*" -Destination (Join-Path $PiAgentDir "extensions") -Recurse -Force
 }
 
-# Instalar dependencias npm de Pi
+# Install Pi npm dependencies
 if ((Get-Command npm -ErrorAction SilentlyContinue) -and (Test-Path (Join-Path $PiAgentDir "npm"))) {
-    Write-Info "Instalando paquetes npm de Pi..."
+    Write-Info "Installing Pi extension packages..."
     Push-Location (Join-Path $PiAgentDir "npm")
     try {
         npm install --silent
     } catch {
-        Write-Warn "Fallo no crítico en npm install de Pi"
+        Write-Warn "Non-critical warning on Pi npm install"
     } finally {
         Pop-Location
     }
 }
 
-# Compilar e instalar pi-tui-plus
+# Build and install pi-tui-plus
 $PiTuiPlusDir = Join-Path $DOTS_DIR "pi-tui-plus"
 if (Test-Path $PiTuiPlusDir) {
-    Write-Info "Compilando e instalando pi-tui-plus (pi-plus CLI)..."
+    Write-Info "Building and linking pi-tui-plus (pi-plus CLI)..."
     Push-Location $PiTuiPlusDir
     try {
         if (Get-Command pnpm -ErrorAction SilentlyContinue) {
@@ -209,14 +217,14 @@ if (Test-Path $PiTuiPlusDir) {
         }
         npm link 2>$null
     } catch {
-        Write-Warn "Fallo no crítico en compilación de pi-tui-plus"
+        Write-Warn "Non-critical warning during pi-tui-plus compilation"
     } finally {
         Pop-Location
     }
 }
 
 # --- 5. Deploy Claude Code Configuration ---
-Write-Info "Desplegando configuración de Claude Code..."
+Write-Info "Deploying Claude Code configuration..."
 $ClaudeDir = Join-Path $USER_HOME ".claude"
 New-Item -ItemType Directory -Path (Join-Path $ClaudeDir "hooks") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $ClaudeDir "skills") -Force | Out-Null
@@ -244,10 +252,10 @@ if (Get-Command claude -ErrorAction SilentlyContinue) {
     claude mcp add -s user fetch -- uvx mcp-server-fetch 2>$null
 }
 
-# --- 6. Deploy OpenCode & OpenCode2 Configuration ---
-Write-Info "Desplegando configuración de OpenCode y OpenCode2..."
-foreach ($oName in @('opencode', 'opencode2')) {
-    $OpenCodeDir = Join-Path $USER_HOME ".config" $oName
+# --- 6. Deploy OpenCode Configuration (Only for detected version) ---
+if ($OpenCodeCmd) {
+    Write-Info "Deploying configuration for $OpenCodeCmd..."
+    $OpenCodeDir = Join-Path $USER_HOME ".config" $OpenCodeCmd
     New-Item -ItemType Directory -Path (Join-Path $OpenCodeDir "plugins") -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $OpenCodeDir "skills") -Force | Out-Null
 
@@ -263,11 +271,12 @@ foreach ($oName in @('opencode', 'opencode2')) {
     if (Test-Path (Join-Path $DOTS_DIR "harnesses" "opencode" "plugins")) {
         Copy-Item -Path "$DOTS_DIR\harnesses\opencode\plugins\*" -Destination (Join-Path $OpenCodeDir "plugins") -Recurse -Force
     }
+    $AgentsMdPath = (Join-Path $AgentsTarget "rules" "AGENTS.md").Replace('\', '/')
     Set-Content -Path (Join-Path $OpenCodeDir "AGENTS.md") -Value "> **Cross-Agent Parity**: follow the rule in \`$AgentsMdPath\`." -Encoding UTF8
 }
 
 # --- 7. Deploy Hermes Configuration ---
-Write-Info "Desplegando configuración de Hermes..."
+Write-Info "Deploying Hermes Agent configuration..."
 $HermesDir = Join-Path $USER_HOME ".hermes"
 New-Item -ItemType Directory -Path (Join-Path $HermesDir "skills") -Force | Out-Null
 if (-not (Test-Path (Join-Path $HermesDir "config.yaml")) -and (Test-Path (Join-Path $DOTS_DIR "harnesses" "hermes" "config.yaml"))) {
@@ -275,7 +284,7 @@ if (-not (Test-Path (Join-Path $HermesDir "config.yaml")) -and (Test-Path (Join-
 }
 
 # --- 8. Deploy Antigravity (agy) Configuration ---
-Write-Info "Desplegando configuración de Antigravity (agy)..."
+Write-Info "Deploying Antigravity (agy) configuration..."
 $GeminiConfig = Join-Path $USER_HOME ".gemini" "config"
 $GeminiAgy = Join-Path $USER_HOME ".gemini" "antigravity-cli"
 New-Item -ItemType Directory -Path (Join-Path $GeminiConfig "skills") -Force | Out-Null
@@ -289,12 +298,11 @@ if (-not (Test-Path (Join-Path $GeminiAgy "settings.json")) -and (Test-Path (Joi
     Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "antigravity" "agy-settings.json") -Destination (Join-Path $GeminiAgy "settings.json")
 }
 
-# --- 9. Deploy Herdr Configuration & herdr-sidebar ---
-Write-Info "Desplegando configuración de Herdr y herdr-sidebar..."
+# --- 9. Deploy Herdr Configuration & Plugins ---
+Write-Info "Deploying Herdr configuration and plugins..."
 $HerdrDir = Join-Path $USER_HOME ".config" "herdr"
 New-Item -ItemType Directory -Path $HerdrDir -Force | Out-Null
 
-# Copiar scripts auxiliares de dotsfiles
 $DotsBinDir = Join-Path $USER_HOME ".config" "dotsfiles" "bin"
 New-Item -ItemType Directory -Path $DotsBinDir -Force | Out-Null
 if (Test-Path (Join-Path $DOTS_DIR "bin")) {
@@ -304,7 +312,7 @@ if (Test-Path (Join-Path $DOTS_DIR "bin")) {
 Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "herdr" "config.toml") -Destination (Join-Path $HerdrDir "config.toml") -Force
 Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "herdr" "plugins.json") -Destination (Join-Path $HerdrDir "plugins.json") -Force
 
-# Desplegar estado persistente de herdr-sidebar
+# Deploy persistent state for herdr-sidebar
 $SidebarStateDir = Join-Path $USER_HOME ".local" "state" "herdr" "plugins" "herdr-sidebar"
 New-Item -ItemType Directory -Path $SidebarStateDir -Force | Out-Null
 if (Test-Path (Join-Path $DOTS_DIR "harnesses" "herdr" "state")) {
@@ -312,7 +320,7 @@ if (Test-Path (Join-Path $DOTS_DIR "harnesses" "herdr" "state")) {
 }
 
 if (Get-Command herdr -ErrorAction SilentlyContinue) {
-    Write-Info "Instalando e integrando plugins de Herdr..."
+    Write-Info "Installing Herdr plugins and integrations..."
     herdr plugin install alexarthurs/herdr-sidebar/plugins/herdr-sidebar -y 2>$null
     herdr plugin install senna-lang/herdr-agent-usage -y 2>$null
     herdr plugin install kryptamine/herdr-auto-title -y 2>$null
@@ -325,25 +333,28 @@ if (Get-Command herdr -ErrorAction SilentlyContinue) {
     herdr plugin install ezcorp-org/herdr-pc-ram-and-cpu-usage-overlay -y 2>$null
     herdr integration install pi 2>$null
     herdr integration install claude 2>$null
-    herdr integration install opencode 2>$null
+    if ($OpenCodeCmd) {
+        herdr integration install opencode 2>$null
+    }
     herdr integration install hermes 2>$null
     herdr integration install antigravity-cli 2>$null
 }
 
-# --- 10. Distribute Shared & Individual Skills ---
-Write-Info "Distribuyendo skills compartidas a cada harness..."
+# --- 10. Distribute Shared Canonical Skills ---
+Write-Info "Distributing shared canonical skills to harnesses..."
 
 $HarnessSkillDirs = @(
     (Join-Path $USER_HOME ".pi" "agent" "skills"),
     (Join-Path $USER_HOME ".claude" "skills"),
-    (Join-Path $USER_HOME ".config" "opencode" "skills"),
-    (Join-Path $USER_HOME ".config" "opencode2" "skills"),
     (Join-Path $USER_HOME ".hermes" "skills"),
     (Join-Path $USER_HOME ".gemini" "config" "skills"),
     (Join-Path $USER_HOME ".gemini" "antigravity-cli" "skills")
 )
+if ($OpenCodeCmd) {
+    $HarnessSkillDirs += (Join-Path $USER_HOME ".config" $OpenCodeCmd "skills")
+}
 
-# A) Shared skills
+# Shared skills
 $SharedSkillsDir = Join-Path $DOTS_DIR "shared" "skills"
 if (Test-Path $SharedSkillsDir) {
     Get-ChildItem -Path $SharedSkillsDir -Directory | ForEach-Object {
@@ -355,25 +366,5 @@ if (Test-Path $SharedSkillsDir) {
     }
 }
 
-# B) Individual / Harness-specific skills
-$harnessMap = @{
-    'pi' = (Join-Path $USER_HOME ".pi" "agent" "skills");
-    'claude' = (Join-Path $USER_HOME ".claude" "skills");
-    'opencode' = (Join-Path $USER_HOME ".config" "opencode" "skills");
-    'hermes' = (Join-Path $USER_HOME ".hermes" "skills");
-    'antigravity' = (Join-Path $USER_HOME ".gemini" "antigravity-cli" "skills")
-}
-
-foreach ($harness in $harnessMap.Keys) {
-    $customSkillsDir = Join-Path $DOTS_DIR "harnesses" $harness "skills"
-    if (Test-Path $customSkillsDir) {
-        $target = $harnessMap[$harness]
-        Get-ChildItem -Path $customSkillsDir -Directory | ForEach-Object {
-            Write-Info "Instalando skill individual de $harness: $($_.Name)"
-            Link-OrCopy -Source $_.FullName -Destination (Join-Path $target $_.Name)
-        }
-    }
-}
-
-Write-Success "¡Instalación en Windows completada exitosamente!"
-Write-Info "Recuerda definir tus claves en $JsonFile o $EnvFile."
+Write-Success "Windows installation completed successfully!"
+Write-Info "Remember to define your API tokens in $JsonFile or $EnvFile."

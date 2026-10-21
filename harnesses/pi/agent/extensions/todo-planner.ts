@@ -83,9 +83,9 @@ class TodoListComponent {
 
       lines.push(
         truncateToWidth(
-          `  ${th.fg("muted", "Progreso:")} ${th.fg("success", `${completed}/${total} completados`)}` +
-            (inProgress ? ` • ${th.fg("accent", `${inProgress} en curso`)}` : "") +
-            (failed ? ` • ${th.fg("error", `${failed} fallidos`)}` : ""),
+          `  ${th.fg("muted", "Progress:")} ${th.fg("success", `${completed}/${total} completed`)}` +
+            (inProgress ? ` • ${th.fg("accent", `${inProgress} in progress`)}` : "") +
+            (failed ? ` • ${th.fg("error", `${failed} failed`)}` : ""),
           width
         )
       );
@@ -121,7 +121,7 @@ class TodoListComponent {
     }
 
     lines.push("");
-    lines.push(truncateToWidth(`  ${th.fg("dim", "Presiona Escape para cerrar")}`, width));
+    lines.push(truncateToWidth(`  ${th.fg("dim", "Press Escape to close")}`, width));
     lines.push("");
 
     this.cachedWidth = width;
@@ -358,11 +358,11 @@ export default function (pi: ExtensionAPI) {
 
       const todoList = details.todos;
       if (todoList.length === 0) {
-        return new Text(theme.fg("dim", "Plan vacío"), 0, 0);
+        return new Text(theme.fg("dim", "Empty plan"), 0, 0);
       }
 
       const display = expanded ? todoList : todoList.slice(0, 5);
-      const lines = [theme.fg("muted", `Plan (${todoList.filter((t) => t.status === "completed").length}/${todoList.length} completados):`)];
+      const lines = [theme.fg("muted", `Plan (${todoList.filter((t) => t.status === "completed").length}/${todoList.length} completed):`)];
 
       for (const t of display) {
         let symbol: string;
@@ -383,7 +383,7 @@ export default function (pi: ExtensionAPI) {
       }
 
       if (!expanded && todoList.length > 5) {
-        lines.push(theme.fg("dim", `... ${todoList.length - 5} pasos adicionales`));
+        lines.push(theme.fg("dim", `... ${todoList.length - 5} additional steps`));
       }
 
       return new Text(lines.join("\n"), 0, 0);
@@ -392,21 +392,21 @@ export default function (pi: ExtensionAPI) {
 
   // Command: /todos
   pi.registerCommand("todos", {
-    description: "Ver el plan y la lista de tareas actual",
+    description: "View or manage the active plan and task list (/todos [clear])",
     handler: async (args, ctx) => {
       const sub = String(args || "").trim().toLowerCase();
       if (sub === "clear") {
         todos = [];
         nextId = 1;
         updateWidget(ctx);
-        ctx.ui.notify("Plan y tareas limpiadas.", "info");
+        ctx.ui.notify("Plan and tasks cleared.", "info");
         return;
       }
 
       if (ctx.mode !== "tui") {
         const text = todos.length
           ? todos.map((t) => `[${t.status}] #${t.id}: ${t.text}`).join("\n")
-          : "No hay tareas activas.";
+          : "No active tasks.";
         ctx.ui.notify(text, "info");
         return;
       }

@@ -43,10 +43,12 @@ function getCurrentCommit(cwd: string): string | null {
 function emitWakaTimeHeartbeat(filePath: string, cwd: string): void {
   try {
     const fullPath = path.resolve(cwd, filePath);
-    execFile("wakatime-cli", ["--entity", fullPath, "--write"], (err) => {
+    execFile("wakatime-cli", ["--entity", fullPath, "--write"], (_err) => {
       // Silently ignore if wakatime is not configured
     });
-  } catch {}
+  } catch (err) {
+    void err;
+  }
 }
 
 function getSessionGitDiff(cwd: string): { files: FileChangeStats[]; totalAdded: number; totalDeleted: number } {
@@ -74,7 +76,8 @@ function getSessionGitDiff(cwd: string): { files: FileChangeStats[]; totalAdded:
     let numstatOutput = "";
     try {
       numstatOutput = execSync("git diff --numstat HEAD", { cwd, encoding: "utf8" });
-    } catch {
+    } catch (diffErr) {
+      void diffErr;
       // In case repo has no commits yet
       numstatOutput = execSync("git diff --numstat", { cwd, encoding: "utf8" });
     }
@@ -106,7 +109,7 @@ function getSessionGitDiff(cwd: string): { files: FileChangeStats[]; totalAdded:
       }
     }
   } catch (err) {
-    // Graceful fallback
+    void err;
   }
 
   return { files: results, totalAdded, totalDeleted };
@@ -160,7 +163,9 @@ export default function (pi: ExtensionAPI) {
       try {
         const checkpoint = execSync("git stash create 'Pi Session Auto-Checkpoint'", { cwd, encoding: "utf8" }).trim();
         sessionState.initialCheckpoint = checkpoint || null;
-      } catch {}
+      } catch (err) {
+        void err;
+      }
     }
 
     updateGitWidget(ctx);
@@ -195,44 +200,44 @@ export default function (pi: ExtensionAPI) {
 
   // Command: /diff
   pi.registerCommand("diff", {
-    description: "Ver el diff coloreado de los cambios realizados por esta sesión",
+    description: "Show colored diff of working tree changes in this session",
     handler: async (_args, ctx) => {
       const cwd = process.cwd();
       if (!isGitRepo(cwd)) {
-        ctx.ui.notify("No estás dentro de un repositorio Git.", "warning");
+        ctx.ui.notify("Not inside a Git repository.", "warning");
         return;
       }
 
       try {
         const diff = execSync("git diff HEAD", { cwd, encoding: "utf8" });
         if (!diff.trim()) {
-          ctx.ui.notify("No hay cambios no commiteados en el repositorio.", "info");
+          ctx.ui.notify("No uncommitted changes in the repository.", "info");
           return;
         }
-        ctx.ui.notify(diff.slice(0, 4000) + (diff.length > 4000 ? "\n\n... (diff truncado)" : ""), "info");
+        ctx.ui.notify(diff.slice(0, 4000) + (diff.length > 4000 ? "\n\n... (diff truncated)" : ""), "info");
       } catch (err: unknown) {
-        ctx.ui.notify(`Error al obtener git diff: ${String(err)}`, "error");
+        ctx.ui.notify(`Failed to fetch git diff: ${String(err)}`, "error");
       }
     },
   });
 
   // Command: /rollback
   pi.registerCommand("rollback", {
-    description: "Revertir todos los cambios realizados en esta sesión al estado inicial",
+    description: "Revert all uncommitted working tree changes made in this session",
     handler: async (_args, ctx) => {
       const cwd = process.cwd();
       if (!isGitRepo(cwd)) {
-        ctx.ui.notify("No estás en un repositorio Git.", "warning");
+        ctx.ui.notify("Not inside a Git repository.", "warning");
         return;
       }
 
       const confirmed = await ctx.ui.confirm(
-        "¿Confirmar Rollback de la Sesión?",
-        "Esto descartará los cambios no commiteados en los archivos modificados por la sesión."
+        "Confirm Session Rollback?",
+        "This will discard all uncommitted changes across files touched by this session."
       );
 
       if (!confirmed) {
-        ctx.ui.notify("Rollback cancelado.", "info");
+        ctx.ui.notify("Rollback cancelled.", "info");
         return;
       }
 
@@ -240,9 +245,9 @@ export default function (pi: ExtensionAPI) {
         execSync("git restore .", { cwd });
         sessionState.touchedFiles.clear();
         updateGitWidget(ctx);
-        ctx.ui.notify("✅ Rollback completado: El árbol de trabajo fue restaurado.", "info");
+        ctx.ui.notify("✅ Rollback completed: Working tree restored.", "info");
       } catch (err: unknown) {
-        ctx.ui.notify(`Fallo al ejecutar rollback: ${String(err)}`, "error");
+        ctx.ui.notify(`Failed to execute rollback: ${String(err)}`, "error");
       }
     },
   });

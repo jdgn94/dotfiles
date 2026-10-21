@@ -139,7 +139,7 @@ export default function (pi: ExtensionAPI) {
         const isMarkdown = filePath.endsWith(".md") || filePath.endsWith(".markdown");
 
         if (!isMarkdown) {
-          const reason = `[Acceso Denegado por Rol]: El agente activo '${agent}' tiene permisos restringidos exclusivamente a archivos de documentación (.md). Intento de modificar '${filePath}' bloqueado.`;
+          const reason = `[Role Access Denied]: Active agent '${agent}' is strictly restricted to markdown documentation files (.md). Attempted modification of '${filePath}' blocked.`;
           return {
             block: true,
             reason,
@@ -153,7 +153,7 @@ export default function (pi: ExtensionAPI) {
       if (event.toolName === "write" || event.toolName === "edit") {
         return {
           block: true,
-          reason: `[Acceso Denegado por Rol]: El agente activo '${agent}' es estrictamente de solo lectura y no puede modificar ningún archivo.`,
+          reason: `[Role Access Denied]: Active agent '${agent}' is strictly read-only and cannot modify files.`,
         };
       }
     }
@@ -167,7 +167,7 @@ export default function (pi: ExtensionAPI) {
         if (!isTestFile) {
           return {
             block: true,
-            reason: `[Acceso Denegado por Rol]: 'test-engineer' solo tiene permisos para modificar suites de test (bajo tests/, __tests__/ o archivos *.test.* / *.spec.*). Modificación de '${filePath}' bloqueada.`,
+            reason: `[Role Access Denied]: 'test-engineer' is only authorized to modify test suites (under tests/, __tests__/ or *.test.* / *.spec.* files). Modification of '${filePath}' blocked.`,
           };
         }
       }
@@ -200,7 +200,7 @@ export default function (pi: ExtensionAPI) {
         };
       }
 
-      ctx.ui?.notify(`Invocando subagente '${target.name}' en 2º plano...`, "info");
+      ctx.ui?.notify(`Invoking subagent '${target.name}' in background...`, "info");
 
       // Execute via subagent tool if available or executeTool
       try {
@@ -220,7 +220,7 @@ export default function (pi: ExtensionAPI) {
 
   // Command: /agent [name|list]
   pi.registerCommand("agent", {
-    description: "Cambiar o consultar el agente activo (/agent [nombre|list])",
+    description: "Switch or inspect active specialized agents (/agent [name|list])",
     handler: async (args, ctx) => {
       const sub = String(args || "").trim().toLowerCase();
       const agents = loadAllAgents();
@@ -231,26 +231,26 @@ export default function (pi: ExtensionAPI) {
           unique.set(spec.name, spec);
         }
 
-        const lines = ["🤖 AGENTES ESPECIALIZADOS DISPONIBLES:"];
+        const lines = ["🤖 AVAILABLE SPECIALIZED AGENTS:"];
         for (const [name, spec] of unique.entries()) {
-          const isCurrent = name === activeAgentName ? " (ACTIVO)" : "";
+          const isCurrent = name === activeAgentName ? " (ACTIVE)" : "";
           lines.push(`• **${name}**${isCurrent}: ${spec.description}`);
         }
-        lines.push(`\nAgente actual: **${activeAgentName}**. Usa '/agent <nombre>' para cambiar.`);
+        lines.push(`\nCurrent active agent: **${activeAgentName}**. Use '/agent <name>' to switch.`);
         ctx.ui.notify(lines.join("\n"), "info");
         return;
       }
 
       const target = agents.get(sub);
       if (!target) {
-        ctx.ui.notify(`El agente '${sub}' no existe. Usa '/agent' para ver la lista.`, "warning");
+        ctx.ui.notify(`Agent '${sub}' does not exist. Use '/agent' to view available list.`, "warning");
         return;
       }
 
       activeAgentName = target.name;
       updateAgentStatusBadge(ctx);
       notifyAgentSwitched(target.name);
-      ctx.ui.notify(`Agente cambiado a: **${target.name}**\n${target.description}`, "info");
+      ctx.ui.notify(`Active agent switched to: **${target.name}**\n${target.description}`, "info");
     },
   });
 }

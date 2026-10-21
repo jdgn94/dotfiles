@@ -8,7 +8,7 @@ auto_switch = false
 kitty_graphics = true
 
 [ui]
-# No pedir nombre manual para permitir que herdr-auto-title nombre las pestañas automáticamente
+# Do not prompt for manual tab name to allow herdr-auto-title to name tabs automatically
 prompt_new_tab_name = false
 
 # Sidebar context + provider limit rows (Agent Usage)
@@ -21,14 +21,14 @@ rows = [
   ["$context"],
 ]
 
-# Mostrar tópico activo del workspace en el sidebar (Auto Title)
+# Display active workspace topic in sidebar (Auto Title)
 [ui.sidebar.spaces]
 rows = [
   ["state_icon", "workspace", "branch", "git_status"],
   [{ token = "$topic", bold = true, dim = false }],
 ]
 
-# Toast delivery (notificaciones de alertas y cuotas de uso)
+# Toast delivery (alert notifications and quota limits)
 [ui.toast]
 delivery = "herdr"
 
@@ -36,9 +36,9 @@ delivery = "herdr"
 position = "bottom-right"
 
 [keys]
-# Prefix por defecto: ctrl+b
+# Default prefix: ctrl+b
 
-# Alternar la barra lateral (VS Code style: Explorer + Git + Search) a la derecha
+# Toggle right sidebar (VS Code style: Explorer + Git + Search)
 [[keys.command]]
 key = "prefix+e"
 type = "shell"
@@ -49,25 +49,25 @@ key = "alt+e"
 type = "shell"
 command = "herdr plugin action invoke herdr-sidebar.open-sidebar"
 
-# Quick Open de archivos estilo VS Code (Ctrl+P)
+# Quick Open file picker (Ctrl+P style)
 [[keys.command]]
 key = "prefix+p"
 type = "shell"
 command = "herdr plugin action invoke herdr-sidebar.quick-open"
 
-# Abrir directamente en Source Control / Git (Ctrl+Shift+G)
+# Open Source Control / Git directly (Ctrl+Shift+G)
 [[keys.command]]
 key = "prefix+g"
 type = "shell"
 command = "herdr plugin action invoke herdr-sidebar.show-git"
 
-# Búsqueda global de texto en el proyecto (Ctrl+Shift+F)
+# Global project text search (Ctrl+Shift+F)
 [[keys.command]]
 key = "prefix+f"
 type = "shell"
 command = "herdr plugin action invoke herdr-sidebar.show-search"
 
-# Abrir panel emergente de cuotas y uso de agentes (Agent Usage / Limits)
+# Open Agent Usage limits popup (Alt+u / Prefix+u)
 [[keys.command]]
 key = "prefix+u"
 type = "plugin_action"
@@ -78,13 +78,13 @@ key = "alt+u"
 type = "plugin_action"
 command = "usagebar.open-limits"
 
-# Refrescar métricas y cuotas
+# Refresh metrics and quota limits
 [[keys.command]]
 key = "prefix+m"
 type = "plugin_action"
 command = "usagebar.refresh"
 
-# Paleta de comandos interactiva fzf (Prefix+Espacio o Ctrl+Shift+P)
+# Interactive fzf command palette (Ctrl+Shift+P / Prefix+Space)
 [[keys.command]]
 key = "prefix+space"
 type = "plugin_action"
@@ -95,7 +95,7 @@ key = "ctrl+shift+p"
 type = "plugin_action"
 command = "jt.command-palette.open"
 
-# Monitor de CPU y RAM de espacios y agentes (Prefix+r o Alt+r)
+# CPU & RAM resource monitor (Prefix+r / Alt+r)
 [[keys.command]]
 key = "prefix+r"
 type = "plugin_action"
@@ -106,7 +106,7 @@ key = "alt+r"
 type = "plugin_action"
 command = "ez-corp.space-usage.monitor"
 
-# Panel de revisión de código y diffs (reviewr - Prefix+d o Alt+d)
+# Code diff and review panel (reviewr - Prefix+d / Alt+d)
 [[keys.command]]
 key = "prefix+d"
 type = "plugin_action"

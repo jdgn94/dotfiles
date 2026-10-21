@@ -62,7 +62,9 @@ function ensureSkillSymlink(skillName: string): boolean {
         if (stat.isSymbolicLink()) {
           return true;
         }
-      } catch {}
+      } catch (err) {
+        void err;
+      }
       return false;
     }
 
@@ -281,7 +283,9 @@ export default function (pi: ExtensionAPI) {
             ) {
               skills.push(item);
             }
-          } catch {}
+          } catch (err) {
+            void err;
+          }
         }
       }
 
@@ -306,36 +310,36 @@ export default function (pi: ExtensionAPI) {
   // Command: /learn
   pi.registerCommand("learn", {
     description:
-      "Analizar la tarea reciente y autogenerar una skill de mejora continua (/learn [enfoque opcional])",
+      "Analyze recent task and synthesize a continuous improvement skill (/learn [optional focus])",
     handler: async (args, ctx) => {
       const focus = String(args || "").trim();
       const prompt = [
-        "Protocolo Hermes Auto-Skills de Aprendizaje Continuo:",
-        "Reflexiona de forma crítica sobre esta sesión, los errores enfrentados, diagnósticos y soluciones implementadas.",
-        "1. Identifica técnicas reutilizables, patrones no triviales, soluciones a bugs complejos o trampas (gotchas).",
-        "2. Usa la herramienta `list_skills` para verificar si ya existe una skill relacionada que deba ser actualizada ('Patch, don't duplicate').",
-        "3. Si es una técnica nueva o mejora sustancial, llama a `save_skill` para guardar la skill con la estructura estándar de Hermes (Overview, When to Use, Procedure, Pitfalls, Verification) en inglés técnico.",
-        focus ? `Enfoque solicitado: ${focus}` : "",
+        "Hermes Continuous Improvement Protocol:",
+        "Reflect critically on this session, errors encountered, diagnostics, and solutions implemented.",
+        "1. Identify reusable techniques, non-trivial patterns, bug workarounds, or gotchas.",
+        "2. Use `list_skills` to check if a related skill already exists ('Patch, don't duplicate').",
+        "3. If new or substantially improved, call `save_skill` adhering to Hermes standards (Overview, When to Use, Procedure, Pitfalls, Verification) in technical English.",
+        focus ? `Requested focus: ${focus}` : "",
       ]
         .filter(Boolean)
         .join("\n\n");
 
-      ctx.ui.notify("Iniciando auto-reflexión y extracción de skills...", "info");
+      ctx.ui.notify("Initiating auto-reflection and skill synthesis...", "info");
       pi.sendUserMessage(prompt);
     },
   });
 
   // Command: /skills
   pi.registerCommand("skills", {
-    description: "Listar todas las skills globales instaladas",
+    description: "List all installed global skills",
     handler: async (_args, ctx) => {
       if (!fs.existsSync(AGENTS_SKILLS_DIR)) {
-        ctx.ui.notify("No se encontró el directorio ~/.agents/skills", "warning");
+        ctx.ui.notify("Directory ~/.agents/skills not found", "warning");
         return;
       }
       const entries = fs.readdirSync(AGENTS_SKILLS_DIR, { withFileTypes: true });
       const names = entries.filter((e) => e.isDirectory() && !e.name.startsWith(".")).map((e) => e.name);
-      ctx.ui.notify(`Skills instaladas (${names.length}):\n${names.join(", ")}`, "info");
+      ctx.ui.notify(`Installed skills (${names.length}):\n${names.join(", ")}`, "info");
     },
   });
 }

@@ -167,11 +167,11 @@ export default function (pi: ExtensionAPI) {
       const resolvedReadPath = path.resolve(currentCwd, readPath);
 
       if (isSensitivePath(resolvedReadPath)) {
-        const msg = `Acceso denegado: El archivo '${readPath}' está clasificado como sensible del sistema o credencial y no puede ser leído.`;
+        const msg = `Access denied: File '${readPath}' is classified as a sensitive system file or private credential and cannot be read.`;
         ctx.ui?.notify(msg, "warning");
         sendDesktopNotification(
-          "🛡️ Lectura bloqueada",
-          `Intento de lectura bloqueado a archivo sensible:\n${truncate(resolvedReadPath, 150)}`,
+          "🛡️ Read blocked",
+          `Read attempt blocked for sensitive file:\n${truncate(resolvedReadPath, 150)}`,
           "dialog-error"
         );
         return {
@@ -195,66 +195,66 @@ export default function (pi: ExtensionAPI) {
           return undefined;
         }
 
-        const action = event.toolName === "write" ? "crear o sobrescribir" : "editar";
+        const action = event.toolName === "write" ? "create or overwrite" : "edit";
         const targetDir = path.dirname(resolvedTarget);
         const folderName = path.basename(targetDir);
 
         // Send desktop notification immediately
         sendDesktopNotification(
-          "⚠️ Permiso para modificar archivo externo",
-          `Pi solicita ${action} el archivo:\n${truncate(resolvedTarget, 150)}`,
+          "⚠️ Permission required to modify external file",
+          `Pi requests to ${action} file:\n${truncate(resolvedTarget, 150)}`,
           "dialog-warning"
         );
 
         if (ctx.hasUI) {
-          const promptTitle = `⚠️ Permiso requerido fuera del proyecto (${event.toolName})\nArchivo: ${resolvedTarget}`;
+          const promptTitle = `⚠️ Permission required outside project (${event.toolName})\nFile: ${resolvedTarget}`;
           const choice = await ctx.ui.select(promptTitle, [
-            "1. Permitir solo este archivo",
-            `2. Permitir archivos futuros en '${folderName}/' durante esta sesión`,
-            "3. Denegar / Cancelar acción",
+            "1. Allow only this file",
+            `2. Allow future files in '${folderName}/' during this session`,
+            "3. Deny / Cancel action",
           ]);
 
           // Option 1: Allow once for this specific file
           if (choice?.startsWith("1.")) {
-            ctx.ui.notify(`Permiso concedido para este archivo: ${path.basename(resolvedTarget)}`, "info");
+            ctx.ui.notify(`Permission granted for this file: ${path.basename(resolvedTarget)}`, "info");
             return undefined;
           }
 
           // Option 2: Allow all future files in this directory for this session (with secondary confirmation)
           if (choice?.startsWith("2.")) {
             const confirmedDir = await ctx.ui.confirm(
-              "¿Confirmar autorización de carpeta para la sesión?",
-              `¿Autorizas que Pi pueda crear y editar cualquier archivo dentro de:\n\n${targetDir}\n\ny todas sus subcarpetas durante el resto de esta sesión sin volver a pedir confirmación?`
+              "Confirm folder authorization for this session?",
+              `Do you authorize Pi to create and edit files inside:\n\n${targetDir}\n\nand all its subfolders for the remainder of this session without prompting again?`
             );
 
             if (confirmedDir) {
               sessionAllowedDirectories.add(targetDir);
-              ctx.ui.notify(`✅ Carpeta autorizada para el resto de la sesión: ${targetDir}`, "info");
+              ctx.ui.notify(`✅ Folder authorized for the session: ${targetDir}`, "info");
               sendDesktopNotification(
-                "✅ Carpeta autorizada para la sesión",
-                `Escritura permitida sin confirmación en:\n${truncate(targetDir, 150)}`,
+                "✅ Folder authorized for session",
+                `Unrestricted writes allowed in:\n${truncate(targetDir, 150)}`,
                 "dialog-information"
               );
               return undefined;
             } else {
-              ctx.ui.notify("Autorización de carpeta cancelada.", "info");
+              ctx.ui.notify("Folder authorization cancelled.", "info");
               return {
                 block: true,
-                reason: `Acción cancelada por el usuario: Se rechazó la autorización de carpeta para la sesión.`,
+                reason: `Action cancelled by user: Folder authorization rejected for session.`,
               };
             }
           }
 
           // Option 3 / Cancel / Escape
-          ctx.ui.notify(`Operación cancelada: Se denegó la modificación en ${resolvedTarget}`, "info");
+          ctx.ui.notify(`Operation cancelled: Modification denied for ${resolvedTarget}`, "info");
           return {
             block: true,
-            reason: `Acción cancelada por el usuario: No se otorgó permiso para ${action} el archivo '${resolvedTarget}' fuera del directorio raíz.`,
+            reason: `Action cancelled by user: No permission granted to ${action} file '${resolvedTarget}' outside project root.`,
           };
         } else {
           return {
             block: true,
-            reason: `Operación bloqueada: Modificación fuera del directorio raíz '${resolvedTarget}' denegada en modo sin interfaz de confirmación.`,
+            reason: `Operation blocked: Modifying outside project root '${resolvedTarget}' denied in non-interactive mode.`,
           };
         }
       }
@@ -273,29 +273,29 @@ export default function (pi: ExtensionAPI) {
           return undefined;
         }
 
-        const title = "⚠️ Permiso para eliminar archivo fuera del proyecto";
-        const details = `El comando bash intenta eliminar o alterar archivos fuera del directorio actual.\n\nComando: ${command}\nRuta afectada: ${target}\nDirectorio raíz: ${currentCwd}`;
+        const title = "⚠️ Permission to delete files outside project root";
+        const details = `Bash command attempts to delete or alter files outside current directory.\n\nCommand: ${command}\nAffected target: ${target}\nWorking directory: ${currentCwd}`;
 
         // Send desktop notification immediately
         sendDesktopNotification(
-          "⚠️ Permiso para eliminar fuera del proyecto",
-          `Pi solicita ejecutar:\n${truncate(command, 150)}`,
+          "⚠️ Permission to delete outside project",
+          `Pi requests execution of:\n${truncate(command, 150)}`,
           "dialog-warning"
         );
 
         if (ctx.hasUI) {
           const confirmed = await ctx.ui.confirm(title, details);
           if (!confirmed) {
-            ctx.ui.notify(`Comando cancelado por el usuario.`, "info");
+            ctx.ui.notify(`Command cancelled by user.`, "info");
             return {
               block: true,
-              reason: `Comando cancelado por el usuario: Se denegó el permiso para eliminar archivos fuera del directorio raíz (${target}).`,
+              reason: `Command cancelled by user: Permission denied to delete files outside working directory (${target}).`,
             };
           }
         } else {
           return {
             block: true,
-            reason: `Comando bloqueado: Eliminación fuera del directorio raíz '${target}' no permitida sin confirmación interactiva.`,
+            reason: `Command blocked: Deletion outside working directory '${target}' disallowed without interactive confirmation.`,
           };
         }
       }
@@ -307,26 +307,26 @@ export default function (pi: ExtensionAPI) {
 
   // Command: /permissions
   pi.registerCommand("permissions", {
-    description: "Ver o limpiar las carpetas externas autorizadas para esta sesión (/permissions [clear])",
+    description: "View or revoke external directory authorizations for this session (/permissions [clear])",
     handler: async (args, ctx) => {
       const sub = String(args || "").trim().toLowerCase();
       if (sub === "clear") {
         const count = sessionAllowedDirectories.size;
         sessionAllowedDirectories.clear();
-        ctx.ui.notify(`Se han revocado ${count} autorizaciones de sesión.`, "info");
+        ctx.ui.notify(`Revoked ${count} session directory authorization(s).`, "info");
         return;
       }
 
       if (sessionAllowedDirectories.size === 0) {
-        ctx.ui.notify("No hay carpetas externas autorizadas para esta sesión.", "info");
+        ctx.ui.notify("No external directories are authorized for this session.", "info");
         return;
       }
 
-      const lines = ["📂 CARPETAS EXTERNAS AUTORIZADAS PARA ESTA SESIÓN:"];
+      const lines = ["📂 AUTHORIZED EXTERNAL DIRECTORIES FOR THIS SESSION:"];
       for (const dir of sessionAllowedDirectories) {
-        lines.push(`• ${dir} (y subcarpetas)`);
+        lines.push(`• ${dir} (and subdirectories)`);
       }
-      lines.push("\nUsa '/permissions clear' para revocar todas las autorizaciones.");
+      lines.push("\nUse '/permissions clear' to revoke all authorizations.");
       ctx.ui.notify(lines.join("\n"), "info");
     },
   });

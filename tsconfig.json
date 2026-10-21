@@ -8,8 +8,11 @@
     "noImplicitAny": false,
     "strict": false
   },
+  "include": [
+    "pi-tui-plus/src/**/*"
+  ],
   "exclude": [
     "node_modules",
-    "harnesses/pi/agent/extensions"
+    "harnesses"
   ]
 }

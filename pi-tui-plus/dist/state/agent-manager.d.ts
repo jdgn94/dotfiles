@@ -105,6 +105,7 @@ export declare class AgentManager {
     compact(): Promise<void>;
     checkContextThresholds(): Promise<void>;
     showCostBreakdown(): void;
+    showHelpMessage(): void;
     abort(): Promise<void>;
     private handleSessionEvent;
     private loadHistory;

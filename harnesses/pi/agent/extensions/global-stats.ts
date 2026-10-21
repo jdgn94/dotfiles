@@ -28,7 +28,9 @@ function loadGlobalStats(): GlobalStatsData {
       const raw = fs.readFileSync(STATS_FILE_PATH, "utf8");
       return JSON.parse(raw);
     }
-  } catch {}
+  } catch (err) {
+    void err;
+  }
   return {
     firstSeenDate: new Date().toISOString(),
     activeDates: [getTodayString()],
@@ -48,7 +50,9 @@ function saveGlobalStats(data: GlobalStatsData): void {
     const dir = path.dirname(STATS_FILE_PATH);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(STATS_FILE_PATH, JSON.stringify(data, null, 2), "utf8");
-  } catch {}
+  } catch (err) {
+    void err;
+  }
 }
 
 export default function (pi: ExtensionAPI) {
@@ -106,16 +110,16 @@ export default function (pi: ExtensionAPI) {
       "╔══════════════════════════════════════════════════════════════════════╗",
       "║                 📊 PI CODING AGENT GLOBAL STATUS                     ║",
       "╠══════════════════════════════════════════════════════════════════════╣",
-      `║ 📅 Primer uso: ${firstDate.padEnd(20)} │ ⏱️ Días activos: ${String(totalDays).padEnd(16)}║`,
-      `║ 🚀 Sesiones: ${String(stats.totalSessions).padEnd(22)} │ 🔄 Turnos totales: ${String(stats.totalTurns).padEnd(14)}║`,
+      `║ 📅 First seen : ${firstDate.padEnd(20)} │ ⏱️ Active days : ${String(totalDays).padEnd(16)}║`,
+      `║ 🚀 Sessions   : ${String(stats.totalSessions).padEnd(20)} │ 🔄 Total turns : ${String(stats.totalTurns).padEnd(16)}║`,
       "╠──────────────────────────────────────────────────────────────────────╣",
-      "║ 🧠 CONSUMO DE CONTEXTO Y TOKENS                                      ║",
-      `║ • Tokens de Entrada : ${String(stats.totalInputTokens.toLocaleString()).padEnd(46)}║`,
-      `║ • Tokens de Salida  : ${String(stats.totalOutputTokens.toLocaleString()).padEnd(46)}║`,
-      `║ • Aciertos de Caché : ${String(stats.totalCacheHits.toLocaleString()).padEnd(46)}║`,
-      `║ • Ratio de Ahorro   : ${cacheSavingsRatio}% de contexto reciclado`.padEnd(71) + "║",
+      "║ 🧠 CONTEXT & TOKEN CONSUMPTION                                       ║",
+      `║ • Input Tokens   : ${String(stats.totalInputTokens.toLocaleString()).padEnd(50)}║`,
+      `║ • Output Tokens  : ${String(stats.totalOutputTokens.toLocaleString()).padEnd(50)}║`,
+      `║ • Cache Hits     : ${String(stats.totalCacheHits.toLocaleString()).padEnd(50)}║`,
+      `║ • Cache Savings  : ${cacheSavingsRatio}% recycled context`.padEnd(71) + "║",
       "╠──────────────────────────────────────────────────────────────────────╣",
-      "║ 🛠️ HERRAMIENTAS MÁS UTILIZADAS                                       ║",
+      "║ 🛠️ MOST FREQUENT TOOLS                                                ║",
       `║ ${topTools.slice(0, 68).padEnd(68)} ║`,
       "╚══════════════════════════════════════════════════════════════════════╝",
     ];
@@ -124,12 +128,12 @@ export default function (pi: ExtensionAPI) {
   };
 
   pi.registerCommand("status", {
-    description: "Mostrar métricas globales y estado del harness (similar a /status)",
+    description: "Show global metrics and session status",
     handler: statusHandler,
   });
 
   pi.registerCommand("stats", {
-    description: "Mostrar estadísticas globales acumulativas de Pi",
+    description: "Show cumulative global Pi statistics",
     handler: statusHandler,
   });
 }

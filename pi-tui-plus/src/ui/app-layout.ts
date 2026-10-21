@@ -134,13 +134,18 @@ export class AppLayout implements Component, Focusable {
         this.tui.requestRender();
         return;
       }
+      if (trimmed === "/help") {
+        this.agent.showHelpMessage();
+        this.tui.requestRender();
+        return;
+      }
       if (trimmed === "/mcp") {
         this.sidebar.toggleMcp();
         this.tui.requestRender();
       } else if (trimmed === "/skills") {
         this.sidebar.toggleSkills();
         this.tui.requestRender();
-      } else if (trimmed === "/todos") {
+      } else if (trimmed === "/todos" || trimmed === "/plan") {
         this.sidebar.togglePlan();
         this.tui.requestRender();
         return;
