@@ -9,7 +9,7 @@ Enforce disciplined, automated test verification by writing minimal failing asse
 
 ## Overview
 
-Prevent hallucinated implementations, regression bugs, and scope creep by strictly adhering to the Red-Green-Refactor cycle. Every behavioral change must begin with an automated test demonstrating the required behavior or reproducing the reported bug.
+Prevent hallucinated implementations, regression bugs, and scope creep by strictly adhering to the Red-Green-Refactor cycle. Every behavioral change must begin with an automated test demonstrating the required behavior or reproducing the reported bug. Pair with `minimal-change-discipline` so the GREEN phase stays truly minimal.
 
 ## When to Use
 

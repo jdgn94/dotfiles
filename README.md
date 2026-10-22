@@ -139,6 +139,7 @@ Configured across all harnesses (`pi`, `claude`, `opencode`, `antigravity`):
 
 ## 🧠 Shared Canonical Skills (`shared/skills/`)
 
+- **`minimal-change-discipline`**: Think the change through before editing and apply the smallest sufficient change (anti-over-engineering guard).
 - **`tdd-agent-workflow`**: Strict Red-Green-Refactor test-driven development cycle.
 - **`conventional-git-flow`**: Standardized branch naming (`feat/`, `fix/`), semantic commits, and pull request summaries.
 - **`dependency-guard`**: Evaluation standard before adding third-party libraries (prioritizes native APIs, audits maintenance and bundle size).

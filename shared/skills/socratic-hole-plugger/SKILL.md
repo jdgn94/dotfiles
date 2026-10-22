@@ -9,7 +9,7 @@ Disrupt linear thinking and surface hidden assumptions, critical failure modes, 
 
 ## Overview
 
-Software bugs and rework stem from unexamined assumptions: assumed network availability, unhandled concurrent access, invisible error states, or unbounded inputs. The Socratic Hole Plugger acts as an adversarial thinking partner that interrogates the problem space from divergent angles, forcing clarity and closing loopholes upfront.
+Software bugs and rework stem from unexamined assumptions: assumed network availability, unhandled concurrent access, invisible error states, or unbounded inputs. The Socratic Hole Plugger acts as an adversarial thinking partner that interrogates the problem space from divergent angles, forcing clarity and closing loopholes upfront. Once the decisions are settled, apply `minimal-change-discipline` to implement only what was agreed.
 
 ## When to Use
 
