@@ -295,7 +295,9 @@ export class AppLayout {
         if (col > chatWidth) {
             // Header takes rows 0 and 1, so sidebar row 0 is at screen row 2
             const sidebarRowIndex = row - 2;
-            const action = this.sidebar.handleClick(sidebarRowIndex);
+            const action = this.sidebar.handleClick(sidebarRowIndex) ||
+                this.sidebar.handleClick(sidebarRowIndex - 1) ||
+                this.sidebar.handleClick(sidebarRowIndex + 1);
             if (action) {
                 if (action.type === "toggle_plan") {
                     this.sidebar.togglePlan();
@@ -603,7 +605,9 @@ export class AppLayout {
                 const chatWidth = termWidth - sbWidth - 1;
                 if (col > chatWidth) {
                     const sidebarRowIndex = row - 3;
-                    const action = this.sidebar.handleClick(sidebarRowIndex);
+                    const action = this.sidebar.handleClick(sidebarRowIndex) ||
+                        this.sidebar.handleClick(sidebarRowIndex + 1) ||
+                        this.sidebar.handleClick(sidebarRowIndex - 1);
                     if (action) {
                         if (action.type === "toggle_plan") {
                             this.sidebar.togglePlan();

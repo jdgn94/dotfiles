@@ -257,16 +257,18 @@ export class Sidebar implements Component {
       const planArrow = this.planExpanded ? "▼" : "▶";
 
       lines.push(style("─".repeat(safeWidth), colors.border));
+      this.clickMap.set(lines.length - 1, { type: "toggle_plan" });
+
       const planHeader = ` ${style(planArrow, colors.warning)} ${style(
         "Plan & Tasks",
         colors.bold,
         colors.warning
       )} ${style(`(${summary.completed}/${summary.total})`, colors.bold, colors.text)}`;
-      const planHint = style("[Ctrl+Y]", colors.muted);
+      const planHint = style(this.planExpanded ? "[collapse]" : "[expand]", colors.muted);
       lines.push(this.spaceBetween(planHeader, planHint + " ", safeWidth));
       this.clickMap.set(lines.length - 1, { type: "toggle_plan" });
 
-      // 1. Current active task ("por cual tarea va")
+      // 1. Current active task
       const activeTask =
         tasks.find((t) => t.status === "in_progress") ||
         tasks.find((t) => t.status === "pending") ||
@@ -279,9 +281,10 @@ export class Sidebar implements Component {
             colors.warning
           )} ${style(truncate(activeTask.text, safeWidth - 20), colors.bold, colors.text)}`
         );
+        this.clickMap.set(lines.length - 1, { type: "toggle_plan" });
       }
 
-      // 2. Progress summary ("cuantas son y cuales ha terminado")
+      // 2. Progress summary
       const pct = Math.round((summary.completed / Math.max(1, summary.total)) * 100);
       lines.push(
         `  ${style("Progress:", colors.muted)} ${style(
@@ -289,6 +292,7 @@ export class Sidebar implements Component {
           colors.success
         )} · ${style(`${summary.total} total`, colors.text)} ${style(`(${pct}%)`, colors.accent)}`
       );
+      this.clickMap.set(lines.length - 1, { type: "toggle_plan" });
 
       // 3. Full list when expanded
       if (this.planExpanded) {
@@ -307,13 +311,16 @@ export class Sidebar implements Component {
           }
 
           lines.push(`   ${icon} #${t.id} ${style(truncate(t.text, safeWidth - 14), textColor)}`);
+          this.clickMap.set(lines.length - 1, { type: "toggle_plan" });
         }
         if (tasks.length > 8) {
           lines.push(style(`   ... and ${tasks.length - 8} more tasks`, colors.muted));
+          this.clickMap.set(lines.length - 1, { type: "toggle_plan" });
         }
       }
     } else {
       lines.push(style("─".repeat(safeWidth), colors.border));
+      this.clickMap.set(lines.length - 1, { type: "toggle_plan" });
       lines.push(
         ` ${style("▶", colors.muted)} ${style("Plan & Tasks", colors.bold, colors.muted)} ${style(
           "(no active plan)",
@@ -325,44 +332,53 @@ export class Sidebar implements Component {
 
     // --- 8. COLLAPSIBLE MCP SERVERS SECTION ---
     lines.push(style("─".repeat(safeWidth), colors.border));
+    this.clickMap.set(lines.length - 1, { type: "toggle_mcp" });
+
     const mcpServers = this.agent.getMcpServers();
     const mcpCount = mcpServers.length;
     const mcpArrow = this.mcpExpanded ? "▼" : "▶";
     const mcpHeader = ` ${style(mcpArrow, colors.accent)} ${style("MCP Servers", colors.bold, colors.primary)} ${style(`(${mcpCount})`, colors.muted)}`;
-    const mcpHint = style("[F3 / Alt+M]", colors.muted);
+    const mcpHint = style(this.mcpExpanded ? "[collapse]" : "[expand]", colors.muted);
     lines.push(this.spaceBetween(mcpHeader, mcpHint + " ", safeWidth));
     this.clickMap.set(lines.length - 1, { type: "toggle_mcp" });
 
     if (this.mcpExpanded) {
       if (mcpServers.length === 0) {
         lines.push(style("   (no active MCP servers)", colors.muted));
+        this.clickMap.set(lines.length - 1, { type: "toggle_mcp" });
       } else {
         for (const server of mcpServers) {
           lines.push(`   ${style("•", colors.accent)} ${style(server, colors.text)}`);
+          this.clickMap.set(lines.length - 1, { type: "toggle_mcp" });
         }
       }
     }
-    lines.push(style("─".repeat(safeWidth), colors.border));
 
-    // --- 8. COLLAPSIBLE SKILLS SECTION ---
+    // --- 9. COLLAPSIBLE SKILLS SECTION ---
+    lines.push(style("─".repeat(safeWidth), colors.border));
+    this.clickMap.set(lines.length - 1, { type: "toggle_skills" });
+
     const skills = this.agent.getSkills();
     const skillsCount = skills.length;
     const skillsArrow = this.skillsExpanded ? "▼" : "▶";
     const skillsHeader = ` ${style(skillsArrow, colors.secondary)} ${style("Skills", colors.bold, colors.secondary)} ${style(`(${skillsCount})`, colors.muted)}`;
-    const skillsHint = style("[F4 / Alt+S]", colors.muted);
+    const skillsHint = style(this.skillsExpanded ? "[collapse]" : "[expand]", colors.muted);
     lines.push(this.spaceBetween(skillsHeader, skillsHint + " ", safeWidth));
     this.clickMap.set(lines.length - 1, { type: "toggle_skills" });
 
     if (this.skillsExpanded) {
       if (skills.length === 0) {
         lines.push(style("   (no skills installed)", colors.muted));
+        this.clickMap.set(lines.length - 1, { type: "toggle_skills" });
       } else {
         const displaySkills = skills.slice(0, 10);
         for (const s of displaySkills) {
           lines.push(`   ${style("•", colors.secondary)} ${style(s.name, colors.text)}`);
+          this.clickMap.set(lines.length - 1, { type: "toggle_skills" });
         }
         if (skills.length > 10) {
           lines.push(style(`   ... and ${skills.length - 10} more skills`, colors.muted));
+          this.clickMap.set(lines.length - 1, { type: "toggle_skills" });
         }
       }
     }

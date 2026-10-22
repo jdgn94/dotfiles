@@ -114,7 +114,11 @@ export class ChatView implements Component {
           this.renderBox(allLines, "Assistant", msg.text, colors.secondary, safeWidth);
         }
       } else if (msg.role === "system") {
-        this.renderBox(allLines, "System", msg.text, colors.warning, safeWidth);
+        if (msg.text.startsWith("📝 ")) {
+          this.renderBox(allLines, "Git File Change", msg.text, colors.peach, safeWidth);
+        } else {
+          this.renderBox(allLines, "System", msg.text, colors.warning, safeWidth);
+        }
       }
       allLines.push("");
     }
@@ -189,6 +193,24 @@ export class ChatView implements Component {
             borderColor
           )}`
         );
+        continue;
+      }
+
+      if (rawLine.includes("(+") && rawLine.includes("/ -")) {
+        const coloredLine = rawLine
+          .replace(/(\+\d+)/g, style("$1", colors.bold, colors.success))
+          .replace(/(-\d+)/g, style("$1", colors.bold, colors.error));
+        const wrapped = this.wrapText(coloredLine, innerWidth);
+        for (const w of wrapped) {
+          const paddingDiff = innerWidth - this.visualLength(w);
+          const pad = paddingDiff > 0 ? " ".repeat(paddingDiff) : "";
+          target.push(
+            `${style(verticalChar + " ", borderColor)}${w}${pad}${style(
+              " " + verticalChar,
+              borderColor
+            )}`
+          );
+        }
         continue;
       }
 

@@ -1,4 +1,4 @@
-import { exec } from "node:child_process";
+import { exec, execSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -1072,6 +1072,45 @@ Keyboard Shortcuts:
         if (event.toolName === "todo" && this.todoTracker) {
           this.todoTracker.handleToolCall(event.args);
         }
+
+        // Emit colored git diff summary when files are edited or written
+        if ((event.toolName === "edit" || event.toolName === "write") && !event.isError) {
+          try {
+            const rawPath = String(event.args?.path || "");
+            if (rawPath) {
+              const relPath = path.relative(this.cwd, path.resolve(this.cwd, rawPath));
+              let numstat = "";
+              try {
+                const statOut = execSync(`git diff --numstat -- "${relPath}"`, {
+                  cwd: this.cwd,
+                  encoding: "utf8",
+                  stdio: ["ignore", "pipe", "ignore"],
+                }).trim();
+                if (statOut) {
+                  const parts = statOut.split(/\s+/);
+                  if (parts.length >= 2) {
+                    const adds = parseInt(parts[0], 10) || 0;
+                    const dels = parseInt(parts[1], 10) || 0;
+                    numstat = ` (+${adds} / -${dels})`;
+                  }
+                }
+              } catch (gitErr) {
+                void gitErr;
+              }
+
+              const actionName = event.toolName === "write" ? "File Written" : "File Modified";
+              this.messages.push({
+                id: "file-diff-" + Date.now(),
+                role: "system",
+                text: `📝 ${actionName}: ${relPath}${numstat}\n(Press Alt+D or click file in sidebar to view full diff)`,
+                timestamp: Date.now(),
+              });
+            }
+          } catch (fileErr) {
+            void fileErr;
+          }
+        }
+
         this.currentStatus = `Tool completed (${event.toolName})`;
         this.gitWatcher.refresh().catch(() => {});
         this.notify();
