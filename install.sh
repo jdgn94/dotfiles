@@ -122,6 +122,8 @@ if [ "$HAS_PI" = true ]; then
   PI_DIR="$HOME_DIR/.pi/agent"
   mkdir -p "$PI_DIR/agents" "$PI_DIR/extensions" "$PI_DIR/npm" "$PI_DIR/pi-subagents" "$PI_DIR/skills"
 
+  link_or_copy "$HOME_DIR/.agents/AGENTS.md" "$PI_DIR/AGENTS.md"
+
   cp "$DOTS_DIR/harnesses/pi/agent/settings.json" "$PI_DIR/settings.json"
   [ -f "$DOTS_DIR/harnesses/pi/agent/mcp.json" ] && cp "$DOTS_DIR/harnesses/pi/agent/mcp.json" "$PI_DIR/mcp.json"
   [ -f "$DOTS_DIR/harnesses/pi/agent/pi-slate.json" ] && cp "$DOTS_DIR/harnesses/pi/agent/pi-slate.json" "$PI_DIR/pi-slate.json"
@@ -163,7 +165,7 @@ fi
 if [ "$HAS_CLAUDE" = true ]; then
   log_info "Deploying Claude Code configuration..."
   CLAUDE_DIR="$HOME_DIR/.claude"
-  mkdir -p "$CLAUDE_DIR/hooks" "$CLAUDE_DIR/skills"
+  mkdir -p "$CLAUDE_DIR/hooks" "$CLAUDE_DIR/skills" "$CLAUDE_DIR/rules"
 
   if [ -f "$DOTS_DIR/harnesses/claude/settings.json" ]; then
     if [ ! -f "$CLAUDE_DIR/settings.json" ]; then
@@ -176,10 +178,36 @@ if [ "$HAS_CLAUDE" = true ]; then
     chmod +x "$CLAUDE_DIR/hooks/"*.sh 2>/dev/null || true
   fi
 
-  if [ -f "$DOTS_DIR/harnesses/claude/CLAUDE.md" ]; then
-    cp "$DOTS_DIR/harnesses/claude/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
-  else
-    printf '# Global Claude Instructions\nImporting common rules and instructions from dotsfiles:\n@%s\n' "$AGENTS_MD" > "$CLAUDE_DIR/CLAUDE.md"
+  # Claude reads AGENTS.md, not CLAUDE.md.
+  cp "$DOTS_DIR/harnesses/claude/AGENTS.md" "$CLAUDE_DIR/AGENTS.md"
+  link_or_copy "$CLAUDE_DIR/AGENTS.md" "$CLAUDE_DIR/rules/AGENTS.md"
+  rm -f "$CLAUDE_DIR/CLAUDE.md"
+
+  # Load project AGENTS.md (even beside CLAUDE.md) and ignore CLAUDE.md files.
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$CLAUDE_DIR/settings.json" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+try:
+    with open(path) as handle:
+        settings = json.load(handle)
+except FileNotFoundError:
+    settings = {}
+
+plugin = settings.setdefault("pluginConfigs", {}).setdefault("cc-plugin-agents-md@builtin", {})
+plugin.setdefault("options", {})["instructionFiles"] = "claude-md-and-agents-md"
+
+excludes = settings.setdefault("claudeMdExcludes", [])
+for pattern in ("**/CLAUDE.md", "**/CLAUDE.local.md"):
+    if pattern not in excludes:
+        excludes.append(pattern)
+
+with open(path, "w") as handle:
+    json.dump(settings, handle, indent=2, ensure_ascii=False)
+    handle.write("\n")
+PY
   fi
 
   claude mcp add -s user playwright -- npx -y @playwright/mcp@latest --headless 2>/dev/null || true
@@ -216,6 +244,13 @@ if [ "$HAS_HERMES" = true ]; then
   if [ ! -f "$HERMES_DIR/config.yaml" ] && [ -f "$DOTS_DIR/harnesses/hermes/config.yaml" ]; then
     cp "$DOTS_DIR/harnesses/hermes/config.yaml" "$HERMES_DIR/config.yaml"
   fi
+
+  # Hermes injects SOUL.md globally every turn; point it at the canonical rules.
+  HERMES_SOUL="$HERMES_DIR/SOUL.md"
+  if ! grep -q "dotsfiles:begin" "$HERMES_SOUL" 2>/dev/null; then
+    printf '\n<!-- dotsfiles:begin -->\nMachine-wide rules: read and follow `%s` before any non-trivial task.\n<!-- dotsfiles:end -->\n' \
+      "$HOME_DIR/.agents/AGENTS.md" >> "$HERMES_SOUL"
+  fi
 else
   log_info "Hermes Agent not installed; skipping Hermes configuration."
 fi
@@ -226,6 +261,11 @@ if [ "$HAS_ANTIGRAVITY" = true ]; then
   GEMINI_CONFIG="$HOME_DIR/.gemini/config"
   GEMINI_AGY="$HOME_DIR/.gemini/antigravity-cli"
   mkdir -p "$GEMINI_CONFIG/skills" "$GEMINI_CONFIG/hooks" "$GEMINI_AGY/skills"
+
+  # Antigravity discovers global rules in ~/.gemini and ~/.gemini/config;
+  # it deduplicates by resolved file, so linking both is safe.
+  link_or_copy "$HOME_DIR/.agents/AGENTS.md" "$GEMINI_CONFIG/AGENTS.md"
+  link_or_copy "$HOME_DIR/.agents/AGENTS.md" "$HOME_DIR/.gemini/AGENTS.md"
 
   if [ ! -f "$GEMINI_CONFIG/mcp_config.json" ] && [ -f "$DOTS_DIR/harnesses/antigravity/mcp_config.json" ]; then
     cp "$DOTS_DIR/harnesses/antigravity/mcp_config.json" "$GEMINI_CONFIG/mcp_config.json"

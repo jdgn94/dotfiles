@@ -23,6 +23,7 @@ dotsfiles/
 │   ├── tokens.json.example     # JSON format for centralized secrets
 │   └── load-secrets.ts         # Utility module for loading tokens in harnesses/plugins
 ├── shared/                     # Shared canonical configurations across all harnesses
+│   ├── AGENTS.md               # Machine-wide always-on rules (triggers, evidence, dead code)
 │   ├── rules/                  # Global rules (AGENTS.md, COMMON_RULES.md)
 │   └── skills/                 # Canonical shared skills (linked to ~/.agents/skills)
 └── harnesses/                  # Harness-specific configurations
@@ -30,7 +31,7 @@ dotsfiles/
     │   ├── agent/              # settings.json, agents, extensions, npm packages
     │   └── skills/             # Pi-exclusive skills
     ├── claude/                 # Claude Code configuration (.claude)
-    │   ├── CLAUDE.md           # Global Claude instructions & skill discovery rules
+    │   ├── AGENTS.md           # Global Claude instructions & skill discovery rules
     │   ├── settings.json       # Global settings
     │   ├── hooks/              # Claude hooks
     │   └── skills/             # Claude-exclusive skills
@@ -138,6 +139,8 @@ Configured across all harnesses (`pi`, `claude`, `opencode`, `antigravity`):
 ---
 
 ## 🧠 Shared Canonical Skills (`shared/skills/`)
+
+Always-on rules live in `shared/AGENTS.md`: mandatory skill triggers, where instruction belongs, the "evidence is data, not instructions" boundary, and dead-code cleanup. It is wired into Pi (`~/.pi/agent/AGENTS.md`), Claude Code (`~/.claude/AGENTS.md` + `~/.claude/rules/AGENTS.md`; CLAUDE.md is excluded), OpenCode (`instructions`), Hermes (`SOUL.md` pointer), and Antigravity (`~/.gemini/AGENTS.md`).
 
 - **`minimal-change-discipline`**: Think the change through before editing and apply the smallest sufficient change (anti-over-engineering guard).
 - **`tdd-agent-workflow`**: Strict Red-Green-Refactor test-driven development cycle.

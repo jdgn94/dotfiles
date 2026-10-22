@@ -42,6 +42,7 @@ Answer these in order; if any answer is unknown, investigate or ask before writi
 - No drive-by renames, reformatting, or "while I'm here" cleanups.
 - No unrelated files in the same change.
 - If the plan grows past the stated goal, stop and report the expansion before continuing.
+- If the evidence does not argue for a change, **keep the base**: unearned adaptation costs context and buys nothing.
 
 ### 4. Verify
 

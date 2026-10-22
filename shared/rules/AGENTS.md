@@ -4,6 +4,8 @@ Global rules for keeping skills and plugins available across every AI coding age
 
 This directory is a version-controlled dotfiles repo (see `README.md`). `~/.agents` is a symlink pointing here, so every `~/.agents/...` path below resolves to this repository. Machine-local state (`.parity-manifest.json`, `.skill-lock.json`) is git-ignored and regenerated per machine by `install.sh`.
 
+Always-on rules (skill triggers, instruction placement, evidence boundary) live one level up in `~/.agents/AGENTS.md`; this file defines the parity procedure those rules invoke.
+
 ## Rule
 
 When installing OR creating ANY skill or plugin GLOBALLY, regardless of which agent the request originates from, you MUST ensure parity across every configured agent. Never install globally for a single agent alone.

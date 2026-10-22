@@ -1,8 +1,9 @@
 # Global Claude Code Instructions & Skills Directives
 
 Importing shared cross-agent rules and parity standards:
-@/home/juan/.agents/rules/AGENTS.md
-@/home/juan/.agents/rules/COMMON_RULES.md
+@~/.agents/AGENTS.md
+@~/.agents/rules/AGENTS.md
+@~/.agents/rules/COMMON_RULES.md
 
 ## 🧠 Skills Integration: Read First, Standard Paths Only
 

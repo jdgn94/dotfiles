@@ -21,6 +21,21 @@ Universal quality standard for authoring, maintaining, and modularizing skills a
    - Reference files cost zero context tokens until specifically requested via progressive disclosure (`skill_view(name, path)`).
 4. **Scope Boundaries**: If a workflow spans multiple distinct operational domains, decompose it into smaller composable companion skills and cross-reference them by name.
 
+## Placement Ladder: Where Instruction Belongs
+
+Always-on text is the expensive form: it ships on every run and competes with the agent's output budget. Prefer, in this order:
+
+1. **Skill** — instruction with a recognizable trigger (a procedure, a format, a recurring situation). This is the default form for new instruction.
+2. **Script** — a deterministic operation that was hand-rolled slowly or wrongly.
+3. **Subagent** — a bounded investigation whose input is large and whose answer is small; a bad trade when the output is as large as the input.
+4. **Plugin / hook** — enforcement that must not be skippable, or behavior that acts inside the tool loop.
+5. **Always-on text** (`AGENTS.md`, project rules) — last, and only for a short rule that applies to every run. Add a line only by cutting another.
+
+Hard rules:
+
+- **Trigger line**: a skill nobody names is never opened. When you create a skill, name it verbatim in the always-on text in the same change: `When <situation>, load the <name> skill.`
+- **Helpers travel with their skill**: put scripts in `<skill-dir>/scripts/`, never loose in the skill directory.
+
 ## Standard Skill Structure
 
 Every skill directory must follow this directory layout:

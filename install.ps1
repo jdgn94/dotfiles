@@ -125,6 +125,8 @@ if ($HasPi) {
     New-Item -ItemType Directory -Path (Join-Path $PiAgentDir "pi-subagents") -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $PiAgentDir "skills") -Force | Out-Null
 
+    Copy-Item -Path (Join-Path $AgentsTarget "AGENTS.md") -Destination (Join-Path $PiAgentDir "AGENTS.md") -Force
+
     Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "pi" "agent" "settings.json") -Destination (Join-Path $PiAgentDir "settings.json") -Force
     if (Test-Path (Join-Path $DOTS_DIR "harnesses" "pi" "agent" "mcp.json")) {
         Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "pi" "agent" "mcp.json") -Destination (Join-Path $PiAgentDir "mcp.json") -Force
@@ -196,18 +198,35 @@ if ($HasClaude) {
         Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "claude" "settings.json") -Destination (Join-Path $ClaudeDir "settings.json")
     }
 
-    $ClaudeMdSrc = Join-Path $DOTS_DIR "harnesses" "claude" "CLAUDE.md"
-    if (Test-Path $ClaudeMdSrc) {
-        Copy-Item -Path $ClaudeMdSrc -Destination (Join-Path $ClaudeDir "CLAUDE.md") -Force
-    } else {
-        $AgentsMdPath = (Join-Path $AgentsTarget "rules" "AGENTS.md").Replace('\', '/')
-        $ClaudeMdContent = @"
-# Global Claude Instructions
-Importing common rules and instructions from dotsfiles:
-@$AgentsMdPath
-"@
-        Set-Content -Path (Join-Path $ClaudeDir "CLAUDE.md") -Value $ClaudeMdContent -Encoding UTF8
+    New-Item -ItemType Directory -Path (Join-Path $ClaudeDir "rules") -Force | Out-Null
+    Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "claude" "AGENTS.md") -Destination (Join-Path $ClaudeDir "AGENTS.md") -Force
+    Link-OrCopy -Source (Join-Path $ClaudeDir "AGENTS.md") -Destination (Join-Path $ClaudeDir "rules" "AGENTS.md")
+    Remove-Item -Path (Join-Path $ClaudeDir "CLAUDE.md") -Force -ErrorAction SilentlyContinue
+
+    # Load project AGENTS.md (even beside CLAUDE.md) and ignore CLAUDE.md files.
+    $ClaudeSettingsPath = Join-Path $ClaudeDir "settings.json"
+    if (-not (Test-Path $ClaudeSettingsPath)) {
+        Set-Content -Path $ClaudeSettingsPath -Value "{}" -Encoding UTF8
     }
+    $ClaudeSettings = Get-Content -Raw -Path $ClaudeSettingsPath | ConvertFrom-Json
+    if ($null -eq $ClaudeSettings.pluginConfigs) {
+        $ClaudeSettings | Add-Member -NotePropertyName pluginConfigs -NotePropertyValue ([pscustomobject]@{}) -Force
+    }
+    $PluginKey = "cc-plugin-agents-md@builtin"
+    if ($null -eq $ClaudeSettings.pluginConfigs.$PluginKey) {
+        $ClaudeSettings.pluginConfigs | Add-Member -NotePropertyName $PluginKey -NotePropertyValue ([pscustomobject]@{}) -Force
+    }
+    $AgentPlugin = $ClaudeSettings.pluginConfigs.$PluginKey
+    if ($null -eq $AgentPlugin.options) {
+        $AgentPlugin | Add-Member -NotePropertyName options -NotePropertyValue ([pscustomobject]@{}) -Force
+    }
+    $AgentPlugin.options | Add-Member -NotePropertyName instructionFiles -NotePropertyValue "claude-md-and-agents-md" -Force
+    $ClaudeExcludes = @($ClaudeSettings.claudeMdExcludes) | Where-Object { $_ }
+    foreach ($Pattern in @("**/CLAUDE.md", "**/CLAUDE.local.md")) {
+        if ($ClaudeExcludes -notcontains $Pattern) { $ClaudeExcludes += $Pattern }
+    }
+    $ClaudeSettings | Add-Member -NotePropertyName claudeMdExcludes -NotePropertyValue $ClaudeExcludes -Force
+    $ClaudeSettings | ConvertTo-Json -Depth 100 | Set-Content -Path $ClaudeSettingsPath -Encoding UTF8
 
     claude mcp add -s user playwright -- npx -y @playwright/mcp@latest --headless 2>$null
     claude mcp add -s user memory -- npx -y @modelcontextprotocol/server-memory 2>$null
@@ -249,6 +268,14 @@ if ($HasHermes) {
     if (-not (Test-Path (Join-Path $HermesDir "config.yaml")) -and (Test-Path (Join-Path $DOTS_DIR "harnesses" "hermes" "config.yaml"))) {
         Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "hermes" "config.yaml") -Destination (Join-Path $HermesDir "config.yaml")
     }
+
+    # Hermes injects SOUL.md globally every turn; point it at the canonical rules.
+    $HermesSoul = Join-Path $HermesDir "SOUL.md"
+    $SoulHasBlock = (Test-Path $HermesSoul) -and (Select-String -Path $HermesSoul -SimpleMatch "dotsfiles:begin" -Quiet)
+    if (-not $SoulHasBlock) {
+        $AgentsMdWin = (Join-Path $AgentsTarget "AGENTS.md").Replace('\', '/')
+        Add-Content -Path $HermesSoul -Value "`n<!-- dotsfiles:begin -->`nMachine-wide rules: read and follow $AgentsMdWin before any non-trivial task.`n<!-- dotsfiles:end -->" -Encoding UTF8
+    }
 } else {
     Write-Info "Hermes Agent not installed; skipping Hermes configuration."
 }
@@ -261,6 +288,10 @@ if ($HasAntigravity) {
     New-Item -ItemType Directory -Path (Join-Path $GeminiConfig "skills") -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $GeminiConfig "hooks") -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $GeminiAgy "skills") -Force | Out-Null
+
+    # Antigravity discovers global rules in ~/.gemini and ~/.gemini/config.
+    Copy-Item -Path (Join-Path $AgentsTarget "AGENTS.md") -Destination (Join-Path $GeminiConfig "AGENTS.md") -Force
+    Copy-Item -Path (Join-Path $AgentsTarget "AGENTS.md") -Destination (Join-Path $USER_HOME ".gemini" "AGENTS.md") -Force
 
     if (-not (Test-Path (Join-Path $GeminiConfig "mcp_config.json")) -and (Test-Path (Join-Path $DOTS_DIR "harnesses" "antigravity" "mcp_config.json"))) {
         Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "antigravity" "mcp_config.json") -Destination (Join-Path $GeminiConfig "mcp_config.json")
