@@ -52,7 +52,7 @@ When the user asks to install a skill, MCP server, or plugin (or asks you to che
 ## How the rule reaches each agent
 
 - opencode: `instructions` entry in `~/.config/opencode/opencode.jsonc` plus a pointer in `~/.config/opencode/AGENTS.md`.
-- claude-code: `@/home/juan/.agents/AGENTS.md` import in `~/.claude/CLAUDE.md`.
+- claude-code: `~/.claude/AGENTS.md` imports `~/.agents/AGENTS.md`, and `~/.claude/rules/AGENTS.md` points to the same file; `CLAUDE.md` is excluded.
 - hermes-agent: delivered via the `cross-agent-parity` skill symlinked into `~/.hermes/skills/`.
 - antigravity: delivered via the `cross-agent-parity` skill symlinked into `~/.gemini/config/skills/`.
 - antigravity-cli: delivered via the `cross-agent-parity` skill symlinked into `~/.gemini/antigravity-cli/skills/`.
