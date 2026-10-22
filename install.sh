@@ -178,12 +178,12 @@ if [ "$HAS_CLAUDE" = true ]; then
     chmod +x "$CLAUDE_DIR/hooks/"*.sh 2>/dev/null || true
   fi
 
-  # Claude reads AGENTS.md, not CLAUDE.md.
+  # Claude reads AGENTS.md, and CLAUDE.md is the entrypoint that points to it.
   cp "$DOTS_DIR/harnesses/claude/AGENTS.md" "$CLAUDE_DIR/AGENTS.md"
+  cp "$DOTS_DIR/harnesses/claude/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
   link_or_copy "$CLAUDE_DIR/AGENTS.md" "$CLAUDE_DIR/rules/AGENTS.md"
-  rm -f "$CLAUDE_DIR/CLAUDE.md"
 
-  # Load project AGENTS.md (even beside CLAUDE.md) and ignore CLAUDE.md files.
+  # Load project AGENTS.md beside CLAUDE.md; CLAUDE.md stays the entrypoint.
   if command -v python3 >/dev/null 2>&1; then
     python3 - "$CLAUDE_DIR/settings.json" <<'PY'
 import json
@@ -199,10 +199,13 @@ except FileNotFoundError:
 plugin = settings.setdefault("pluginConfigs", {}).setdefault("cc-plugin-agents-md@builtin", {})
 plugin.setdefault("options", {})["instructionFiles"] = "claude-md-and-agents-md"
 
-excludes = settings.setdefault("claudeMdExcludes", [])
-for pattern in ("**/CLAUDE.md", "**/CLAUDE.local.md"):
-    if pattern not in excludes:
-        excludes.append(pattern)
+excludes = settings.get("claudeMdExcludes")
+if isinstance(excludes, list):
+    for pattern in ("**/CLAUDE.md", "**/CLAUDE.local.md"):
+        while pattern in excludes:
+            excludes.remove(pattern)
+    if not excludes:
+        settings.pop("claudeMdExcludes", None)
 
 with open(path, "w") as handle:
     json.dump(settings, handle, indent=2, ensure_ascii=False)

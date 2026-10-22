@@ -200,10 +200,10 @@ if ($HasClaude) {
 
     New-Item -ItemType Directory -Path (Join-Path $ClaudeDir "rules") -Force | Out-Null
     Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "claude" "AGENTS.md") -Destination (Join-Path $ClaudeDir "AGENTS.md") -Force
+    Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "claude" "CLAUDE.md") -Destination (Join-Path $ClaudeDir "CLAUDE.md") -Force
     Link-OrCopy -Source (Join-Path $ClaudeDir "AGENTS.md") -Destination (Join-Path $ClaudeDir "rules" "AGENTS.md")
-    Remove-Item -Path (Join-Path $ClaudeDir "CLAUDE.md") -Force -ErrorAction SilentlyContinue
 
-    # Load project AGENTS.md (even beside CLAUDE.md) and ignore CLAUDE.md files.
+    # Load project AGENTS.md beside CLAUDE.md; CLAUDE.md stays the entrypoint.
     $ClaudeSettingsPath = Join-Path $ClaudeDir "settings.json"
     if (-not (Test-Path $ClaudeSettingsPath)) {
         Set-Content -Path $ClaudeSettingsPath -Value "{}" -Encoding UTF8
@@ -221,11 +221,12 @@ if ($HasClaude) {
         $AgentPlugin | Add-Member -NotePropertyName options -NotePropertyValue ([pscustomobject]@{}) -Force
     }
     $AgentPlugin.options | Add-Member -NotePropertyName instructionFiles -NotePropertyValue "claude-md-and-agents-md" -Force
-    $ClaudeExcludes = @($ClaudeSettings.claudeMdExcludes) | Where-Object { $_ }
-    foreach ($Pattern in @("**/CLAUDE.md", "**/CLAUDE.local.md")) {
-        if ($ClaudeExcludes -notcontains $Pattern) { $ClaudeExcludes += $Pattern }
+    $ClaudeExcludes = @($ClaudeSettings.claudeMdExcludes) | Where-Object { $_ -and $_ -notin @("**/CLAUDE.md", "**/CLAUDE.local.md") }
+    if ($ClaudeExcludes.Count -gt 0) {
+        $ClaudeSettings | Add-Member -NotePropertyName claudeMdExcludes -NotePropertyValue $ClaudeExcludes -Force
+    } else {
+        $ClaudeSettings.PSObject.Properties.Remove("claudeMdExcludes")
     }
-    $ClaudeSettings | Add-Member -NotePropertyName claudeMdExcludes -NotePropertyValue $ClaudeExcludes -Force
     $ClaudeSettings | ConvertTo-Json -Depth 100 | Set-Content -Path $ClaudeSettingsPath -Encoding UTF8
 
     claude mcp add -s user playwright -- npx -y @playwright/mcp@latest --headless 2>$null
