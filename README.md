@@ -171,7 +171,7 @@ All harnesses receive the same four servers:
 | `playwright` | stdio (`@playwright/mcp`, headless) | none |
 | `browsermcp` | stdio (`@browsermcp/mcp`) | none (requires the Browser MCP Chrome extension) |
 
-The installer adds a managed `source ~/.config/dotsfiles/tokens.env` block to your shell rc so new shells and every harness inherit the Context7 key.
+The installer adds a managed `source ~/.config/dotsfiles/tokens.env` block to your shell rc so new shells and every harness inherit the Context7 key. Antigravity uses a small `mcp-remote` bridge (`scripts/context7-mcp.sh`) because its remote-header handling is inconsistent.
 
 ---
 

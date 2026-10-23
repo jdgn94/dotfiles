@@ -387,6 +387,12 @@ if [ "$HAS_ANTIGRAVITY" = true ]; then
   if [ ! -f "$GEMINI_CONFIG/mcp_config.json" ] && [ -f "$DOTS_DIR/harnesses/antigravity/mcp_config.json" ]; then
     cp "$DOTS_DIR/harnesses/antigravity/mcp_config.json" "$GEMINI_CONFIG/mcp_config.json"
   fi
+  # Antigravity's remote-header handling is inconsistent; Context7 goes through
+  # an mcp-remote bridge that reads the shared token file.
+  DOTSFILES_BIN_DIR="$HOME_DIR/.config/dotsfiles/bin"
+  mkdir -p "$DOTSFILES_BIN_DIR"
+  cp "$DOTS_DIR/scripts/context7-mcp.sh" "$DOTSFILES_BIN_DIR/context7-mcp.sh"
+  chmod +x "$DOTSFILES_BIN_DIR/context7-mcp.sh"
   if [ -f "$GEMINI_CONFIG/mcp_config.json" ] && command -v python3 >/dev/null 2>&1; then
     python3 "$DOTS_DIR/scripts/mcp-config.py" antigravity "$GEMINI_CONFIG/mcp_config.json" 2>/dev/null || log_info "Could not merge Antigravity MCP configuration."
   fi

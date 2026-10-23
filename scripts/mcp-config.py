@@ -6,6 +6,7 @@ differs. Existing servers (graphify, fetch, github, notion, etc.) are preserved.
 """
 
 import json
+import os
 import sys
 
 CONTEXT7_URL = "https://mcp.context7.com/mcp"
@@ -57,6 +58,19 @@ def _json_servers(with_env: bool = False) -> dict:
     return servers
 
 
+def _antigravity_servers() -> dict:
+    servers = _json_servers(with_env=True)
+    if os.name != "nt":
+        # Antigravity's remote-header handling is inconsistent; use the same
+        # authenticated mcp-remote bridge that the installer deploys.
+        servers["context7"] = {
+            "command": os.path.expanduser("~/.config/dotsfiles/bin/context7-mcp.sh"),
+            "args": [],
+            "env": {},
+        }
+    return servers
+
+
 def _merge_json(path: str, root_key: str, servers: dict) -> None:
     try:
         with open(path, encoding="utf-8") as handle:
@@ -98,7 +112,7 @@ def main() -> None:
     elif mode == "pi":
         _merge_json(path, "mcpServers", _json_servers())
     elif mode == "antigravity":
-        _merge_json(path, "mcpServers", _json_servers(with_env=True))
+        _merge_json(path, "mcpServers", _antigravity_servers())
     elif mode == "hermes":
         _merge_hermes(path)
     else:
