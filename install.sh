@@ -191,6 +191,29 @@ else
   log_info "Context7 API key not set; the Context7 MCP will need it later."
 fi
 
+# Tavily is the web-search MCP; it needs a key too.
+TAVILY_TOKEN="${TAVILY_API_KEY:-}"
+if command -v python3 >/dev/null 2>&1; then
+  FILE_TAVILY_TOKEN="$(python3 "$DOTS_DIR/scripts/token.py" get "$DOTSFILES_CONFIG_DIR/tokens.env" "$DOTSFILES_CONFIG_DIR/tokens.json" TAVILY_API_KEY 2>/dev/null || true)"
+  if [ -n "$FILE_TAVILY_TOKEN" ]; then
+    TAVILY_TOKEN="$FILE_TAVILY_TOKEN"
+  fi
+fi
+if [ -z "$TAVILY_TOKEN" ] && [ -t 0 ]; then
+  printf 'Tavily API key (leave empty to skip): '
+  IFS= read -rs TAVILY_TOKEN
+  printf '\n'
+fi
+if [ -n "$TAVILY_TOKEN" ]; then
+  export TAVILY_API_KEY="$TAVILY_TOKEN"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 "$DOTS_DIR/scripts/token.py" set "$DOTSFILES_CONFIG_DIR/tokens.env" "$DOTSFILES_CONFIG_DIR/tokens.json" TAVILY_API_KEY "$TAVILY_TOKEN"
+  fi
+  log_success "Tavily API key stored in centralized tokens."
+else
+  log_info "Tavily API key not set; the Tavily MCP will need it later."
+fi
+
 # Make the shared token file visible to every harness launched from a new shell.
 SHELL_RC="$HOME_DIR/.profile"
 case "$(basename "${SHELL:-}")" in
@@ -205,6 +228,12 @@ if [ -d "$(dirname "$SHELL_RC")" ] && ! grep -q ">>> dotsfiles tokens >>>" "$SHE
   } >> "$SHELL_RC"
   log_info "Added tokens.env sourcing to $SHELL_RC"
 fi
+
+# Shared MCP bridge scripts read the token file at runtime.
+DOTSFILES_BIN_DIR="$HOME_DIR/.config/dotsfiles/bin"
+mkdir -p "$DOTSFILES_BIN_DIR"
+cp "$DOTS_DIR/scripts/context7-mcp.sh" "$DOTS_DIR/scripts/tavily-mcp.sh" "$DOTSFILES_BIN_DIR/"
+chmod +x "$DOTSFILES_BIN_DIR/context7-mcp.sh" "$DOTSFILES_BIN_DIR/tavily-mcp.sh"
 
 # --- 3. Configure ~/.agents (Single Canonical Source of Truth) ---
 log_info "Linking ~/.agents to $DOTS_DIR/shared ..."
@@ -319,6 +348,8 @@ PY
   claude mcp add -s user fetch -- uvx mcp-server-fetch 2>/dev/null || true
   claude mcp add-json -s user context7 '{"type":"http","url":"https://mcp.context7.com/mcp","headers":{"Authorization":"Bearer ${CONTEXT7_API_KEY}"}}' 2>/dev/null || true
   claude mcp add -s user browsermcp -- npx -y @browsermcp/mcp@latest 2>/dev/null || true
+  claude mcp add -s user tavily -- "$DOTSFILES_BIN_DIR/tavily-mcp.sh" 2>/dev/null || true
+  claude mcp add -s user osv -- npx -y @cyanheads/osv-advisory-mcp-server 2>/dev/null || true
 else
   log_info "Claude Code not installed; skipping Claude configuration."
 fi
@@ -389,10 +420,6 @@ if [ "$HAS_ANTIGRAVITY" = true ]; then
   fi
   # Antigravity's remote-header handling is inconsistent; Context7 goes through
   # an mcp-remote bridge that reads the shared token file.
-  DOTSFILES_BIN_DIR="$HOME_DIR/.config/dotsfiles/bin"
-  mkdir -p "$DOTSFILES_BIN_DIR"
-  cp "$DOTS_DIR/scripts/context7-mcp.sh" "$DOTSFILES_BIN_DIR/context7-mcp.sh"
-  chmod +x "$DOTSFILES_BIN_DIR/context7-mcp.sh"
   if [ -f "$GEMINI_CONFIG/mcp_config.json" ] && command -v python3 >/dev/null 2>&1; then
     python3 "$DOTS_DIR/scripts/mcp-config.py" antigravity "$GEMINI_CONFIG/mcp_config.json" 2>/dev/null || log_info "Could not merge Antigravity MCP configuration."
   fi
@@ -482,6 +509,24 @@ if [ "$HAS_HERDR" = true ]; then
   [ "$HAS_ANTIGRAVITY" = true ] && herdr integration install antigravity-cli 2>/dev/null || true
 else
   log_info "Herdr not installed; skipping Herdr configuration."
+fi
+
+# --- 9b. Install Agent Reach CLI (internet reading; Tavily handles search) ---
+if command -v uv >/dev/null 2>&1 || command -v pipx >/dev/null 2>&1; then
+  if ! command -v agent-reach >/dev/null 2>&1; then
+    log_info "Installing Agent Reach CLI..."
+    if command -v uv >/dev/null 2>&1; then
+      uv tool install "https://github.com/Panniantong/Agent-Reach/archive/main.zip" >/dev/null 2>&1 || log_info "Agent Reach install failed; install it manually."
+    else
+      pipx install "https://github.com/Panniantong/Agent-Reach/archive/main.zip" >/dev/null 2>&1 || log_info "Agent Reach install failed; install it manually."
+    fi
+  fi
+  if ! command -v yt-dlp >/dev/null 2>&1 && command -v uv >/dev/null 2>&1; then
+    uv tool install yt-dlp >/dev/null 2>&1 || true
+  fi
+  if command -v agent-reach >/dev/null 2>&1; then
+    agent-reach install --env=auto >/dev/null 2>&1 || true
+  fi
 fi
 
 # --- 10. Distribute Shared Canonical Skills to Installed Harnesses ---

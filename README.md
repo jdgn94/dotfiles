@@ -148,6 +148,7 @@ Always-on rules live in `shared/AGENTS.md`: mandatory skill triggers, where inst
 - **`conventional-git-flow`**: Standardized branch naming (`feat/`, `fix/`), semantic commits, and pull request summaries.
 - **`dependency-guard`**: Evaluation standard before adding third-party libraries (prioritizes native APIs, audits maintenance and bundle size).
 - **`vulnerability-auditor`**: Adversarial security reviews producing technical specifications for AI (`_AI.md`) and educational explanations for users (`_USER.md`).
+- **`agent-reach`**: Internet research and platform reading (X/Twitter, Reddit, YouTube, Bilibili, XiaoHongShu, LinkedIn, V2EX, RSS) with Tavily as the web-search backend.
 
 ---
 
@@ -167,9 +168,17 @@ All harnesses receive the same four servers:
 | Server | Transport | Credential |
 | --- | --- | --- |
 | `context7` | Streamable HTTP (`https://mcp.context7.com/mcp`) | `CONTEXT7_API_KEY` |
+| `tavily` | stdio (`tavily-mcp`) | `TAVILY_API_KEY` |
+| `osv` | stdio (`@cyanheads/osv-advisory-mcp-server`) | none |
 | `memory` | stdio (`@modelcontextprotocol/server-memory`) | none |
 | `playwright` | stdio (`@playwright/mcp`, headless) | none |
 | `browsermcp` | stdio (`@browsermcp/mcp`) | none (requires the Browser MCP Chrome extension) |
+
+The installer prompts for `CONTEXT7_API_KEY` and `TAVILY_API_KEY` when missing and stores them in the shared token files. `osv` is read-only and needs no key.
+
+### Agent Reach
+
+The installer also installs the [Agent Reach](https://github.com/Panniantong/Agent-Reach) CLI for platform reading (X/Twitter, Reddit, YouTube, GitHub, Bilibili, XiaoHongShu, LinkedIn, V2EX, RSS) and registers the `agent-reach` skill for every harness. Tavily handles web search; Agent Reach handles platform content. Run `agent-reach doctor --json` to see which backends are available.
 
 The installer adds a managed `source ~/.config/dotsfiles/tokens.env` block to your shell rc so new shells and every harness inherit the Context7 key. Antigravity uses a small `mcp-remote` bridge (`scripts/context7-mcp.sh`) because its remote-header handling is inconsistent.
 

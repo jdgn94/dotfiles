@@ -562,3 +562,11 @@ mcp_servers:
     args:
     - -y
     - "@browsermcp/mcp@latest"
+  tavily:
+    command: /home/juan/.config/dotsfiles/bin/tavily-mcp.sh
+    args: []
+  osv:
+    command: npx
+    args:
+    - -y
+    - "@cyanheads/osv-advisory-mcp-server"

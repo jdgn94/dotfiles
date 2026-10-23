@@ -13,6 +13,7 @@ Load the named skill before acting when the trigger matches; otherwise do not lo
 - Security review → `vulnerability-auditor`
 - Creating or editing a skill → `skill-authoring-rules`
 - Installing a skill/plugin or checking agent coverage → `cross-agent-parity`
+- Internet research or reading social/video platforms → `agent-reach`
 
 When a skill becomes mandatory, name it here in the same change; a skill nobody names is dead weight.
 

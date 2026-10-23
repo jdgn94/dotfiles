@@ -16,6 +16,20 @@ def _stdio(command: str, args: list[str]) -> dict:
     return {"command": command, "args": args}
 
 
+def _wrapper(name: str) -> str:
+    return os.path.expanduser(f"~/.config/dotsfiles/bin/{name}")
+
+
+def _tavily_stdio() -> dict:
+    if os.name != "nt":
+        return {"command": _wrapper("tavily-mcp.sh"), "args": [], "env": {}}
+    return {
+        "command": "npx",
+        "args": ["-y", "tavily-mcp"],
+        "env": {"TAVILY_API_KEY": "${TAVILY_API_KEY}"},
+    }
+
+
 def _opencode_servers() -> dict:
     return {
         "context7": {
@@ -39,6 +53,23 @@ def _opencode_servers() -> dict:
             "command": ["npx", "-y", "@browsermcp/mcp@latest"],
             "enabled": True,
         },
+        "tavily": {
+            "type": "local",
+            "command": [_wrapper("tavily-mcp.sh")]
+            if os.name != "nt"
+            else ["npx", "-y", "tavily-mcp"],
+            "enabled": True,
+            **(
+                {"environment": {"TAVILY_API_KEY": "{env:TAVILY_API_KEY}"}}
+                if os.name == "nt"
+                else {}
+            ),
+        },
+        "osv": {
+            "type": "local",
+            "command": ["npx", "-y", "@cyanheads/osv-advisory-mcp-server"],
+            "enabled": True,
+        },
     }
 
 
@@ -51,6 +82,8 @@ def _json_servers(with_env: bool = False) -> dict:
         "memory": _stdio("npx", ["-y", "@modelcontextprotocol/server-memory"]),
         "playwright": _stdio("npx", ["-y", "@playwright/mcp@latest", "--headless"]),
         "browsermcp": _stdio("npx", ["-y", "@browsermcp/mcp@latest"]),
+        "tavily": _tavily_stdio(),
+        "osv": _stdio("npx", ["-y", "@cyanheads/osv-advisory-mcp-server"]),
     }
     if with_env:
         for server in servers.values():

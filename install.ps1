@@ -186,6 +186,30 @@ if ($Context7Token) {
     Write-Info "Context7 API key not set; the Context7 MCP will need it later."
 }
 
+# Tavily is the web-search MCP; it needs a key too.
+$TavilyToken = $env:TAVILY_API_KEY
+if (-not $TavilyToken -and $PythonCmd) {
+    $TavilyToken = & $PythonCmd.Source (Join-Path $DOTS_DIR "scripts" "token.py") get $EnvFile $JsonFile "TAVILY_API_KEY" 2>$null
+}
+if (-not $TavilyToken -and [Environment]::UserInteractive) {
+    $SecureTavily = Read-Host "Tavily API key (leave empty to skip)" -AsSecureString
+    $BstrTavily = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureTavily)
+    try {
+        $TavilyToken = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($BstrTavily)
+    } finally {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BstrTavily)
+    }
+}
+if ($TavilyToken) {
+    $env:TAVILY_API_KEY = $TavilyToken
+    if ($PythonCmd) {
+        & $PythonCmd.Source (Join-Path $DOTS_DIR "scripts" "token.py") set $EnvFile $JsonFile "TAVILY_API_KEY" $TavilyToken | Out-Null
+    }
+    Write-Success "Tavily API key stored in centralized tokens."
+} else {
+    Write-Info "Tavily API key not set; the Tavily MCP will need it later."
+}
+
 # Make the shared token file visible to every harness launched from a new shell.
 $ProfilePath = $PROFILE.CurrentUserAllHosts
 if ($ProfilePath) {
@@ -338,6 +362,8 @@ if ($HasClaude) {
     claude mcp add -s user fetch -- uvx mcp-server-fetch 2>$null
     claude mcp add-json -s user context7 '{"type":"http","url":"https://mcp.context7.com/mcp","headers":{"Authorization":"Bearer ${CONTEXT7_API_KEY}"}}' 2>$null
     claude mcp add -s user browsermcp -- npx -y @browsermcp/mcp@latest 2>$null
+    claude mcp add -s user tavily -e 'TAVILY_API_KEY=${TAVILY_API_KEY}' -- npx -y tavily-mcp 2>$null
+    claude mcp add -s user osv -- npx -y @cyanheads/osv-advisory-mcp-server 2>$null
 } else {
     Write-Info "Claude Code not installed; skipping Claude configuration."
 }
@@ -456,6 +482,20 @@ if ($HasHerdr) {
     if ($HasAntigravity) { herdr integration install antigravity-cli 2>$null }
 } else {
     Write-Info "Herdr not installed; skipping Herdr configuration."
+}
+
+# --- 9b. Install Agent Reach CLI ---
+if (Get-Command uv -ErrorAction SilentlyContinue) {
+    if (-not (Get-Command agent-reach -ErrorAction SilentlyContinue)) {
+        Write-Info "Installing Agent Reach CLI..."
+        uv tool install "https://github.com/Panniantong/Agent-Reach/archive/main.zip" 2>$null
+    }
+    if (-not (Get-Command yt-dlp -ErrorAction SilentlyContinue)) {
+        uv tool install yt-dlp 2>$null
+    }
+    if (Get-Command agent-reach -ErrorAction SilentlyContinue) {
+        agent-reach install --env=auto 2>$null
+    }
 }
 
 # --- 10. Distribute Shared Canonical Skills to Installed Harnesses ---

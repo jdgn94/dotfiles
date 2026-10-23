@@ -33,6 +33,18 @@
         "-y",
         "@browsermcp/mcp@latest"
       ]
+    },
+    "tavily": {
+      "command": "/home/juan/.config/dotsfiles/bin/tavily-mcp.sh",
+      "args": [],
+      "env": {}
+    },
+    "osv": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@cyanheads/osv-advisory-mcp-server"
+      ]
     }
   }
 }

@@ -74,6 +74,22 @@
         "GITHUB_PERSONAL_ACCESS_TOKEN": "{env:GITHUB_TOKEN}"
       },
       "enabled": true
+    },
+    "tavily": {
+      "type": "local",
+      "command": [
+        "/home/juan/.config/dotsfiles/bin/tavily-mcp.sh"
+      ],
+      "enabled": true
+    },
+    "osv": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@cyanheads/osv-advisory-mcp-server"
+      ],
+      "enabled": true
     }
   }
 }
