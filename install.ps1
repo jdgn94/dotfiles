@@ -458,13 +458,6 @@ if ($HasHerdr) {
     Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "herdr" "config.toml") -Destination (Join-Path $HerdrDir "config.toml") -Force
     Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "herdr" "plugins.json") -Destination (Join-Path $HerdrDir "plugins.json") -Force
 
-    $SidebarStateDir = Join-Path $USER_HOME ".local" "state" "herdr" "plugins" "herdr-sidebar"
-    New-Item -ItemType Directory -Path $SidebarStateDir -Force | Out-Null
-    if (Test-Path (Join-Path $DOTS_DIR "harnesses" "herdr" "state")) {
-        Copy-Item -Path "$DOTS_DIR\harnesses\herdr\state\*" -Destination $SidebarStateDir -Recurse -Force
-    }
-
-    herdr plugin install alexarthurs/herdr-sidebar/plugins/herdr-sidebar -y 2>$null
     herdr plugin install senna-lang/herdr-agent-usage -y 2>$null
     herdr plugin install kryptamine/herdr-auto-title -y 2>$null
     herdr plugin action invoke herdr.auto-title.restart 2>$null
@@ -484,7 +477,38 @@ if ($HasHerdr) {
     Write-Info "Herdr not installed; skipping Herdr configuration."
 }
 
-# --- 9b. Install Agent Reach CLI ---
+# --- 9b. Deploy Neovim (NvChad + neo-tree) and lazygit ---
+$NvimDir = Join-Path $USER_HOME ".config" "nvim"
+if (Get-Command nvim -ErrorAction SilentlyContinue) {
+    Write-Info "Deploying Neovim / NvChad configuration..."
+    if ((Test-Path (Join-Path $NvimDir "init.lua")) -and -not (Test-Path (Join-Path $NvimDir ".dotsfiles-managed"))) {
+        $NvimBackup = "$NvimDir.bak.$(Get-Date -Format yyyyMMddHHmmss)"
+        Move-Item -Path $NvimDir -Destination $NvimBackup
+        Write-Info "Backed up existing Neovim config to $NvimBackup"
+    }
+    New-Item -ItemType Directory -Path $NvimDir -Force | Out-Null
+    Copy-Item -Path "$DOTS_DIR\harnesses\nvim\*" -Destination $NvimDir -Recurse -Force
+    Set-Content -Path (Join-Path $NvimDir ".dotsfiles-managed") -Value "" -Encoding UTF8
+    if (-not (Get-Command tree-sitter -ErrorAction SilentlyContinue) -and (Get-Command npm -ErrorAction SilentlyContinue)) {
+        try { npm install -g tree-sitter-cli 2>$null } catch { Write-Warn "tree-sitter CLI install failed; Treesitter parsers may need it." }
+    }
+    if (-not (Test-Path (Join-Path $USER_HOME ".local" "share" "nvim" "lazy" "lazy.nvim"))) {
+        try { nvim --headless "+Lazy! sync" +qa 2>$null } catch { Write-Warn "Open nvim once to finish plugin installation." }
+    }
+}
+
+$LazygitDir = Join-Path $USER_HOME ".config" "lazygit"
+New-Item -ItemType Directory -Path $LazygitDir -Force | Out-Null
+Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "lazygit" "config.yml") -Destination (Join-Path $LazygitDir "config.yml") -Force
+if (-not (Get-Command lazygit -ErrorAction SilentlyContinue)) {
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        try { winget install --id JesseDuffield.lazygit -e --silent 2>$null } catch { Write-Warn "Install lazygit manually." }
+    } else {
+        Write-Warn "lazygit not installed; install it manually."
+    }
+}
+
+# --- 9c. Install Agent Reach CLI ---
 if (Get-Command uv -ErrorAction SilentlyContinue) {
     if (-not (Get-Command agent-reach -ErrorAction SilentlyContinue)) {
         Write-Info "Installing Agent Reach CLI..."

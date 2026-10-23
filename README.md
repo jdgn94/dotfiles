@@ -49,40 +49,29 @@ dotsfiles/
     │   ├── mcp_config.json     # MCP servers
     │   ├── agy-settings.json   # `agy` CLI configuration
     │   └── skills/             # Antigravity-exclusive skills
+    ├── nvim/                   # NvChad configuration (.config/nvim)
+    │   ├── init.lua            # NvChad bootstrap
+    │   └── lua/                # options, mappings, plugins, LSP
+    ├── lazygit/                # LazyGit configuration (.config/lazygit)
+    │   └── config.yml          # Nerd Font and file icons
     └── herdr/                  # Herdr configuration (.config/herdr)
         ├── config.toml         # Server/client configuration and keybindings
-        ├── plugins.json        # Installed plugins registry
-        └── state/              # Preconfigured persistent state (dock right, preview pane, nvim)
+        └── plugins.json        # Installed plugins registry
 ```
 
 ---
 
-## 🗂️ Herdr: VS Code-Style Sidebar (`herdr-sidebar`)
+## ✍️ Neovim / NvChad + LazyGit
 
-Herdr features the official **`herdr-sidebar`** plugin, providing a VS Code-style sidebar experience directly in the terminal:
+NvChad v2.5 is deployed to `~/.config/nvim` from `harnesses/nvim`:
 
-- **Docked on the Right**: Pinned to the right side of the screen.
-- **Always Visible (`auto_open`)**: Automatically docks on each new tab or workspace without stealing focus, functioning as a persistent sidebar (toggleable via `Alt + e`).
-- **Terminal vs Files Split (50/50 or adaptive)**:
-  - Left side: Dedicated area for terminal panes and AI agents (`pi`, `claude`, `opencode`). Expands to full width when no preview is open.
-  - Right side: File tree and split preview pane.
-- **Root-Confined Exploration**: Navigates from the active workspace root without traversing into parent directories.
-- **In-Terminal Image Viewer**: Native graphical previews using Kitty/Ghostty protocol for `.png`, `.jpg`, `.webp`, `.svg`, and `.gif`.
-- **Formatted Markdown & Direct Editing**:
-  - `.md` files render with tables, checklists, and syntax highlighting.
-  - Press **`e`** inside the viewer or click to jump into **Neovim (`nvim`)**.
-- **Integrated Source Control (Git)**: GitLens-style panel with interactive diffs, staging, and AI commit messages.
-- **Instant Search**:
-  - `Ctrl + P`: Fuzzy file search by name.
-  - `Ctrl + F`: Global project text search with regex and filters.
+- **neo-tree** replaces NvChad's default `nvim-tree` explorer. `nvim-tree` is disabled explicitly.
+- `<leader>e` toggles neo-tree, `<leader>E` focuses it, and `<leader>o` reveals the current file.
+- Mason installs LSP servers for Lua, Python, TypeScript/JavaScript, JSON, YAML, Bash, HTML, CSS, Go, Rust, C/C++, Markdown, TOML, and Dockerfile.
+- Treesitter parsers cover 22 languages.
+- The installed JetBrainsMono Nerd Font supplies neo-tree and LazyGit file icons.
 
-### Herdr Keyboard Shortcuts:
-- **`Alt + e`** or **`Prefix + e`** (`Ctrl+b` then `e`): Toggle the right sidebar.
-- **`Prefix + p`** (`Ctrl+b` then `p`): Quick Open file picker (`Ctrl+P` style).
-- **`Prefix + g`** (`Ctrl+b` then `g`): Direct access to Source Control (Git).
-- **`Prefix + f`** (`Ctrl+b` then `f`): Direct access to global project search.
-- **`1`, `2`, `3`**: Switch between Explorer, Search, and Source Control.
-- **`s`**: Open sidebar settings menu.
+**LazyGit** is installed under `~/.local/bin` and uses `harnesses/lazygit/config.yml` (`nerdFontsVersion: "3"`, `showFileIcons: true`).
 
 ---
 

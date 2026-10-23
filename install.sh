@@ -450,17 +450,6 @@ if [ "$HAS_HERDR" = true ]; then
   cp "$DOTS_DIR/harnesses/herdr/config.toml" "$HERDR_DIR/config.toml"
   cp "$DOTS_DIR/harnesses/herdr/plugins.json" "$HERDR_DIR/plugins.json"
 
-  HERDR_SIDEBAR_STATE_DIR="$HOME_DIR/.local/state/herdr/plugins/herdr-sidebar"
-  mkdir -p "$HERDR_SIDEBAR_STATE_DIR"
-  if [ -d "$DOTS_DIR/harnesses/herdr/state" ]; then
-    cp "$DOTS_DIR/harnesses/herdr/state/state.json" "$HERDR_SIDEBAR_STATE_DIR/state.json" 2>/dev/null || true
-    cp "$DOTS_DIR/harnesses/herdr/state/editor-command.txt" "$HERDR_SIDEBAR_STATE_DIR/editor-command.txt" 2>/dev/null || true
-  fi
-
-  if ! herdr plugin list 2>/dev/null | grep -q "herdr-sidebar"; then
-    log_info "Installing plugin herdr-sidebar..."
-    herdr plugin install alexarthurs/herdr-sidebar/plugins/herdr-sidebar -y 2>/dev/null || true
-  fi
   if ! herdr plugin list 2>/dev/null | grep -q "usagebar"; then
     log_info "Installing plugin herdr-agent-usage (usagebar)..."
     herdr plugin install senna-lang/herdr-agent-usage -y 2>/dev/null || true
@@ -511,7 +500,42 @@ else
   log_info "Herdr not installed; skipping Herdr configuration."
 fi
 
-# --- 9b. Install Agent Reach CLI (internet reading; Tavily handles search) ---
+# --- 9b. Deploy Neovim (NvChad + neo-tree) and lazygit ---
+if command -v nvim >/dev/null 2>&1; then
+  log_info "Deploying Neovim / NvChad configuration..."
+  NVIM_DIR="$HOME_DIR/.config/nvim"
+  if [ -d "$NVIM_DIR" ] && [ -f "$NVIM_DIR/init.lua" ] && [ ! -f "$NVIM_DIR/.dotsfiles-managed" ]; then
+    NVIM_BACKUP="$NVIM_DIR.bak.$(date +%Y%m%d%H%M%S)"
+    mv "$NVIM_DIR" "$NVIM_BACKUP"
+    log_info "Backed up existing Neovim config to $NVIM_BACKUP"
+  fi
+  mkdir -p "$NVIM_DIR"
+  cp -r "$DOTS_DIR/harnesses/nvim/." "$NVIM_DIR/"
+  touch "$NVIM_DIR/.dotsfiles-managed"
+
+  if ! command -v tree-sitter >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+    log_info "Installing tree-sitter CLI..."
+    npm install -g tree-sitter-cli >/dev/null 2>&1 || log_info "tree-sitter CLI install failed; Treesitter parsers may need it."
+  fi
+
+  if [ ! -d "$HOME_DIR/.local/share/nvim/lazy/lazy.nvim" ]; then
+    log_info "Bootstrapping NvChad plugins (first run)..."
+    timeout 300 nvim --headless "+Lazy! sync" +qa 2>/dev/null || log_info "Open nvim once to finish plugin installation."
+  fi
+fi
+
+if ! command -v lazygit >/dev/null 2>&1 && command -v go >/dev/null 2>&1; then
+  log_info "Installing lazygit..."
+  GOBIN="$HOME_DIR/.local/bin" timeout 300 go install github.com/jesseduffield/lazygit@latest 2>/dev/null || log_info "lazygit install failed; install it manually."
+fi
+mkdir -p "$HOME_DIR/.config/lazygit"
+cp "$DOTS_DIR/harnesses/lazygit/config.yml" "$HOME_DIR/.config/lazygit/config.yml"
+
+if ! fc-list 2>/dev/null | grep -qiE "nerd font"; then
+  log_info "No Nerd Font detected; install one for neo-tree/lazygit icons."
+fi
+
+# --- 9c. Install Agent Reach CLI (internet reading; Tavily handles search) ---
 if command -v uv >/dev/null 2>&1 || command -v pipx >/dev/null 2>&1; then
   if ! command -v agent-reach >/dev/null 2>&1; then
     log_info "Installing Agent Reach CLI..."

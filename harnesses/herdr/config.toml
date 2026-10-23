@@ -38,35 +38,6 @@ position = "bottom-right"
 [keys]
 # Default prefix: ctrl+b
 
-# Toggle right sidebar (VS Code style: Explorer + Git + Search)
-[[keys.command]]
-key = "prefix+e"
-type = "shell"
-command = "herdr plugin action invoke herdr-sidebar.open-sidebar"
-
-[[keys.command]]
-key = "alt+e"
-type = "shell"
-command = "herdr plugin action invoke herdr-sidebar.open-sidebar"
-
-# Quick Open file picker (Ctrl+P style)
-[[keys.command]]
-key = "prefix+p"
-type = "shell"
-command = "herdr plugin action invoke herdr-sidebar.quick-open"
-
-# Open Source Control / Git directly (Ctrl+Shift+G)
-[[keys.command]]
-key = "prefix+g"
-type = "shell"
-command = "herdr plugin action invoke herdr-sidebar.show-git"
-
-# Global project text search (Ctrl+Shift+F)
-[[keys.command]]
-key = "prefix+f"
-type = "shell"
-command = "herdr plugin action invoke herdr-sidebar.show-search"
-
 # Open Agent Usage limits popup (Alt+u / Prefix+u)
 [[keys.command]]
 key = "prefix+u"
