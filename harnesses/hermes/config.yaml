@@ -540,3 +540,25 @@ plugins:
   enabled:
   - herdr-agent-state
   - orca-status
+
+mcp_servers:
+  context7:
+    url: https://mcp.context7.com/mcp
+    headers:
+      Authorization: Bearer ${CONTEXT7_API_KEY}
+  memory:
+    command: npx
+    args:
+    - -y
+    - "@modelcontextprotocol/server-memory"
+  playwright:
+    command: npx
+    args:
+    - -y
+    - "@playwright/mcp@latest"
+    - "--headless"
+  browsermcp:
+    command: npx
+    args:
+    - -y
+    - "@browsermcp/mcp@latest"

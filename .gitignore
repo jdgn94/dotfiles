@@ -7,6 +7,10 @@ secrets/tokens.json
 node_modules/
 package-lock.json
 
+# Python artifacts
+__pycache__/
+*.pyc
+
 # Logs & temp files
 *.log
 *.sock

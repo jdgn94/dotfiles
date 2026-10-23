@@ -60,6 +60,22 @@ function Link-OrCopy {
     }
 }
 
+$PythonCmd = Get-Command python3 -ErrorAction SilentlyContinue
+if (-not $PythonCmd) { $PythonCmd = Get-Command python -ErrorAction SilentlyContinue }
+
+function Update-McpConfig {
+    param(
+        [Parameter(Mandatory=$true)][string]$Mode,
+        [Parameter(Mandatory=$true)][string]$Path
+    )
+    if (-not $PythonCmd -or -not (Test-Path $Path)) { return }
+    try {
+        & $PythonCmd.Source (Join-Path $DOTS_DIR "scripts" "mcp-config.py") $Mode $Path | Out-Null
+    } catch {
+        Write-Warn "Could not merge MCP config at $Path"
+    }
+}
+
 # --- 1. Detect Installed Harnesses ---
 Write-Info "Detecting installed AI harnesses and multiplexers..."
 
@@ -108,6 +124,93 @@ if (-not (Test-Path $JsonFile)) {
     Write-Info "Created $JsonFile"
 }
 
+# Context7 is the only MCP in the default set that needs a credential.
+$Context7Token = $env:CONTEXT7_API_KEY
+if (-not $Context7Token) {
+    $EnvMatch = Select-String -Path $EnvFile -Pattern '^export CONTEXT7_API_KEY=(.*)$' -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($EnvMatch) {
+        $Value = $EnvMatch.Matches[0].Groups[1].Value.Trim()
+        if ($Value.Length -ge 2) {
+            $First = $Value.Substring(0, 1)
+            $Last = $Value.Substring($Value.Length - 1, 1)
+            if (($First -eq '"' -and $Last -eq '"') -or ($First -eq "'" -and $Last -eq "'")) {
+                $Value = $Value.Substring(1, $Value.Length - 2)
+            }
+        }
+        $Context7Token = $Value
+    }
+}
+if (-not $Context7Token -and (Test-Path $JsonFile)) {
+    try {
+        $JsonData = Get-Content -Raw -Path $JsonFile | ConvertFrom-Json
+        if ($JsonData.tokens.CONTEXT7_API_KEY) { $Context7Token = $JsonData.tokens.CONTEXT7_API_KEY }
+    } catch {
+        # ignore malformed JSON; the installer will leave it untouched
+    }
+}
+if (-not $Context7Token -and [Environment]::UserInteractive) {
+    $SecureToken = Read-Host "Context7 API key (leave empty to skip)" -AsSecureString
+    $Bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureToken)
+    try {
+        $Context7Token = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($Bstr)
+    } finally {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($Bstr)
+    }
+}
+if ($Context7Token) {
+    $env:CONTEXT7_API_KEY = $Context7Token
+    $EscapedToken = $Context7Token.Replace('"', '\"')
+    $EnvLines = @(Get-Content -Path $EnvFile -ErrorAction SilentlyContinue)
+    $FoundToken = $false
+    foreach ($Line in $EnvLines) {
+        if ($Line -match '^export CONTEXT7_API_KEY=') { $FoundToken = $true; break }
+    }
+    $EnvLines = @($EnvLines | ForEach-Object {
+        if ($_ -match '^export CONTEXT7_API_KEY=') {
+            "export CONTEXT7_API_KEY=`"$EscapedToken`""
+        } else {
+            $_
+        }
+    })
+    if (-not $FoundToken) { $EnvLines += "export CONTEXT7_API_KEY=`"$EscapedToken`"" }
+    Set-Content -Path $EnvFile -Value $EnvLines -Encoding UTF8
+
+    $JsonData = Get-Content -Raw -Path $JsonFile | ConvertFrom-Json
+    if ($null -eq $JsonData.tokens) {
+        $JsonData | Add-Member -NotePropertyName tokens -NotePropertyValue ([pscustomobject]@{}) -Force
+    }
+    $JsonData.tokens | Add-Member -NotePropertyName CONTEXT7_API_KEY -NotePropertyValue $Context7Token -Force
+    $JsonData | ConvertTo-Json -Depth 100 | Set-Content -Path $JsonFile -Encoding UTF8
+    Write-Success "Context7 API key stored in centralized tokens."
+} else {
+    Write-Info "Context7 API key not set; the Context7 MCP will need it later."
+}
+
+# Make the shared token file visible to every harness launched from a new shell.
+$ProfilePath = $PROFILE.CurrentUserAllHosts
+if ($ProfilePath) {
+    $ProfileDir = Split-Path -Parent $ProfilePath
+    if ($ProfileDir -and -not (Test-Path $ProfileDir)) {
+        New-Item -ItemType Directory -Path $ProfileDir -Force | Out-Null
+    }
+    $HasTokenBlock = (Test-Path $ProfilePath) -and (Select-String -Path $ProfilePath -SimpleMatch ">>> dotsfiles tokens >>>" -Quiet)
+    if (-not $HasTokenBlock) {
+        $TokenBlock = @'
+# >>> dotsfiles tokens >>>
+$__dotsfilesTokens = Join-Path $HOME ".config/dotsfiles/tokens.json"
+if (Test-Path $__dotsfilesTokens) {
+    $__tokens = (Get-Content -Raw $__dotsfilesTokens | ConvertFrom-Json).tokens
+    foreach ($__token in $__tokens.PSObject.Properties) {
+        if ($__token.Value) { Set-Item -Path "Env:$($__token.Name)" -Value $__token.Value }
+    }
+}
+# <<< dotsfiles tokens <<<
+'@
+        Add-Content -Path $ProfilePath -Value $TokenBlock -Encoding UTF8
+        Write-Info "Added tokens.json loading to $ProfilePath"
+    }
+}
+
 # --- 3. Link ~/.agents (Canonical Single Source of Truth) ---
 Write-Info "Linking ~/.agents to $DOTS_DIR\shared ..."
 $AgentsTarget = Join-Path $USER_HOME ".agents"
@@ -130,6 +233,7 @@ if ($HasPi) {
     Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "pi" "agent" "settings.json") -Destination (Join-Path $PiAgentDir "settings.json") -Force
     if (Test-Path (Join-Path $DOTS_DIR "harnesses" "pi" "agent" "mcp.json")) {
         Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "pi" "agent" "mcp.json") -Destination (Join-Path $PiAgentDir "mcp.json") -Force
+        Update-McpConfig "pi" (Join-Path $PiAgentDir "mcp.json")
     }
     if (Test-Path (Join-Path $DOTS_DIR "harnesses" "pi" "agent" "pi-slate.json")) {
         Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "pi" "agent" "pi-slate.json") -Destination (Join-Path $PiAgentDir "pi-slate.json") -Force
@@ -232,6 +336,8 @@ if ($HasClaude) {
     claude mcp add -s user playwright -- npx -y @playwright/mcp@latest --headless 2>$null
     claude mcp add -s user memory -- npx -y @modelcontextprotocol/server-memory 2>$null
     claude mcp add -s user fetch -- uvx mcp-server-fetch 2>$null
+    claude mcp add-json -s user context7 '{"type":"http","url":"https://mcp.context7.com/mcp","headers":{"Authorization":"Bearer ${CONTEXT7_API_KEY}"}}' 2>$null
+    claude mcp add -s user browsermcp -- npx -y @browsermcp/mcp@latest 2>$null
 } else {
     Write-Info "Claude Code not installed; skipping Claude configuration."
 }
@@ -257,6 +363,11 @@ if ($HasOpenCode -and $OpenCodeCmd) {
     }
     $AgentsMdPath = (Join-Path $AgentsTarget "rules" "AGENTS.md").Replace('\', '/')
     Set-Content -Path (Join-Path $OpenCodeDir "AGENTS.md") -Value "> **Cross-Agent Parity**: follow the rule in \`$AgentsMdPath\`." -Encoding UTF8
+
+    foreach ($Cmd in @("opencode", "opencode2")) {
+        $Cfg = Join-Path $USER_HOME ".config" $Cmd "opencode.jsonc"
+        if (Test-Path $Cfg) { Update-McpConfig "opencode" $Cfg }
+    }
 } else {
     Write-Info "Neither OpenCode nor OpenCode2 installed; skipping OpenCode configuration."
 }
@@ -269,6 +380,7 @@ if ($HasHermes) {
     if (-not (Test-Path (Join-Path $HermesDir "config.yaml")) -and (Test-Path (Join-Path $DOTS_DIR "harnesses" "hermes" "config.yaml"))) {
         Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "hermes" "config.yaml") -Destination (Join-Path $HermesDir "config.yaml")
     }
+    Update-McpConfig "hermes" (Join-Path $HermesDir "config.yaml")
 
     # Hermes injects SOUL.md globally every turn; point it at the canonical rules.
     $HermesSoul = Join-Path $HermesDir "SOUL.md"
@@ -297,6 +409,7 @@ if ($HasAntigravity) {
     if (-not (Test-Path (Join-Path $GeminiConfig "mcp_config.json")) -and (Test-Path (Join-Path $DOTS_DIR "harnesses" "antigravity" "mcp_config.json"))) {
         Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "antigravity" "mcp_config.json") -Destination (Join-Path $GeminiConfig "mcp_config.json")
     }
+    Update-McpConfig "antigravity" (Join-Path $GeminiConfig "mcp_config.json")
     if (-not (Test-Path (Join-Path $GeminiAgy "settings.json")) -and (Test-Path (Join-Path $DOTS_DIR "harnesses" "antigravity" "agy-settings.json"))) {
         Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "antigravity" "agy-settings.json") -Destination (Join-Path $GeminiAgy "settings.json")
     }

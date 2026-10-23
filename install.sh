@@ -108,6 +108,104 @@ if [ ! -f "$DOTSFILES_CONFIG_DIR/tokens.json" ]; then
   log_info "Created $DOTSFILES_CONFIG_DIR/tokens.json"
 fi
 
+# Context7 is the only MCP in the default set that needs a credential.
+CONTEXT7_TOKEN="${CONTEXT7_API_KEY:-}"
+if command -v python3 >/dev/null 2>&1; then
+  FILE_CONTEXT7_TOKEN="$(python3 - "$DOTSFILES_CONFIG_DIR/tokens.env" "$DOTSFILES_CONFIG_DIR/tokens.json" <<'PY'
+import json
+import re
+import sys
+
+env_path, json_path = sys.argv[1:3]
+token = ""
+try:
+    match = re.search(r'^export CONTEXT7_API_KEY=(.*)$', open(env_path).read(), re.M)
+    if match:
+        value = match.group(1).strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        token = value
+except FileNotFoundError:
+    pass
+if not token:
+    try:
+        data = json.load(open(json_path))
+        token = (data.get("tokens") or data).get("CONTEXT7_API_KEY", "")
+    except Exception:
+        pass
+print(token)
+PY
+)"
+  if [ -n "$FILE_CONTEXT7_TOKEN" ]; then
+    CONTEXT7_TOKEN="$FILE_CONTEXT7_TOKEN"
+  fi
+fi
+
+if [ -z "$CONTEXT7_TOKEN" ] && [ -t 0 ]; then
+  printf 'Context7 API key (leave empty to skip): '
+  IFS= read -rs CONTEXT7_TOKEN
+  printf '\n'
+fi
+
+if [ -n "$CONTEXT7_TOKEN" ]; then
+  export CONTEXT7_API_KEY="$CONTEXT7_TOKEN"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$DOTSFILES_CONFIG_DIR/tokens.env" "$DOTSFILES_CONFIG_DIR/tokens.json" "$CONTEXT7_TOKEN" <<'PY'
+import json
+import os
+import shlex
+import sys
+
+env_path, json_path, token = sys.argv[1:4]
+line = f"export CONTEXT7_API_KEY={shlex.quote(token)}"
+
+try:
+    lines = open(env_path).read().splitlines()
+except FileNotFoundError:
+    lines = []
+found = False
+for index, existing in enumerate(lines):
+    if existing.startswith("export CONTEXT7_API_KEY="):
+        lines[index] = line
+        found = True
+if not found:
+    lines.append(line)
+with open(env_path, "w") as handle:
+    handle.write("\n".join(lines) + "\n")
+os.chmod(env_path, 0o600)
+
+try:
+    with open(json_path) as handle:
+        data = json.load(handle)
+except FileNotFoundError:
+    data = {}
+data.setdefault("tokens", {})["CONTEXT7_API_KEY"] = token
+with open(json_path, "w") as handle:
+    json.dump(data, handle, indent=2, ensure_ascii=False)
+    handle.write("\n")
+os.chmod(json_path, 0o600)
+PY
+  fi
+  log_success "Context7 API key stored in centralized tokens."
+else
+  log_info "Context7 API key not set; the Context7 MCP will need it later."
+fi
+
+# Make the shared token file visible to every harness launched from a new shell.
+SHELL_RC="$HOME_DIR/.profile"
+case "$(basename "${SHELL:-}")" in
+  zsh) SHELL_RC="$HOME_DIR/.zshrc" ;;
+  bash) SHELL_RC="$HOME_DIR/.bashrc" ;;
+esac
+if [ -d "$(dirname "$SHELL_RC")" ] && ! grep -q ">>> dotsfiles tokens >>>" "$SHELL_RC" 2>/dev/null; then
+  {
+    printf '\n# >>> dotsfiles tokens >>>\n'
+    printf 'if [ -f "%s" ]; then\n  . "%s"\nfi\n' "$DOTSFILES_CONFIG_DIR/tokens.env" "$DOTSFILES_CONFIG_DIR/tokens.env"
+    printf '# <<< dotsfiles tokens <<<\n'
+  } >> "$SHELL_RC"
+  log_info "Added tokens.env sourcing to $SHELL_RC"
+fi
+
 # --- 3. Configure ~/.agents (Single Canonical Source of Truth) ---
 log_info "Linking ~/.agents to $DOTS_DIR/shared ..."
 AGENTS_LINK="$HOME_DIR/.agents"
@@ -126,6 +224,9 @@ if [ "$HAS_PI" = true ]; then
 
   cp "$DOTS_DIR/harnesses/pi/agent/settings.json" "$PI_DIR/settings.json"
   [ -f "$DOTS_DIR/harnesses/pi/agent/mcp.json" ] && cp "$DOTS_DIR/harnesses/pi/agent/mcp.json" "$PI_DIR/mcp.json"
+  if [ -f "$PI_DIR/mcp.json" ] && command -v python3 >/dev/null 2>&1; then
+    python3 "$DOTS_DIR/scripts/mcp-config.py" pi "$PI_DIR/mcp.json" 2>/dev/null || log_info "Could not merge Pi MCP configuration."
+  fi
   [ -f "$DOTS_DIR/harnesses/pi/agent/pi-slate.json" ] && cp "$DOTS_DIR/harnesses/pi/agent/pi-slate.json" "$PI_DIR/pi-slate.json"
   [ -f "$DOTS_DIR/harnesses/pi/agent/mcp-onboarding.json" ] && cp "$DOTS_DIR/harnesses/pi/agent/mcp-onboarding.json" "$PI_DIR/mcp-onboarding.json"
   [ -f "$DOTS_DIR/harnesses/pi/agent/npm/package.json" ] && cp "$DOTS_DIR/harnesses/pi/agent/npm/package.json" "$PI_DIR/npm/package.json"
@@ -216,6 +317,8 @@ PY
   claude mcp add -s user playwright -- npx -y @playwright/mcp@latest --headless 2>/dev/null || true
   claude mcp add -s user memory -- npx -y @modelcontextprotocol/server-memory 2>/dev/null || true
   claude mcp add -s user fetch -- uvx mcp-server-fetch 2>/dev/null || true
+  claude mcp add-json -s user context7 '{"type":"http","url":"https://mcp.context7.com/mcp","headers":{"Authorization":"Bearer ${CONTEXT7_API_KEY}"}}' 2>/dev/null || true
+  claude mcp add -s user browsermcp -- npx -y @browsermcp/mcp@latest 2>/dev/null || true
 else
   log_info "Claude Code not installed; skipping Claude configuration."
 fi
@@ -235,6 +338,14 @@ if [ "$HAS_OPENCODE" = true ] && [ -n "$OPENCODE_CMD" ]; then
     cp -r "$DOTS_DIR/harnesses/opencode/plugins/"* "$O_DIR/plugins/" 2>/dev/null || true
   fi
   printf '> **Cross-Agent Parity**: follow the rule in `%s`.\n' "$AGENTS_MD" > "$O_DIR/AGENTS.md"
+
+  # Keep OpenCode and OpenCode2 on the same shared MCP set when both exist.
+  if command -v python3 >/dev/null 2>&1; then
+    for OD in "$HOME_DIR/.config/opencode" "$HOME_DIR/.config/opencode2"; do
+      [ -f "$OD/opencode.jsonc" ] || continue
+      python3 "$DOTS_DIR/scripts/mcp-config.py" opencode "$OD/opencode.jsonc" 2>/dev/null || log_info "Could not merge MCP configuration in $OD."
+    done
+  fi
 else
   log_info "Neither OpenCode nor OpenCode2 installed; skipping OpenCode configuration."
 fi
@@ -246,6 +357,9 @@ if [ "$HAS_HERMES" = true ]; then
   mkdir -p "$HERMES_DIR/skills"
   if [ ! -f "$HERMES_DIR/config.yaml" ] && [ -f "$DOTS_DIR/harnesses/hermes/config.yaml" ]; then
     cp "$DOTS_DIR/harnesses/hermes/config.yaml" "$HERMES_DIR/config.yaml"
+  fi
+  if [ -f "$HERMES_DIR/config.yaml" ] && command -v python3 >/dev/null 2>&1; then
+    python3 "$DOTS_DIR/scripts/mcp-config.py" hermes "$HERMES_DIR/config.yaml" 2>/dev/null || log_info "Could not merge Hermes MCP configuration."
   fi
 
   # Hermes injects SOUL.md globally every turn; point it at the canonical rules.
@@ -272,6 +386,9 @@ if [ "$HAS_ANTIGRAVITY" = true ]; then
 
   if [ ! -f "$GEMINI_CONFIG/mcp_config.json" ] && [ -f "$DOTS_DIR/harnesses/antigravity/mcp_config.json" ]; then
     cp "$DOTS_DIR/harnesses/antigravity/mcp_config.json" "$GEMINI_CONFIG/mcp_config.json"
+  fi
+  if [ -f "$GEMINI_CONFIG/mcp_config.json" ] && command -v python3 >/dev/null 2>&1; then
+    python3 "$DOTS_DIR/scripts/mcp-config.py" antigravity "$GEMINI_CONFIG/mcp_config.json" 2>/dev/null || log_info "Could not merge Antigravity MCP configuration."
   fi
   if [ ! -f "$GEMINI_AGY/settings.json" ] && [ -f "$DOTS_DIR/harnesses/antigravity/agy-settings.json" ]; then
     cp "$DOTS_DIR/harnesses/antigravity/agy-settings.json" "$GEMINI_AGY/settings.json"

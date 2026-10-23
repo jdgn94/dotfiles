@@ -1,6 +1,8 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "instructions": ["/home/juan/.agents/AGENTS.md"],
+  "instructions": [
+    "/home/juan/.agents/AGENTS.md"
+  ],
   "plugin": [
     "opencode-wakatime",
     "superpowers@git+https://github.com/obra/superpowers.git",
@@ -51,9 +53,11 @@
     "browsermcp": {
       "type": "local",
       "command": [
-        "/home/juan/.local/share/opencode/mcp/node_modules/.bin/mcp-server-browsermcp"
+        "npx",
+        "-y",
+        "@browsermcp/mcp@latest"
       ],
-      "enabled": false
+      "enabled": true
     },
     "github": {
       "type": "local",

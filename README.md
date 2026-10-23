@@ -155,10 +155,23 @@ Always-on rules live in `shared/AGENTS.md`: mandatory skill triggers, where inst
 
 To avoid duplicating credentials or exposing keys in git:
 1. The installer creates restricted files in `~/.config/dotsfiles/`:
-   - `~/.config/dotsfiles/tokens.env` (for shell environments and `{env:VAR}` syntax)
+   - `~/.config/dotsfiles/tokens.env` (sourced from your shell rc for all harnesses)
    - `~/.config/dotsfiles/tokens.json` (for JSON and TypeScript integrations)
-2. Define your personal API keys in those files (`ANTHROPIC_API_KEY`, `GITHUB_TOKEN`, `CONTEXT7_API_KEY`, etc.).
+2. It prompts once for `CONTEXT7_API_KEY` if it is missing, and writes it to both files with `chmod 600`.
 3. Harness configurations reference these variables securely.
+
+### Default MCP servers
+
+All harnesses receive the same four servers:
+
+| Server | Transport | Credential |
+| --- | --- | --- |
+| `context7` | Streamable HTTP (`https://mcp.context7.com/mcp`) | `CONTEXT7_API_KEY` |
+| `memory` | stdio (`@modelcontextprotocol/server-memory`) | none |
+| `playwright` | stdio (`@playwright/mcp`, headless) | none |
+| `browsermcp` | stdio (`@browsermcp/mcp`) | none (requires the Browser MCP Chrome extension) |
+
+The installer adds a managed `source ~/.config/dotsfiles/tokens.env` block to your shell rc so new shells and every harness inherit the Context7 key.
 
 ---
 
