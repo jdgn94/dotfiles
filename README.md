@@ -138,6 +138,8 @@ Always-on rules live in `shared/AGENTS.md`: mandatory skill triggers, where inst
 - **`dependency-guard`**: Evaluation standard before adding third-party libraries (prioritizes native APIs, audits maintenance and bundle size).
 - **`vulnerability-auditor`**: Adversarial security reviews producing technical specifications for AI (`_AI.md`) and educational explanations for users (`_USER.md`).
 - **`agent-reach`**: Internet research and platform reading (X/Twitter, Reddit, YouTube, Bilibili, XiaoHongShu, LinkedIn, V2EX, RSS) with Tavily as the web-search backend.
+- **`ponytail`**: Lazy-senior YAGNI ladder for the smallest complete change and anti-over-engineering.
+- **`backlog` / `story` / `pair`**: XP-inspired flow from idea to vertical stories, acceptance criteria, and test-first pair programming (MIT, from `nschurmann/hola-ai`).
 
 ---
 
