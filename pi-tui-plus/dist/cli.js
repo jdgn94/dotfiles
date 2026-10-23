@@ -13,6 +13,7 @@ async function main() {
     const terminal = new ProcessTerminal();
     const tui = new TuiAltScreen(terminal, false, undefined, {
         mouse: true,
+        wheelScrollLines: 3,
     });
     // State collectors
     const gitWatcher = new GitWatcher(cwd);

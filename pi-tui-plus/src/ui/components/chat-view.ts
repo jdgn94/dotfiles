@@ -90,7 +90,7 @@ export class ChatView implements Component {
         style("  • Press [F3 / Alt+M] for MCPs, [F4 / Alt+S] for Skills.", colors.muted)
       );
       allLines.push(
-        style("  • Use [PageUp / PageDown] to scroll conversation history.", colors.muted)
+        style("  • Use [PageUp / PageDown] or the mouse wheel to scroll; click [↓ Jump to end] to return.", colors.muted)
       );
       allLines.push("");
     }

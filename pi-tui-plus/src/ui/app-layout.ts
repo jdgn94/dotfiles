@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import {
   matchesKey,
+  visibleWidth,
   type Component,
   type Focusable,
   type TUI,
@@ -47,6 +48,10 @@ export class AppLayout implements Component, Focusable {
   private sidebarWidth = 44;
   private scrollFollow = true;
   private chatScrollOffset = 0; // lines from bottom
+  private lastChatTop = 2;
+  private lastChatHeight = 0;
+  private lastChatWidth = 80;
+  private jumpButtonRect: { row: number; start: number; width: number } | null = null;
   private animationTimer?: NodeJS.Timeout;
 
   constructor(
@@ -249,12 +254,18 @@ export class AppLayout implements Component, Focusable {
   }
 
   public handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined {
+    if (event.type === "wheel") {
+      return this.handleChatWheel(event);
+    }
     // Handle left button click and press
     if (event.type !== "click" && event.type !== "press") {
       return undefined;
     }
     if (event.button !== "left") {
       return undefined;
+    }
+    if (this.handleJumpToEndClick(event)) {
+      return { handled: true, render: true };
     }
 
     const col = event.x;
@@ -374,6 +385,63 @@ export class AppLayout implements Component, Focusable {
     }
 
     return undefined;
+  }
+
+  private scrollChatBy(lines: number): void {
+    const maxOffset = Math.max(
+      0,
+      this.chatView.getCachedHeight() - Math.max(1, this.lastChatHeight)
+    );
+    this.chatScrollOffset = Math.max(0, Math.min(maxOffset, this.chatScrollOffset + lines));
+    this.scrollFollow = this.chatScrollOffset === 0;
+  }
+
+  private jumpToEnd(): void {
+    this.chatScrollOffset = 0;
+    this.scrollFollow = true;
+  }
+
+  private handleChatWheel(event: TuiMouseEvent): TuiMouseEventResult | undefined {
+    if (
+      this.agentPopup.getIsOpen() ||
+      this.modelPopup.getIsOpen() ||
+      this.diffViewer.getIsOpen() ||
+      this.sessionModal.getIsOpen()
+    ) {
+      return undefined;
+    }
+    const delta = event.wheelDelta ?? 0;
+    if (delta === 0) return undefined;
+    if (event.x < 0 || event.x >= this.lastChatWidth) return undefined;
+    const bottom =
+      this.lastChatTop + this.lastChatHeight + (this.jumpButtonRect ? 1 : 0);
+    if (event.y < this.lastChatTop || event.y >= bottom) {
+      return undefined;
+    }
+    // Negative wheelDelta means the wheel moved up, which reveals older lines.
+    this.scrollChatBy(-delta);
+    this.tui.requestRender();
+    return { handled: true, render: true };
+  }
+
+  private handleJumpToEndClick(event: TuiMouseEvent): boolean {
+    const rect = this.jumpButtonRect;
+    if (!rect) return false;
+    if (event.y !== rect.row) return false;
+    if (event.x < rect.start || event.x >= rect.start + rect.width) return false;
+    this.jumpToEnd();
+    return true;
+  }
+
+  private renderJumpToEnd(width: number): { line: string; start: number; width: number } {
+    const label = " ↓ Jump to end ";
+    const labelWidth = Math.min(visibleWidth(label), width);
+    const start = Math.max(0, Math.floor((width - labelWidth) / 2));
+    const line =
+      " ".repeat(start) +
+      style(label, colors.bold, colors.bgHighlight, colors.accent) +
+      " ".repeat(Math.max(0, width - start - labelWidth));
+    return { line, start, width: labelWidth };
   }
 
   public handleInput(data: string): void {
@@ -722,14 +790,12 @@ export class AppLayout implements Component, Focusable {
 
     // PageUp & PageDown for ChatView
     if (matchesKey(data, "pageUp") || data === "\x1b[5~") {
-      this.scrollFollow = false;
-      this.chatScrollOffset += 5;
+      this.scrollChatBy(5);
       this.tui.requestRender();
       return;
     }
     if (matchesKey(data, "pageDown") || data === "\x1b[6~") {
-      this.chatScrollOffset = Math.max(0, this.chatScrollOffset - 5);
-      if (this.chatScrollOffset === 0) this.scrollFollow = true;
+      this.scrollChatBy(-5);
       this.tui.requestRender();
       return;
     }
@@ -763,6 +829,9 @@ export class AppLayout implements Component, Focusable {
     const chromeHeight =
       headerLines.length + inputBoxLines.length + statusLines.length;
     const centerHeight = Math.max(3, termHeight - chromeHeight);
+    this.jumpButtonRect = null;
+    this.lastChatTop = headerLines.length;
+    this.lastChatHeight = 0;
 
     // Compute split columns
     let centerLines: string[] = [];
@@ -893,23 +962,33 @@ export class AppLayout implements Component, Focusable {
       const allChatLines = this.chatView.render(chatWidth);
       const allSidebarLines = this.sidebar.render(sbWidth);
 
+      const maxOffset = Math.max(0, allChatLines.length - Math.max(1, centerHeight - 1));
+      if (this.chatScrollOffset > maxOffset) {
+        this.chatScrollOffset = maxOffset;
+      }
+      if (this.chatScrollOffset === 0) {
+        this.scrollFollow = true;
+      }
+      const showJump = this.chatScrollOffset > 0;
+      const chatHeight = Math.max(1, centerHeight - (showJump ? 1 : 0));
+      this.lastChatWidth = chatWidth;
+      this.lastChatHeight = chatHeight;
+
       // Windowing chat lines
       let visibleChatLines: string[] = [];
-      if (allChatLines.length <= centerHeight) {
+      if (allChatLines.length <= chatHeight) {
         visibleChatLines = [...allChatLines];
-        while (visibleChatLines.length < centerHeight) {
+        while (visibleChatLines.length < chatHeight) {
           visibleChatLines.push(" ".repeat(chatWidth));
         }
+      } else if (this.scrollFollow) {
+        visibleChatLines = allChatLines.slice(allChatLines.length - chatHeight);
       } else {
-        if (this.scrollFollow) {
-          visibleChatLines = allChatLines.slice(allChatLines.length - centerHeight);
-        } else {
-          const endIdx = Math.max(centerHeight, allChatLines.length - this.chatScrollOffset);
-          const startIdx = Math.max(0, endIdx - centerHeight);
-          visibleChatLines = allChatLines.slice(startIdx, endIdx);
-          while (visibleChatLines.length < centerHeight) {
-            visibleChatLines.unshift(" ".repeat(chatWidth));
-          }
+        const endIdx = Math.max(chatHeight, allChatLines.length - this.chatScrollOffset);
+        const startIdx = Math.max(0, endIdx - chatHeight);
+        visibleChatLines = allChatLines.slice(startIdx, endIdx);
+        while (visibleChatLines.length < chatHeight) {
+          visibleChatLines.unshift(" ".repeat(chatWidth));
         }
       }
 
@@ -925,31 +1004,61 @@ export class AppLayout implements Component, Focusable {
       }
 
       // Composite side by side with vertical border
-      for (let i = 0; i < centerHeight; i++) {
+      for (let i = 0; i < chatHeight; i++) {
         const cLine = this.padTo(visibleChatLines[i] || "", chatWidth);
         const sLine = visibleSidebarLines[i] || " ".repeat(sbWidth);
         const sep = style("│", colors.border);
         centerLines.push(`${cLine}${sep}${sLine}`);
       }
+      if (showJump) {
+        const button = this.renderJumpToEnd(chatWidth);
+        const sLine = visibleSidebarLines[chatHeight] || " ".repeat(sbWidth);
+        const sep = style("│", colors.border);
+        centerLines.push(`${this.padTo(button.line, chatWidth)}${sep}${sLine}`);
+        this.jumpButtonRect = {
+          row: this.lastChatTop + centerHeight - 1,
+          start: button.start,
+          width: button.width,
+        };
+      }
     } else {
       // Full width chat view
       const allChatLines = this.chatView.render(termWidth);
-      if (allChatLines.length <= centerHeight) {
+      const maxOffset = Math.max(0, allChatLines.length - Math.max(1, centerHeight - 1));
+      if (this.chatScrollOffset > maxOffset) {
+        this.chatScrollOffset = maxOffset;
+      }
+      if (this.chatScrollOffset === 0) {
+        this.scrollFollow = true;
+      }
+      const showJump = this.chatScrollOffset > 0;
+      const chatHeight = Math.max(1, centerHeight - (showJump ? 1 : 0));
+      this.lastChatWidth = termWidth;
+      this.lastChatHeight = chatHeight;
+
+      if (allChatLines.length <= chatHeight) {
         centerLines = [...allChatLines];
-        while (centerLines.length < centerHeight) {
+        while (centerLines.length < chatHeight) {
           centerLines.push(" ".repeat(termWidth));
         }
+      } else if (this.scrollFollow) {
+        centerLines = allChatLines.slice(allChatLines.length - chatHeight);
       } else {
-        if (this.scrollFollow) {
-          centerLines = allChatLines.slice(allChatLines.length - centerHeight);
-        } else {
-          const endIdx = Math.max(centerHeight, allChatLines.length - this.chatScrollOffset);
-          const startIdx = Math.max(0, endIdx - centerHeight);
-          centerLines = allChatLines.slice(startIdx, endIdx);
-          while (centerLines.length < centerHeight) {
-            centerLines.unshift(" ".repeat(termWidth));
-          }
+        const endIdx = Math.max(chatHeight, allChatLines.length - this.chatScrollOffset);
+        const startIdx = Math.max(0, endIdx - chatHeight);
+        centerLines = allChatLines.slice(startIdx, endIdx);
+        while (centerLines.length < chatHeight) {
+          centerLines.unshift(" ".repeat(termWidth));
         }
+      }
+      if (showJump) {
+        const button = this.renderJumpToEnd(termWidth);
+        centerLines.push(button.line);
+        this.jumpButtonRect = {
+          row: this.lastChatTop + centerHeight - 1,
+          start: button.start,
+          width: button.width,
+        };
       }
     }
 

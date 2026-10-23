@@ -57,7 +57,8 @@ Built on `@earendil-works/pi-tui` and `@earendil-works/pi-coding-agent`.
 | `F4` / `Alt + S` / `Ctrl + K` | **Expand / Collapse Skills list** |
 | `Alt + B` | Show or hide the sidebar (toggle full-width chat) |
 | `/` (Slash) | Open **Slash Commands Autocomplete Popup** (navigate with `Up`/`Down`, `Tab` to complete) |
-| `PageUp` / `PageDown` | Scroll chat history |
+| `PageUp` / `PageDown` / mouse wheel | Scroll chat history |
+| Click `↓ Jump to end` | Return to the latest message (appears when scrolled up) |
 | `Ctrl + C` | Cancel active response generation or exit cleanly |
 
 ---

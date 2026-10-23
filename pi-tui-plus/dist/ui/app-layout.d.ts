@@ -23,6 +23,10 @@ export declare class AppLayout implements Component, Focusable {
     private sidebarWidth;
     private scrollFollow;
     private chatScrollOffset;
+    private lastChatTop;
+    private lastChatHeight;
+    private lastChatWidth;
+    private jumpButtonRect;
     private animationTimer?;
     constructor(tui: TUI, agent: AgentManager, metrics: MetricsTracker, git: GitWatcher, todoTracker: TodoTracker, toolLogger?: ToolLogger, specGraph?: SpecGraphWatcher);
     private syncInputBoxState;
@@ -30,6 +34,11 @@ export declare class AppLayout implements Component, Focusable {
     invalidate(): void;
     private openExternalEditor;
     handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined;
+    private scrollChatBy;
+    private jumpToEnd;
+    private handleChatWheel;
+    private handleJumpToEndClick;
+    private renderJumpToEnd;
     handleInput(data: string): void;
     render(width: number): string[];
     private padTo;

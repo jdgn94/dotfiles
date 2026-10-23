@@ -57,7 +57,7 @@ export class ChatView {
             allLines.push(style("  • Press [Shift+Tab] to switch active agent at any time.", colors.muted));
             allLines.push(style("  • Press [Ctrl+T] to cycle thinking effort / reasoning.", colors.muted));
             allLines.push(style("  • Press [F3 / Alt+M] for MCPs, [F4 / Alt+S] for Skills.", colors.muted));
-            allLines.push(style("  • Use [PageUp / PageDown] to scroll conversation history.", colors.muted));
+            allLines.push(style("  • Use [PageUp / PageDown] or the mouse wheel to scroll; click [↓ Jump to end] to return.", colors.muted));
             allLines.push("");
         }
         // Render historical messages
