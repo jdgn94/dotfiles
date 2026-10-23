@@ -1,3 +1,4 @@
+import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { type GitWatcher } from "./git-watcher.js";
 import { type MetricsTracker } from "./metrics-tracker.js";
 import { type TodoTracker } from "./todo-tracker.js";
@@ -35,6 +36,7 @@ export declare class AgentManager {
     private toolLogger;
     private gitWatcher;
     private todoTracker?;
+    private sessionManager?;
     private messages;
     private streamingText;
     private streamingThinking;
@@ -49,7 +51,7 @@ export declare class AgentManager {
     private currentAgentIndex;
     private defaultTools;
     private lastAgentSwitchNotice;
-    constructor(cwd: string, metrics: MetricsTracker, toolLogger: ToolLogger, gitWatcher: GitWatcher, todoTracker?: TodoTracker);
+    constructor(cwd: string, metrics: MetricsTracker, toolLogger: ToolLogger, gitWatcher: GitWatcher, todoTracker?: TodoTracker, sessionManager?: SessionManager);
     init(): Promise<void>;
     getMessages(): ChatMessage[];
     getStreamingText(): string;
@@ -61,6 +63,7 @@ export declare class AgentManager {
     getModelName(): string;
     getModelId(): string;
     getSessionId(): string;
+    getResumeCommand(): string;
     getSessionName(): string;
     getPid(): number;
     getThinkingEffort(): string;

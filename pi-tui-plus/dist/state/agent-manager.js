@@ -25,6 +25,7 @@ export class AgentManager {
     toolLogger;
     gitWatcher;
     todoTracker;
+    sessionManager;
     messages = [];
     streamingText = "";
     streamingThinking = "";
@@ -40,16 +41,18 @@ export class AgentManager {
     currentAgentIndex = 0;
     defaultTools = [];
     lastAgentSwitchNotice = "";
-    constructor(cwd, metrics, toolLogger, gitWatcher, todoTracker) {
+    constructor(cwd, metrics, toolLogger, gitWatcher, todoTracker, sessionManager) {
         this.cwd = cwd;
         this.metrics = metrics;
         this.toolLogger = toolLogger;
         this.gitWatcher = gitWatcher;
         this.todoTracker = todoTracker;
+        this.sessionManager = sessionManager;
     }
     async init() {
         const result = await createAgentSession({
             cwd: this.cwd,
+            sessionManager: this.sessionManager,
         });
         this.session = result.session;
         // Record default tools
@@ -102,6 +105,13 @@ export class AgentManager {
     }
     getSessionId() {
         return (this.session?.sessionId || "01a14c70").slice(0, 8);
+    }
+    getResumeCommand() {
+        const id = this.session?.sessionManager.getSessionId();
+        const file = this.session?.sessionManager.getSessionFile();
+        if (!id || !file || !fs.existsSync(file))
+            return "";
+        return `cd "${this.cwd}" && pi-plus --session ${id}`;
     }
     getSessionName() {
         return this.session?.sessionName || "Unnamed session";

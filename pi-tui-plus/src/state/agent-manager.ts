@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import {
   createAgentSession,
+  SessionManager,
   type AgentSession,
 } from "@earendil-works/pi-coding-agent";
 import { type GitWatcher } from "./git-watcher.js";
@@ -61,6 +62,7 @@ export class AgentManager {
   private toolLogger: ToolLogger;
   private gitWatcher: GitWatcher;
   private todoTracker?: TodoTracker;
+  private sessionManager?: SessionManager;
 
   private messages: ChatMessage[] = [];
   private streamingText = "";
@@ -84,18 +86,21 @@ export class AgentManager {
     metrics: MetricsTracker,
     toolLogger: ToolLogger,
     gitWatcher: GitWatcher,
-    todoTracker?: TodoTracker
+    todoTracker?: TodoTracker,
+    sessionManager?: SessionManager
   ) {
     this.cwd = cwd;
     this.metrics = metrics;
     this.toolLogger = toolLogger;
     this.gitWatcher = gitWatcher;
     this.todoTracker = todoTracker;
+    this.sessionManager = sessionManager;
   }
 
   public async init(): Promise<void> {
     const result = await createAgentSession({
       cwd: this.cwd,
+      sessionManager: this.sessionManager,
     });
     this.session = result.session;
 
@@ -162,6 +167,13 @@ export class AgentManager {
 
   public getSessionId(): string {
     return (this.session?.sessionId || "01a14c70").slice(0, 8);
+  }
+
+  public getResumeCommand(): string {
+    const id = this.session?.sessionManager.getSessionId();
+    const file = this.session?.sessionManager.getSessionFile();
+    if (!id || !file || !fs.existsSync(file)) return "";
+    return `cd "${this.cwd}" && pi-plus --session ${id}`;
   }
 
   public getSessionName(): string {

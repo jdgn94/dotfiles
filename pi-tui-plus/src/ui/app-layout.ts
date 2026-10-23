@@ -428,7 +428,8 @@ export class AppLayout implements Component, Focusable {
     const rect = this.jumpButtonRect;
     if (!rect) return false;
     if (event.y !== rect.row) return false;
-    if (event.x < rect.start || event.x >= rect.start + rect.width) return false;
+    // The whole reserved row is the hit target; the label is only its visual center.
+    if (event.x < 0 || event.x >= this.lastChatWidth) return false;
     this.jumpToEnd();
     return true;
   }

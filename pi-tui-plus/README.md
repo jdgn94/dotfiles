@@ -70,7 +70,13 @@ The executable `pi-plus` is linked globally on your system:
 ```bash
 # Run from any project or repository:
 pi-plus
+
+# Resume a previous session:
+pi-plus --session <id|path>
+pi-plus --continue
 ```
+
+On exit, `pi-plus` clears the TUI, prints the exact command to resume the session that just closed, and returns the terminal to the shell.
 
 Or from this project directory:
 
