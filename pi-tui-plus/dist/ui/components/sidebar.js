@@ -4,11 +4,13 @@ import { ImagePreview } from "./image-preview.js";
 function formatTokens(count) {
     if (count >= 1000000) {
         const val = count / 1000000;
-        return val >= 10 ? `${Math.round(val)}M` : `${val.toFixed(1)}M`;
+        const text = Number.isInteger(val) ? String(val) : val.toFixed(1);
+        return `${text}M`;
     }
     if (count >= 1000) {
         const val = count / 1000;
-        return val >= 10 ? `${Math.round(val)}k` : `${val.toFixed(1)}k`;
+        const text = Number.isInteger(val) ? String(val) : val.toFixed(1);
+        return `${text}k`;
     }
     return String(count);
 }
@@ -86,25 +88,17 @@ export class Sidebar {
         const toolsBadge = style(`[Tools: ${toolCount}]`, colors.muted);
         lines.push(` Mode: ${modeBadge}  ${thinkBadge}  ${toolsBadge}`);
         lines.push("");
-        // --- 3. CONTEXT & PROMPT CACHE EFFICIENCY SECTION (Option 2) ---
+        // --- 3. CONTEXT EFFICIENCY SECTION ---
         const m = this.metrics.getMetrics();
-        // Context bar uses dynamic warning (>60%) and error (>80%) threshold colors
         const contextLine = this.renderBar(" Context  ", m.contextPercent, safeWidth);
         lines.push(contextLine);
-        // Below context bar: e.g. "192k / 1M · $0.48 · ~150/s"
+        // Below context bar: e.g. "615k / 1M · $5.01 · –"
         const totalStr = formatTokens(m.total);
         const maxStr = formatTokens(m.contextWindow);
         const costStr = `$${m.estimatedCostUsd >= 0.01 ? m.estimatedCostUsd.toFixed(2) : m.estimatedCostUsd.toFixed(4)}`;
-        const speedStr = `~${m.speedTokensPerSec}/s`;
+        const speedStr = m.speedTokensPerSec > 0 ? `~${m.speedTokensPerSec}/s` : "–";
         const subStats = ` ${style(`${totalStr} / ${maxStr} · ${costStr} · ${speedStr}`, colors.muted)}`;
         lines.push(subStats);
-        // Cache hit ratio gauge: identical width and alignment without "· 0 cached"
-        const totalInputTokens = m.input + m.cacheRead;
-        const cacheHitPct = totalInputTokens > 0
-            ? Math.round((m.cacheRead / totalInputTokens) * 100)
-            : 0;
-        const cacheLine = this.renderBar(" Cache    ", cacheHitPct, safeWidth, "\x1b[38;2;116;199;236m");
-        lines.push(cacheLine);
         lines.push("");
         // --- 4. TOKEN IN/OUT/CACHE TABLE (matches image-1) ---
         const inTokens = formatTokens(m.input);
@@ -358,12 +352,12 @@ export class Sidebar {
                 color = "\x1b[38;2;180;160;235m"; // Default lavender
             }
         }
-        const percentStr = ` | ${clamped}% `;
+        const percentStr = ` │ ${clamped}%`;
         const barWidth = Math.max(6, width - label.length - percentStr.length);
         const fillWidth = Math.round((clamped / 100) * barWidth);
         const emptyWidth = Math.max(0, barWidth - fillWidth);
-        const filled = `${color}${"█".repeat(fillWidth)}${colors.reset}`;
-        const empty = `${colors.muted}${"░".repeat(emptyWidth)}${colors.reset}`;
+        const filled = `${color}${"━".repeat(fillWidth)}${colors.reset}`;
+        const empty = `${colors.border}${"─".repeat(emptyWidth)}${colors.reset}`;
         return `${style(label, colors.muted)}${filled}${empty}${style(percentStr, badgeColor)}`;
     }
     spaceBetween(left, right, targetWidth) {
