@@ -99,6 +99,12 @@ export class Sidebar {
         const speedStr = m.speedTokensPerSec > 0 ? `~${m.speedTokensPerSec}/s` : "–";
         const subStats = ` ${style(`${totalStr} / ${maxStr} · ${costStr} · ${speedStr}`, colors.muted)}`;
         lines.push(subStats);
+        // Cache hit ratio uses the same thin-line bar; cyan only marks the metric.
+        const totalInputTokens = m.input + m.cacheRead;
+        const cacheHitPct = totalInputTokens > 0
+            ? Math.round((m.cacheRead / totalInputTokens) * 100)
+            : 0;
+        lines.push(this.renderBar(" Cache    ", cacheHitPct, safeWidth, "\x1b[38;2;116;199;236m"));
         lines.push("");
         // --- 4. TOKEN IN/OUT/CACHE TABLE (matches image-1) ---
         const inTokens = formatTokens(m.input);
