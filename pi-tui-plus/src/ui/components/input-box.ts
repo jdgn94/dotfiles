@@ -302,12 +302,22 @@ export class InputBox implements Component, Focusable {
   }
 
   public getAttachedImageAtCursor(): string | null {
-    if (!this.text.trim()) return null;
+    if (!this.text) return null;
 
     const text = this.text;
     const cursor = this.cursor;
 
-    // Extract word around cursor
+    // [Image N] tokens are shown when the text caret is on them or beside them.
+    for (const match of text.matchAll(/\[Image (\d+)\]/g)) {
+      const start = match.index ?? 0;
+      const end = start + match[0].length;
+      if (cursor >= start - 1 && cursor <= end + 1) {
+        const image = this.attachedImages[Number(match[1]) - 1];
+        if (image) return image.path;
+      }
+    }
+
+    // Also support @path/to/image.png under the caret.
     let start = cursor;
     while (start > 0 && !/\s|"|'/.test(text[start - 1] ?? "")) {
       start--;
@@ -318,21 +328,7 @@ export class InputBox implements Component, Focusable {
     }
 
     const candidate = text.slice(start, end).trim().replace(/^['"]|['"]$/g, "");
-    if (this.resolveImagePath(candidate)) {
-      return this.resolveImagePath(candidate);
-    }
-
-    // Also check if any word in the text is an existing image path
-    const matches = text.match(/[^\s"']+\.(png|jpg|jpeg|webp|gif|bmp|svg)/gi);
-    if (matches && matches.length > 0) {
-      for (const m of matches) {
-        const clean = m.replace(/^['"]|['"]$/g, "");
-        const resolved = this.resolveImagePath(clean);
-        if (resolved) return resolved;
-      }
-    }
-
-    return null;
+    return this.resolveImagePath(candidate);
   }
 
   private resolveImagePath(candidate: string): string | null {

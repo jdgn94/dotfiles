@@ -64,6 +64,7 @@ Built on `@earendil-works/pi-tui` and `@earendil-works/pi-coding-agent`.
 | `Backspace` / `Delete` inside `[Image N]` or `@file` | Remove the whole token and its image |
 | `Ctrl + Backspace` | Remove the last attached image token |
 | Hover an image in chat | Show its preview at the bottom of the right sidebar |
+| Move the text caret over `[Image N]` or an image path | Show its preview in the right sidebar |
 | `Ctrl + C` | Cancel active response generation or exit cleanly |
 
 `@file` mentions and `[Image N]` attachments are inserted inline with a yellow background. They are atomic: deleting any part of the token removes the whole element.
