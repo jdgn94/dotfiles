@@ -277,6 +277,9 @@ export class AppLayout implements Component, Focusable {
       this.setHoveredImage(clickedImage);
       return { handled: true, render: true };
     }
+    if (this.hoveredImage) {
+      this.setHoveredImage(null);
+    }
 
     const col = event.x;
     const row = event.y;
@@ -484,6 +487,10 @@ export class AppLayout implements Component, Focusable {
   }
 
   public handleInput(data: string): void {
+    if (this.hoveredImage) {
+      this.setHoveredImage(null);
+    }
+
     // Handle input when ModelPopup modal is open
     if (this.modelPopup.getIsOpen()) {
       if (matchesKey(data, "escape") || matchesKey(data, "ctrl+c")) {

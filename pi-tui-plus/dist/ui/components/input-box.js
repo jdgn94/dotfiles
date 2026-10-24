@@ -1,4 +1,3 @@
-import * as path from "node:path";
 import { matchesKey, visibleWidth } from "@earendil-works/pi-tui";
 import { colors, style, truncate } from "../theme.js";
 import { loadImageAttachment, normalizeImagePath, readClipboardImage, readClipboardText, } from "../../state/image-attachment.js";
@@ -451,9 +450,10 @@ export class InputBox {
         const borderColor = this.focused ? this.activeAgentColor : colors.border;
         const lines = [];
         if (this.attachedImages.length > 0) {
-            const names = this.attachedImages.map((image) => path.basename(image.path)).join(", ");
-            const count = this.attachedImages.length;
-            lines.push(style(` 📎 ${count} image${count === 1 ? "" : "s"}: ${truncate(names, Math.max(8, safeWidth - 14))}`, colors.accent));
+            const labels = this.attachedImages
+                .map((_image, index) => `[Image ${index + 1}]`)
+                .join(" ");
+            lines.push(style(` 📎 ${labels}`, colors.accent));
         }
         // --- @ Mentions Autocomplete Popup (@files / @agents) ---
         const activeMention = this.getActiveMention();
