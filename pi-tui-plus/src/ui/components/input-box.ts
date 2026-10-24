@@ -1,7 +1,13 @@
-import * as fs from "node:fs";
 import * as path from "node:path";
 import { matchesKey, visibleWidth, type Component, type Focusable } from "@earendil-works/pi-tui";
 import { colors, style, truncate } from "../theme.js";
+import {
+  type ChatImage,
+  loadImageAttachment,
+  normalizeImagePath,
+  readClipboardImage,
+  readClipboardText,
+} from "../../state/image-attachment.js";
 
 export interface SlashCommand {
   name: string;
@@ -59,9 +65,10 @@ export class InputBox implements Component, Focusable {
   private cursor = 0;
   private history: string[] = [];
   private historyIndex = -1;
-  private placeholder = "Type a prompt... (Enter: send, Alt+Enter: newline, Ctrl+E: editor, /: commands)";
-  private onSubmitCallback?: (text: string) => void;
+  private placeholder = "Type a prompt... (Enter: send, Alt+Enter: newline, Ctrl+V: image, Ctrl+E: editor, /: commands)";
+  private onSubmitCallback?: (text: string, images: ChatImage[]) => void;
   private onOpenExternalEditorCallback?: () => void;
+  private attachedImages: ChatImage[] = [];
 
   private activeAgentName = "default";
   private activeAgentColor = colors.activeBorder;
@@ -127,7 +134,7 @@ export class InputBox implements Component, Focusable {
     return results.slice(0, 6);
   }
 
-  public onSubmit(cb: (text: string) => void): void {
+  public onSubmit(cb: (text: string, images: ChatImage[]) => void): void {
     this.onSubmitCallback = cb;
   }
 
@@ -168,6 +175,44 @@ export class InputBox implements Component, Focusable {
     this.cursor = 0;
     this.historyIndex = -1;
     this.selectedCommandIndex = 0;
+    this.attachedImages = [];
+  }
+
+  public getAttachedImages(): ChatImage[] {
+    return [...this.attachedImages];
+  }
+
+  public addImagePath(candidate: string): boolean {
+    const image = loadImageAttachment(candidate);
+    if (!image) return false;
+    if (!this.attachedImages.some((existing) => existing.path === image.path)) {
+      this.attachedImages.push(image);
+    }
+    return true;
+  }
+
+  public addImageFromClipboard(): boolean {
+    const image = readClipboardImage();
+    if (image) {
+      if (!this.attachedImages.some((existing) => existing.path === image.path)) {
+        this.attachedImages.push(image);
+      }
+      return true;
+    }
+
+    const text = readClipboardText();
+    if (!text) return false;
+    let added = false;
+    const remaining: string[] = [];
+    for (const line of text.split(/\r?\n/)) {
+      if (this.addImagePath(line)) added = true;
+      else remaining.push(line);
+    }
+    if (added) {
+      const rest = remaining.join("\n").trim();
+      if (rest) this.insertTextAtCursor(rest);
+    }
+    return added;
   }
 
   private getMatchingCommands(): SlashCommand[] {
@@ -187,7 +232,9 @@ export class InputBox implements Component, Focusable {
   }
 
   public getAttachedImageAtCursor(): string | null {
-    if (!this.text.trim()) return null;
+    if (!this.text.trim()) {
+      return this.attachedImages[0]?.path ?? null;
+    }
 
     const text = this.text;
     const cursor = this.cursor;
@@ -221,25 +268,56 @@ export class InputBox implements Component, Focusable {
   }
 
   private resolveImagePath(candidate: string): string | null {
-    if (!candidate || candidate.length < 4) return null;
-    const extMatch = candidate.match(/\.(png|jpg|jpeg|webp|gif|bmp|svg)$/i);
-    if (!extMatch) return null;
+    return normalizeImagePath(candidate);
+  }
 
-    try {
-      if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
-        return path.resolve(candidate);
+  private insertTextAtCursor(value: string): void {
+    const normalized = value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    this.text = this.text.slice(0, this.cursor) + normalized + this.text.slice(this.cursor);
+    this.cursor += normalized.length;
+  }
+
+  private handleBracketedPaste(content: string): void {
+    const normalized = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    const remaining: string[] = [];
+    let attached = 0;
+
+    for (const line of normalized.split("\n")) {
+      if (this.addImagePath(line)) {
+        attached++;
+      } else {
+        remaining.push(line);
       }
-      const resolved = path.resolve(process.cwd(), candidate);
-      if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
-        return resolved;
-      }
-    } catch {
-      return null;
     }
-    return null;
+
+    if (attached > 0) {
+      const rest = remaining.join("\n").trim();
+      if (rest) this.insertTextAtCursor(rest);
+      return;
+    }
+    this.insertTextAtCursor(normalized);
   }
 
   public handleInput(data: string): void {
+    // Bracketed paste: terminal file drag/drop and text paste.
+    if (data.startsWith("\x1b[200~") && data.endsWith("\x1b[201~")) {
+      const pasted = data.slice(6, -6);
+      if (!pasted) {
+        this.addImageFromClipboard();
+      } else {
+        this.handleBracketedPaste(pasted);
+      }
+      return;
+    }
+
+    // Ctrl+V: attach an image from the system clipboard, or paste text.
+    if (data === "\x16" || matchesKey(data, "ctrl+v")) {
+      if (this.addImageFromClipboard()) return;
+      const text = readClipboardText();
+      if (text) this.insertTextAtCursor(text);
+      return;
+    }
+
     const isCommandMode = this.text.startsWith("/");
     const matching = isCommandMode ? this.getMatchingCommands() : [];
 
@@ -319,8 +397,10 @@ export class InputBox implements Component, Focusable {
 
       if (finalSubmission) {
         this.history.push(this.text);
+      }
+      if (finalSubmission || this.attachedImages.length > 0) {
         if (this.onSubmitCallback) {
-          this.onSubmitCallback(finalSubmission);
+          this.onSubmitCallback(finalSubmission, this.getAttachedImages());
         }
         this.clear();
       }
@@ -329,6 +409,10 @@ export class InputBox implements Component, Focusable {
 
     // Backspace
     if (data === "\x7f" || data === "\b") {
+      if (this.text.length === 0 && this.cursor === 0 && this.attachedImages.length > 0) {
+        this.attachedImages.pop();
+        return;
+      }
       if (this.cursor > 0) {
         this.text = this.text.slice(0, this.cursor - 1) + this.text.slice(this.cursor);
         this.cursor--;
@@ -424,6 +508,17 @@ export class InputBox implements Component, Focusable {
     const safeWidth = Math.max(20, width);
     const borderColor = this.focused ? this.activeAgentColor : colors.border;
     const lines: string[] = [];
+
+    if (this.attachedImages.length > 0) {
+      const names = this.attachedImages.map((image) => path.basename(image.path)).join(", ");
+      const count = this.attachedImages.length;
+      lines.push(
+        style(
+          ` 📎 ${count} image${count === 1 ? "" : "s"}: ${truncate(names, Math.max(8, safeWidth - 14))}`,
+          colors.accent
+        )
+      );
+    }
 
     // --- @ Mentions Autocomplete Popup (@files / @agents) ---
     const activeMention = this.getActiveMention();
@@ -584,8 +679,12 @@ export class InputBox implements Component, Focusable {
         );
       }
     } else {
+      const emptyDisplay =
+        this.attachedImages.length > 0
+          ? "Image attached — type a prompt or press Enter"
+          : this.placeholder;
       if (this.text.length === 0) {
-        contentDisplay = style(this.placeholder.slice(0, innerWidth - 2), colors.muted);
+        contentDisplay = style(emptyDisplay.slice(0, innerWidth - 2), colors.muted);
       } else {
         // Horizontal windowing for long text
         const maxVisible = Math.max(1, innerWidth - 2);
@@ -605,7 +704,7 @@ export class InputBox implements Component, Focusable {
 
       const textLen =
         this.text.length === 0
-          ? this.placeholder.slice(0, innerWidth - 2).length
+          ? emptyDisplay.slice(0, innerWidth - 2).length
           : Math.min(innerWidth - 2, this.text.length + 1);
       const padCount = Math.max(0, innerWidth - 2 - textLen);
       middleLines.push(

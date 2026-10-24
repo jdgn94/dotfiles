@@ -26,6 +26,8 @@ export declare class AppLayout implements Component, Focusable {
     private lastChatTop;
     private lastChatHeight;
     private lastChatWidth;
+    private lastChatStartIndex;
+    private hoveredImage;
     private jumpButtonRect;
     private animationTimer?;
     constructor(tui: TUI, agent: AgentManager, metrics: MetricsTracker, git: GitWatcher, todoTracker: TodoTracker, toolLogger?: ToolLogger, specGraph?: SpecGraphWatcher);
@@ -36,6 +38,9 @@ export declare class AppLayout implements Component, Focusable {
     handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined;
     private scrollChatBy;
     private jumpToEnd;
+    private handleChatHover;
+    private getChatImageAt;
+    private setHoveredImage;
     private handleChatWheel;
     private handleJumpToEndClick;
     private renderJumpToEnd;

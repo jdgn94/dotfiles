@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { createAgentSession, } from "@earendil-works/pi-coding-agent";
+import { loadImageAttachment, saveImageBuffer, } from "./image-attachment.js";
 export const AGENT_COLORS = {
     default: "\x1b[38;2;137;180;250m", // Lavender / Soft Blue (#89b4fa)
     orchestrator: "\x1b[38;2;116;199;236m", // Sapphire / Cyan (#74c7ec)
@@ -418,11 +419,12 @@ export class AgentManager {
             this.listeners = this.listeners.filter((l) => l !== listener);
         };
     }
-    async prompt(text) {
+    async prompt(text, images = []) {
         if (!this.session)
             return;
-        if (!text.trim())
+        if (!text.trim() && images.length === 0)
             return;
+        const promptText = text.trim() || "Analyze the attached image.";
         // Check if the prompt is an explicit delegation: /agent <subagent> <prompt...>
         const agentCmdMatch = text.trim().match(/^\/agent\s+([^\s]+)(?:\s+([\s\S]+))?$/i);
         if (agentCmdMatch) {
@@ -452,13 +454,6 @@ export class AgentManager {
             }
         }
         const activeAgent = this.getActiveAgent();
-        // Push user message to UI
-        this.messages.push({
-            id: "user-" + Date.now(),
-            role: "user",
-            text,
-            timestamp: Date.now(),
-        });
         this.isWorking = true;
         this.currentStatus = "Processing...";
         this.turnStartTime = Date.now();
@@ -467,8 +462,8 @@ export class AgentManager {
         this.metrics.onPromptStart();
         this.notify();
         // Prepare prompt with active agent context if not default
-        let effectivePrompt = text;
-        // Attach workspace files mentioned via @file
+        let effectivePrompt = promptText;
+        // Attach workspace files mentioned via @file; images become image inputs.
         const fileMatches = text.match(/@([a-zA-Z0-9_\-./]+\.[a-zA-Z0-9]+)/g);
         if (fileMatches && fileMatches.length > 0) {
             let fileContext = "";
@@ -477,6 +472,13 @@ export class AgentManager {
                 try {
                     const resolved = path.resolve(this.cwd, filePath);
                     if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
+                        const image = loadImageAttachment(resolved);
+                        if (image) {
+                            if (!images.some((existing) => existing.path === image.path)) {
+                                images.push(image);
+                            }
+                            continue;
+                        }
                         const content = fs.readFileSync(resolved, "utf8");
                         fileContext += `[Attached File: ${filePath}]\n\`\`\`\n${content}\n\`\`\`\n\n`;
                     }
@@ -489,6 +491,14 @@ export class AgentManager {
                 effectivePrompt = `${fileContext}${effectivePrompt}`;
             }
         }
+        // Push user message to UI after @file images have been resolved.
+        this.messages.push({
+            id: "user-" + Date.now(),
+            role: "user",
+            text,
+            images: images.length > 0 ? [...images] : undefined,
+            timestamp: Date.now(),
+        });
         if (activeAgent.id !== "default") {
             let agentHeader = `[Active Agent: ${activeAgent.name}]\n`;
             if (activeAgent.description) {
@@ -497,10 +507,15 @@ export class AgentManager {
             if (activeAgent.systemPrompt) {
                 agentHeader += `Guidelines & Boundaries:\n${activeAgent.systemPrompt}\n\n`;
             }
-            effectivePrompt = `${agentHeader}Task:\n${text}`;
+            effectivePrompt = `${agentHeader}Task:\n${promptText}`;
         }
         try {
-            await this.session.prompt(effectivePrompt);
+            const imagePayload = images.map(({ data, mimeType }) => ({
+                type: "image",
+                data,
+                mimeType,
+            }));
+            await this.session.prompt(effectivePrompt, imagePayload.length > 0 ? { images: imagePayload } : undefined);
         }
         catch (err) {
             this.messages.push({
@@ -969,19 +984,26 @@ Keyboard Shortcuts:
         for (const m of sessionMessages) {
             if (m.role === "user") {
                 let text = "";
+                const images = [];
                 if (typeof m.content === "string")
                     text = m.content;
                 else if (Array.isArray(m.content)) {
-                    text = m.content
-                        .filter((p) => p.type === "text")
-                        .map((p) => p.text)
-                        .join("\n");
+                    for (const p of m.content) {
+                        if (p.type === "text")
+                            text += p.text;
+                        if (p.type === "image") {
+                            const saved = saveImageBuffer(Buffer.from(p.data, "base64"), p.mimeType, "history");
+                            if (saved)
+                                images.push(saved);
+                        }
+                    }
                 }
-                if (text) {
+                if (text || images.length > 0) {
                     this.messages.push({
                         id: "hist-u-" + Math.random(),
                         role: "user",
                         text,
+                        images: images.length > 0 ? images : undefined,
                         timestamp: Date.now(),
                     });
                 }

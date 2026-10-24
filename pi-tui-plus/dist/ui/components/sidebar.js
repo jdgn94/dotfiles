@@ -22,6 +22,7 @@ export class Sidebar {
     todoTracker;
     specGraph;
     inputBox;
+    hoveredImage = null;
     // Collapsible sections state
     mcpExpanded = false;
     skillsExpanded = false;
@@ -45,6 +46,9 @@ export class Sidebar {
     }
     togglePlan() {
         this.planExpanded = !this.planExpanded;
+    }
+    setHoveredImage(imagePath) {
+        this.hoveredImage = imagePath;
     }
     isMcpExpanded() {
         return this.mcpExpanded;
@@ -328,16 +332,22 @@ export class Sidebar {
         const heapUsedMb = (mem.heapUsed / (1024 * 1024)).toFixed(0);
         const heapTotalMb = (mem.heapTotal / (1024 * 1024)).toFixed(0);
         lines.push(` ${style("⚙ Process:", colors.muted)} ${style(`RSS ${rssMb} MB`, colors.text)} · ${style(`Heap ${heapUsedMb}/${heapTotalMb} MB`, colors.subtext)}`);
-        // --- 12. IMAGE PREVIEW (when cursor is over an attached image file) ---
-        const attachedImage = this.inputBox?.getAttachedImageAtCursor();
-        if (attachedImage) {
-            lines.push(style("─".repeat(safeWidth), colors.border));
-            const filename = path.basename(attachedImage);
-            lines.push(` ${style("󰋩 Image Preview:", colors.bold, colors.accent)} ${style(truncate(filename, safeWidth - 18), colors.secondary)}`);
-            const previewLines = ImagePreview.render(attachedImage, safeWidth - 4, 8);
-            for (const pLine of previewLines) {
-                lines.push(`  ${pLine}`);
-            }
+        // --- 12. IMAGE PREVIEW is rendered by the layout as a bottom overlay ---
+        return lines;
+    }
+    renderHoveredImagePreview(width) {
+        const image = this.hoveredImage ?? this.inputBox?.getAttachedImageAtCursor();
+        if (!image)
+            return [];
+        const safeWidth = Math.max(26, width);
+        const filename = path.basename(image);
+        const lines = [
+            style("─".repeat(safeWidth), colors.border),
+            ` ${style("󰋩 Image Preview:", colors.bold, colors.accent)} ${style(truncate(filename, safeWidth - 18), colors.secondary)}`,
+        ];
+        const previewLines = ImagePreview.render(image, safeWidth - 4, 8);
+        for (const pLine of previewLines) {
+            lines.push(`  ${pLine}`);
         }
         return lines;
     }

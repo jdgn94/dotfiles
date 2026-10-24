@@ -18,6 +18,7 @@ export declare class Sidebar implements Component {
     private todoTracker?;
     private specGraph?;
     private inputBox?;
+    private hoveredImage;
     private mcpExpanded;
     private skillsExpanded;
     private planExpanded;
@@ -27,11 +28,13 @@ export declare class Sidebar implements Component {
     toggleMcp(): void;
     toggleSkills(): void;
     togglePlan(): void;
+    setHoveredImage(imagePath: string | null): void;
     isMcpExpanded(): boolean;
     isSkillsExpanded(): boolean;
     isPlanExpanded(): boolean;
     handleClick(sidebarRowIndex: number): SidebarClickAction | null;
     render(width: number): string[];
+    renderHoveredImagePreview(width: number): string[];
     private renderBar;
     private spaceBetween;
 }

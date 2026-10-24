@@ -34,6 +34,8 @@ export class AppLayout {
     lastChatTop = 2;
     lastChatHeight = 0;
     lastChatWidth = 80;
+    lastChatStartIndex = 0;
+    hoveredImage = null;
     jumpButtonRect = null;
     animationTimer;
     constructor(tui, agent, metrics, git, todoTracker, toolLogger, specGraph) {
@@ -56,7 +58,7 @@ export class AppLayout {
         this.statusBar = new StatusBar(agent, metrics);
         this.syncInputBoxState();
         // Setup input submit
-        this.inputBox.onSubmit((text) => {
+        this.inputBox.onSubmit((text, images) => {
             this.scrollFollow = true;
             this.chatScrollOffset = 0;
             const trimmed = text.trim();
@@ -118,7 +120,7 @@ export class AppLayout {
                 this.tui.requestRender();
                 return;
             }
-            this.agent.prompt(text).catch(() => { });
+            this.agent.prompt(text, images).catch(() => { });
             this.tui.requestRender();
         });
         // Re-render whenever state changes
@@ -211,6 +213,9 @@ export class AppLayout {
         }
     }
     handleMouse(event) {
+        if (event.type === "move") {
+            return this.handleChatHover(event);
+        }
         if (event.type === "wheel") {
             return this.handleChatWheel(event);
         }
@@ -222,6 +227,11 @@ export class AppLayout {
             return undefined;
         }
         if (this.handleJumpToEndClick(event)) {
+            return { handled: true, render: true };
+        }
+        const clickedImage = this.getChatImageAt(event.x, event.y);
+        if (clickedImage) {
+            this.setHoveredImage(clickedImage);
             return { handled: true, render: true };
         }
         const col = event.x;
@@ -341,6 +351,32 @@ export class AppLayout {
     jumpToEnd() {
         this.chatScrollOffset = 0;
         this.scrollFollow = true;
+    }
+    handleChatHover(event) {
+        if (this.agentPopup.getIsOpen() ||
+            this.modelPopup.getIsOpen() ||
+            this.diffViewer.getIsOpen() ||
+            this.sessionModal.getIsOpen()) {
+            return undefined;
+        }
+        const image = this.getChatImageAt(event.x, event.y);
+        if (image === this.hoveredImage)
+            return undefined;
+        this.setHoveredImage(image);
+        return { handled: true, render: true };
+    }
+    getChatImageAt(x, y) {
+        if (x < 0 || x >= this.lastChatWidth)
+            return null;
+        if (y < this.lastChatTop || y >= this.lastChatTop + this.lastChatHeight) {
+            return null;
+        }
+        return this.chatView.getImageAtLine(this.lastChatStartIndex + (y - this.lastChatTop));
+    }
+    setHoveredImage(imagePath) {
+        this.hoveredImage = imagePath;
+        this.sidebar.setHoveredImage(imagePath);
+        this.tui.requestRender();
     }
     handleChatWheel(event) {
         if (this.agentPopup.getIsOpen() ||
@@ -873,6 +909,7 @@ export class AppLayout {
             this.lastChatHeight = chatHeight;
             // Windowing chat lines
             let visibleChatLines = [];
+            let startIdx = 0;
             if (allChatLines.length <= chatHeight) {
                 visibleChatLines = [...allChatLines];
                 while (visibleChatLines.length < chatHeight) {
@@ -880,16 +917,18 @@ export class AppLayout {
                 }
             }
             else if (this.scrollFollow) {
-                visibleChatLines = allChatLines.slice(allChatLines.length - chatHeight);
+                startIdx = allChatLines.length - chatHeight;
+                visibleChatLines = allChatLines.slice(startIdx);
             }
             else {
                 const endIdx = Math.max(chatHeight, allChatLines.length - this.chatScrollOffset);
-                const startIdx = Math.max(0, endIdx - chatHeight);
+                startIdx = Math.max(0, endIdx - chatHeight);
                 visibleChatLines = allChatLines.slice(startIdx, endIdx);
                 while (visibleChatLines.length < chatHeight) {
                     visibleChatLines.unshift(" ".repeat(chatWidth));
                 }
             }
+            this.lastChatStartIndex = startIdx;
             // Windowing sidebar lines
             let visibleSidebarLines = [];
             for (let i = 0; i < centerHeight; i++) {
@@ -899,6 +938,14 @@ export class AppLayout {
                 }
                 else {
                     visibleSidebarLines.push(" ".repeat(sbWidth));
+                }
+            }
+            // Pin the image preview to the bottom of the sidebar, above the input.
+            const previewLines = this.sidebar.renderHoveredImagePreview(sbWidth);
+            if (previewLines.length > 0) {
+                const previewStart = Math.max(0, centerHeight - previewLines.length);
+                for (let i = 0; i < previewLines.length && previewStart + i < visibleSidebarLines.length; i++) {
+                    visibleSidebarLines[previewStart + i] = this.padTo(previewLines[i], sbWidth);
                 }
             }
             // Composite side by side with vertical border
@@ -935,18 +982,20 @@ export class AppLayout {
             this.lastChatWidth = termWidth;
             this.lastChatHeight = chatHeight;
             if (allChatLines.length <= chatHeight) {
+                this.lastChatStartIndex = 0;
                 centerLines = [...allChatLines];
                 while (centerLines.length < chatHeight) {
                     centerLines.push(" ".repeat(termWidth));
                 }
             }
             else if (this.scrollFollow) {
-                centerLines = allChatLines.slice(allChatLines.length - chatHeight);
+                this.lastChatStartIndex = allChatLines.length - chatHeight;
+                centerLines = allChatLines.slice(this.lastChatStartIndex);
             }
             else {
                 const endIdx = Math.max(chatHeight, allChatLines.length - this.chatScrollOffset);
-                const startIdx = Math.max(0, endIdx - chatHeight);
-                centerLines = allChatLines.slice(startIdx, endIdx);
+                this.lastChatStartIndex = Math.max(0, endIdx - chatHeight);
+                centerLines = allChatLines.slice(this.lastChatStartIndex, endIdx);
                 while (centerLines.length < chatHeight) {
                     centerLines.unshift(" ".repeat(termWidth));
                 }

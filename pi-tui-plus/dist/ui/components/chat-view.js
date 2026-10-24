@@ -1,4 +1,5 @@
 import { visibleWidth } from "@earendil-works/pi-tui";
+import * as path from "node:path";
 import { colors, highlightCodeLine, renderWavePulse, style } from "../theme.js";
 import { TetrisLogo } from "./tetris-logo.js";
 export class ChatView {
@@ -7,6 +8,7 @@ export class ChatView {
     scrollOffset = 0;
     autoScroll = true;
     cachedHeight = 20;
+    imageRanges = [];
     constructor(agent) {
         this.agent = agent;
     }
@@ -30,12 +32,20 @@ export class ChatView {
     getCachedHeight() {
         return this.cachedHeight;
     }
+    getImageAtLine(line) {
+        for (const range of this.imageRanges) {
+            if (line >= range.start && line <= range.end)
+                return range.path;
+        }
+        return null;
+    }
     render(width) {
         const safeWidth = Math.max(20, width);
         const messages = this.agent.getMessages();
         const streamingText = this.agent.getStreamingText();
         const streamingThinking = this.agent.getStreamingThinking();
         const isWorking = this.agent.getIsWorking();
+        this.imageRanges = [];
         const allLines = [];
         // Welcome banner with animated Tetris Logo if empty
         if (messages.length === 0 && !streamingText && !streamingThinking) {
@@ -63,7 +73,21 @@ export class ChatView {
         // Render historical messages
         for (const msg of messages) {
             if (msg.role === "user") {
-                this.renderBox(allLines, "You", msg.text, colors.accent, safeWidth);
+                if (msg.images?.length) {
+                    for (const image of msg.images) {
+                        const start = allLines.length;
+                        const filename = image.path ? path.basename(image.path) : "image";
+                        this.renderBox(allLines, "Image attachment", `🖼 ${filename} · hover to preview`, colors.accent, safeWidth);
+                        this.imageRanges.push({
+                            start,
+                            end: allLines.length - 1,
+                            path: image.path,
+                        });
+                    }
+                }
+                if (msg.text) {
+                    this.renderBox(allLines, "You", msg.text, colors.accent, safeWidth);
+                }
             }
             else if (msg.role === "assistant") {
                 if (msg.thinking) {

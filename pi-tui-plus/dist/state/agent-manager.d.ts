@@ -3,10 +3,12 @@ import { type GitWatcher } from "./git-watcher.js";
 import { type MetricsTracker } from "./metrics-tracker.js";
 import { type TodoTracker } from "./todo-tracker.js";
 import { type ToolLogger } from "./tool-logger.js";
+import { type ChatImage } from "./image-attachment.js";
 export interface ChatMessage {
     id: string;
     role: "user" | "assistant" | "system" | "tool";
     text: string;
+    images?: ChatImage[];
     thinking?: string;
     toolCall?: {
         name: string;
@@ -101,7 +103,7 @@ export declare class AgentManager {
     private discoverAgents;
     private loadAgentsFromDir;
     onChange(listener: () => void): () => void;
-    prompt(text: string): Promise<void>;
+    prompt(text: string, images?: ChatImage[]): Promise<void>;
     private executeSubagentPrompt;
     clearMessages(): void;
     newSession(): Promise<void>;

@@ -51,6 +51,8 @@ export class AppLayout implements Component, Focusable {
   private lastChatTop = 2;
   private lastChatHeight = 0;
   private lastChatWidth = 80;
+  private lastChatStartIndex = 0;
+  private hoveredImage: string | null = null;
   private jumpButtonRect: { row: number; start: number; width: number } | null = null;
   private animationTimer?: NodeJS.Timeout;
 
@@ -95,7 +97,7 @@ export class AppLayout implements Component, Focusable {
     this.syncInputBoxState();
 
     // Setup input submit
-    this.inputBox.onSubmit((text) => {
+    this.inputBox.onSubmit((text, images) => {
       this.scrollFollow = true;
       this.chatScrollOffset = 0;
       const trimmed = text.trim();
@@ -155,7 +157,7 @@ export class AppLayout implements Component, Focusable {
         this.tui.requestRender();
         return;
       }
-      this.agent.prompt(text).catch(() => {});
+      this.agent.prompt(text, images).catch(() => {});
       this.tui.requestRender();
     });
 
@@ -254,6 +256,9 @@ export class AppLayout implements Component, Focusable {
   }
 
   public handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined {
+    if (event.type === "move") {
+      return this.handleChatHover(event);
+    }
     if (event.type === "wheel") {
       return this.handleChatWheel(event);
     }
@@ -265,6 +270,11 @@ export class AppLayout implements Component, Focusable {
       return undefined;
     }
     if (this.handleJumpToEndClick(event)) {
+      return { handled: true, render: true };
+    }
+    const clickedImage = this.getChatImageAt(event.x, event.y);
+    if (clickedImage) {
+      this.setHoveredImage(clickedImage);
       return { handled: true, render: true };
     }
 
@@ -401,8 +411,36 @@ export class AppLayout implements Component, Focusable {
     this.scrollFollow = true;
   }
 
-  private handleChatWheel(event: TuiMouseEvent): TuiMouseEventResult | undefined {
+  private handleChatHover(event: TuiMouseEvent): TuiMouseEventResult | undefined {
     if (
+      this.agentPopup.getIsOpen() ||
+      this.modelPopup.getIsOpen() ||
+      this.diffViewer.getIsOpen() ||
+      this.sessionModal.getIsOpen()
+    ) {
+      return undefined;
+    }
+    const image = this.getChatImageAt(event.x, event.y);
+    if (image === this.hoveredImage) return undefined;
+    this.setHoveredImage(image);
+    return { handled: true, render: true };
+  }
+
+  private getChatImageAt(x: number, y: number): string | null {
+    if (x < 0 || x >= this.lastChatWidth) return null;
+    if (y < this.lastChatTop || y >= this.lastChatTop + this.lastChatHeight) {
+      return null;
+    }
+    return this.chatView.getImageAtLine(this.lastChatStartIndex + (y - this.lastChatTop));
+  }
+
+  private setHoveredImage(imagePath: string | null): void {
+    this.hoveredImage = imagePath;
+    this.sidebar.setHoveredImage(imagePath);
+    this.tui.requestRender();
+  }
+
+  private handleChatWheel(event: TuiMouseEvent): TuiMouseEventResult | undefined {    if (
       this.agentPopup.getIsOpen() ||
       this.modelPopup.getIsOpen() ||
       this.diffViewer.getIsOpen() ||
@@ -977,21 +1015,24 @@ export class AppLayout implements Component, Focusable {
 
       // Windowing chat lines
       let visibleChatLines: string[] = [];
+      let startIdx = 0;
       if (allChatLines.length <= chatHeight) {
         visibleChatLines = [...allChatLines];
         while (visibleChatLines.length < chatHeight) {
           visibleChatLines.push(" ".repeat(chatWidth));
         }
       } else if (this.scrollFollow) {
-        visibleChatLines = allChatLines.slice(allChatLines.length - chatHeight);
+        startIdx = allChatLines.length - chatHeight;
+        visibleChatLines = allChatLines.slice(startIdx);
       } else {
         const endIdx = Math.max(chatHeight, allChatLines.length - this.chatScrollOffset);
-        const startIdx = Math.max(0, endIdx - chatHeight);
+        startIdx = Math.max(0, endIdx - chatHeight);
         visibleChatLines = allChatLines.slice(startIdx, endIdx);
         while (visibleChatLines.length < chatHeight) {
           visibleChatLines.unshift(" ".repeat(chatWidth));
         }
       }
+      this.lastChatStartIndex = startIdx;
 
       // Windowing sidebar lines
       let visibleSidebarLines: string[] = [];
@@ -1001,6 +1042,15 @@ export class AppLayout implements Component, Focusable {
           visibleSidebarLines.push(this.padTo(sLine, sbWidth));
         } else {
           visibleSidebarLines.push(" ".repeat(sbWidth));
+        }
+      }
+
+      // Pin the image preview to the bottom of the sidebar, above the input.
+      const previewLines = this.sidebar.renderHoveredImagePreview(sbWidth);
+      if (previewLines.length > 0) {
+        const previewStart = Math.max(0, centerHeight - previewLines.length);
+        for (let i = 0; i < previewLines.length && previewStart + i < visibleSidebarLines.length; i++) {
+          visibleSidebarLines[previewStart + i] = this.padTo(previewLines[i]!, sbWidth);
         }
       }
 
@@ -1038,16 +1088,18 @@ export class AppLayout implements Component, Focusable {
       this.lastChatHeight = chatHeight;
 
       if (allChatLines.length <= chatHeight) {
+        this.lastChatStartIndex = 0;
         centerLines = [...allChatLines];
         while (centerLines.length < chatHeight) {
           centerLines.push(" ".repeat(termWidth));
         }
       } else if (this.scrollFollow) {
-        centerLines = allChatLines.slice(allChatLines.length - chatHeight);
+        this.lastChatStartIndex = allChatLines.length - chatHeight;
+        centerLines = allChatLines.slice(this.lastChatStartIndex);
       } else {
         const endIdx = Math.max(chatHeight, allChatLines.length - this.chatScrollOffset);
-        const startIdx = Math.max(0, endIdx - chatHeight);
-        centerLines = allChatLines.slice(startIdx, endIdx);
+        this.lastChatStartIndex = Math.max(0, endIdx - chatHeight);
+        centerLines = allChatLines.slice(this.lastChatStartIndex, endIdx);
         while (centerLines.length < chatHeight) {
           centerLines.unshift(" ".repeat(termWidth));
         }

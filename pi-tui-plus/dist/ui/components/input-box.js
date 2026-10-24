@@ -1,7 +1,7 @@
-import * as fs from "node:fs";
 import * as path from "node:path";
 import { matchesKey, visibleWidth } from "@earendil-works/pi-tui";
 import { colors, style, truncate } from "../theme.js";
+import { loadImageAttachment, normalizeImagePath, readClipboardImage, readClipboardText, } from "../../state/image-attachment.js";
 const CORE_COMMANDS = [
     { name: "new", description: "Start a fresh session with a completely clean context" },
     { name: "clear", description: "Clear conversation messages from view without resetting session" },
@@ -45,9 +45,10 @@ export class InputBox {
     cursor = 0;
     history = [];
     historyIndex = -1;
-    placeholder = "Type a prompt... (Enter: send, Alt+Enter: newline, Ctrl+E: editor, /: commands)";
+    placeholder = "Type a prompt... (Enter: send, Alt+Enter: newline, Ctrl+V: image, Ctrl+E: editor, /: commands)";
     onSubmitCallback;
     onOpenExternalEditorCallback;
+    attachedImages = [];
     activeAgentName = "default";
     activeAgentColor = colors.activeBorder;
     hasMultipleAgents = false;
@@ -137,6 +138,45 @@ export class InputBox {
         this.cursor = 0;
         this.historyIndex = -1;
         this.selectedCommandIndex = 0;
+        this.attachedImages = [];
+    }
+    getAttachedImages() {
+        return [...this.attachedImages];
+    }
+    addImagePath(candidate) {
+        const image = loadImageAttachment(candidate);
+        if (!image)
+            return false;
+        if (!this.attachedImages.some((existing) => existing.path === image.path)) {
+            this.attachedImages.push(image);
+        }
+        return true;
+    }
+    addImageFromClipboard() {
+        const image = readClipboardImage();
+        if (image) {
+            if (!this.attachedImages.some((existing) => existing.path === image.path)) {
+                this.attachedImages.push(image);
+            }
+            return true;
+        }
+        const text = readClipboardText();
+        if (!text)
+            return false;
+        let added = false;
+        const remaining = [];
+        for (const line of text.split(/\r?\n/)) {
+            if (this.addImagePath(line))
+                added = true;
+            else
+                remaining.push(line);
+        }
+        if (added) {
+            const rest = remaining.join("\n").trim();
+            if (rest)
+                this.insertTextAtCursor(rest);
+        }
+        return added;
     }
     getMatchingCommands() {
         if (!this.text.startsWith("/"))
@@ -152,8 +192,9 @@ export class InputBox {
             .slice(0, 10);
     }
     getAttachedImageAtCursor() {
-        if (!this.text.trim())
-            return null;
+        if (!this.text.trim()) {
+            return this.attachedImages[0]?.path ?? null;
+        }
         const text = this.text;
         const cursor = this.cursor;
         // Extract word around cursor
@@ -182,26 +223,54 @@ export class InputBox {
         return null;
     }
     resolveImagePath(candidate) {
-        if (!candidate || candidate.length < 4)
-            return null;
-        const extMatch = candidate.match(/\.(png|jpg|jpeg|webp|gif|bmp|svg)$/i);
-        if (!extMatch)
-            return null;
-        try {
-            if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
-                return path.resolve(candidate);
+        return normalizeImagePath(candidate);
+    }
+    insertTextAtCursor(value) {
+        const normalized = value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+        this.text = this.text.slice(0, this.cursor) + normalized + this.text.slice(this.cursor);
+        this.cursor += normalized.length;
+    }
+    handleBracketedPaste(content) {
+        const normalized = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+        const remaining = [];
+        let attached = 0;
+        for (const line of normalized.split("\n")) {
+            if (this.addImagePath(line)) {
+                attached++;
             }
-            const resolved = path.resolve(process.cwd(), candidate);
-            if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) {
-                return resolved;
+            else {
+                remaining.push(line);
             }
         }
-        catch {
-            return null;
+        if (attached > 0) {
+            const rest = remaining.join("\n").trim();
+            if (rest)
+                this.insertTextAtCursor(rest);
+            return;
         }
-        return null;
+        this.insertTextAtCursor(normalized);
     }
     handleInput(data) {
+        // Bracketed paste: terminal file drag/drop and text paste.
+        if (data.startsWith("\x1b[200~") && data.endsWith("\x1b[201~")) {
+            const pasted = data.slice(6, -6);
+            if (!pasted) {
+                this.addImageFromClipboard();
+            }
+            else {
+                this.handleBracketedPaste(pasted);
+            }
+            return;
+        }
+        // Ctrl+V: attach an image from the system clipboard, or paste text.
+        if (data === "\x16" || matchesKey(data, "ctrl+v")) {
+            if (this.addImageFromClipboard())
+                return;
+            const text = readClipboardText();
+            if (text)
+                this.insertTextAtCursor(text);
+            return;
+        }
         const isCommandMode = this.text.startsWith("/");
         const matching = isCommandMode ? this.getMatchingCommands() : [];
         const activeMention = this.getActiveMention();
@@ -269,8 +338,10 @@ export class InputBox {
             }
             if (finalSubmission) {
                 this.history.push(this.text);
+            }
+            if (finalSubmission || this.attachedImages.length > 0) {
                 if (this.onSubmitCallback) {
-                    this.onSubmitCallback(finalSubmission);
+                    this.onSubmitCallback(finalSubmission, this.getAttachedImages());
                 }
                 this.clear();
             }
@@ -278,6 +349,10 @@ export class InputBox {
         }
         // Backspace
         if (data === "\x7f" || data === "\b") {
+            if (this.text.length === 0 && this.cursor === 0 && this.attachedImages.length > 0) {
+                this.attachedImages.pop();
+                return;
+            }
             if (this.cursor > 0) {
                 this.text = this.text.slice(0, this.cursor - 1) + this.text.slice(this.cursor);
                 this.cursor--;
@@ -372,6 +447,11 @@ export class InputBox {
         const safeWidth = Math.max(20, width);
         const borderColor = this.focused ? this.activeAgentColor : colors.border;
         const lines = [];
+        if (this.attachedImages.length > 0) {
+            const names = this.attachedImages.map((image) => path.basename(image.path)).join(", ");
+            const count = this.attachedImages.length;
+            lines.push(style(` 📎 ${count} image${count === 1 ? "" : "s"}: ${truncate(names, Math.max(8, safeWidth - 14))}`, colors.accent));
+        }
         // --- @ Mentions Autocomplete Popup (@files / @agents) ---
         const activeMention = this.getActiveMention();
         const matchingMentions = activeMention ? this.getMatchingMentions() : [];
@@ -483,8 +563,11 @@ export class InputBox {
             }
         }
         else {
+            const emptyDisplay = this.attachedImages.length > 0
+                ? "Image attached — type a prompt or press Enter"
+                : this.placeholder;
             if (this.text.length === 0) {
-                contentDisplay = style(this.placeholder.slice(0, innerWidth - 2), colors.muted);
+                contentDisplay = style(emptyDisplay.slice(0, innerWidth - 2), colors.muted);
             }
             else {
                 // Horizontal windowing for long text
@@ -501,7 +584,7 @@ export class InputBox {
                 contentDisplay = `${beforeCursor}\x1b[7m${atCursor}\x1b[27m${afterCursor}`;
             }
             const textLen = this.text.length === 0
-                ? this.placeholder.slice(0, innerWidth - 2).length
+                ? emptyDisplay.slice(0, innerWidth - 2).length
                 : Math.min(innerWidth - 2, this.text.length + 1);
             const padCount = Math.max(0, innerWidth - 2 - textLen);
             middleLines.push(`${style("│ ", borderColor)}> ${contentDisplay}${" ".repeat(padCount)}${style(" │", borderColor)}`);

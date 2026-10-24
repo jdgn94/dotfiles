@@ -37,6 +37,7 @@ export class Sidebar implements Component {
   private todoTracker?: TodoTracker;
   private specGraph?: SpecGraphWatcher;
   private inputBox?: InputBox;
+  private hoveredImage: string | null = null;
 
   // Collapsible sections state
   private mcpExpanded = false;
@@ -74,6 +75,10 @@ export class Sidebar implements Component {
 
   public togglePlan(): void {
     this.planExpanded = !this.planExpanded;
+  }
+
+  public setHoveredImage(imagePath: string | null): void {
+    this.hoveredImage = imagePath;
   }
 
   public isMcpExpanded(): boolean {
@@ -460,24 +465,29 @@ export class Sidebar implements Component {
       )} · ${style(`Heap ${heapUsedMb}/${heapTotalMb} MB`, colors.subtext)}`
     );
 
-    // --- 12. IMAGE PREVIEW (when cursor is over an attached image file) ---
-    const attachedImage = this.inputBox?.getAttachedImageAtCursor();
-    if (attachedImage) {
-      lines.push(style("─".repeat(safeWidth), colors.border));
-      const filename = path.basename(attachedImage);
-      lines.push(
-        ` ${style("󰋩 Image Preview:", colors.bold, colors.accent)} ${style(
-          truncate(filename, safeWidth - 18),
-          colors.secondary
-        )}`
-      );
+    // --- 12. IMAGE PREVIEW is rendered by the layout as a bottom overlay ---
 
-      const previewLines = ImagePreview.render(attachedImage, safeWidth - 4, 8);
-      for (const pLine of previewLines) {
-        lines.push(`  ${pLine}`);
-      }
+    return lines;
+  }
+
+  public renderHoveredImagePreview(width: number): string[] {
+    const image = this.hoveredImage ?? this.inputBox?.getAttachedImageAtCursor();
+    if (!image) return [];
+
+    const safeWidth = Math.max(26, width);
+    const filename = path.basename(image);
+    const lines = [
+      style("─".repeat(safeWidth), colors.border),
+      ` ${style("󰋩 Image Preview:", colors.bold, colors.accent)} ${style(
+        truncate(filename, safeWidth - 18),
+        colors.secondary
+      )}`,
+    ];
+
+    const previewLines = ImagePreview.render(image, safeWidth - 4, 8);
+    for (const pLine of previewLines) {
+      lines.push(`  ${pLine}`);
     }
-
     return lines;
   }
 

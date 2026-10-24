@@ -59,6 +59,9 @@ Built on `@earendil-works/pi-tui` and `@earendil-works/pi-coding-agent`.
 | `/` (Slash) | Open **Slash Commands Autocomplete Popup** (navigate with `Up`/`Down`, `Tab` to complete) |
 | `PageUp` / `PageDown` / mouse wheel | Scroll chat history |
 | Click `↓ Jump to end` | Return to the latest message (appears when scrolled up) |
+| `Ctrl + V` | Attach an image from the system clipboard |
+| Drag & drop an image | Paste its path to attach it to the prompt |
+| Hover an image in chat | Show its preview at the bottom of the right sidebar |
 | `Ctrl + C` | Cancel active response generation or exit cleanly |
 
 ---

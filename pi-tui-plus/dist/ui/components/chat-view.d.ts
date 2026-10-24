@@ -6,6 +6,7 @@ export declare class ChatView implements Component {
     private scrollOffset;
     private autoScroll;
     private cachedHeight;
+    private imageRanges;
     constructor(agent: AgentManager);
     invalidate(): void;
     scrollUp(lines?: number): void;
@@ -14,6 +15,7 @@ export declare class ChatView implements Component {
     isLogoComplete(): boolean;
     isAutoScroll(): boolean;
     getCachedHeight(): number;
+    getImageAtLine(line: number): string | null;
     render(width: number): string[];
     private renderBox;
     private wrapText;

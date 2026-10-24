@@ -1,4 +1,5 @@
 import { type Component, type Focusable } from "@earendil-works/pi-tui";
+import { type ChatImage } from "../../state/image-attachment.js";
 export interface SlashCommand {
     name: string;
     description: string;
@@ -18,6 +19,7 @@ export declare class InputBox implements Component, Focusable {
     private placeholder;
     private onSubmitCallback?;
     private onOpenExternalEditorCallback?;
+    private attachedImages;
     private activeAgentName;
     private activeAgentColor;
     private hasMultipleAgents;
@@ -37,7 +39,7 @@ export declare class InputBox implements Component, Focusable {
         atIndex: number;
     } | null;
     private getMatchingMentions;
-    onSubmit(cb: (text: string) => void): void;
+    onSubmit(cb: (text: string, images: ChatImage[]) => void): void;
     onOpenExternalEditor(cb: () => void): void;
     setActiveAgent(name: string, color?: string, hasMultiple?: boolean): void;
     setAvailableCommands(commands: SlashCommand[]): void;
@@ -45,9 +47,14 @@ export declare class InputBox implements Component, Focusable {
     getText(): string;
     setText(val: string): void;
     clear(): void;
+    getAttachedImages(): ChatImage[];
+    addImagePath(candidate: string): boolean;
+    addImageFromClipboard(): boolean;
     private getMatchingCommands;
     getAttachedImageAtCursor(): string | null;
     private resolveImagePath;
+    private insertTextAtCursor;
+    private handleBracketedPaste;
     handleInput(data: string): void;
     render(width: number): string[];
 }
