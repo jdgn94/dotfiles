@@ -232,9 +232,7 @@ export class InputBox implements Component, Focusable {
   }
 
   public getAttachedImageAtCursor(): string | null {
-    if (!this.text.trim()) {
-      return this.attachedImages[0]?.path ?? null;
-    }
+    if (!this.text.trim()) return null;
 
     const text = this.text;
     const cursor = this.cursor;

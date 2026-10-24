@@ -345,7 +345,7 @@ export class Sidebar {
             style("─".repeat(safeWidth), colors.border),
             ` ${style("󰋩 Image Preview:", colors.bold, colors.accent)} ${style(truncate(filename, safeWidth - 18), colors.secondary)}`,
         ];
-        const previewLines = ImagePreview.render(image, safeWidth - 4, 8);
+        const previewLines = ImagePreview.render(image, safeWidth - 4, 36);
         for (const pLine of previewLines) {
             lines.push(`  ${pLine}`);
         }

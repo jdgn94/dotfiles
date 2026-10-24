@@ -1,8 +1,11 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 
 export class ImagePreview {
-  private static cache = new Map<string, { mtime: number; width: number; lines: string[] }>();
+  private static cache = new Map<
+    string,
+    { mtime: number; width: number; height: number; lines: string[] }
+  >();
 
   public static render(imagePath: string, targetWidth = 34, targetHeight = 10): string[] {
     try {
@@ -11,26 +14,46 @@ export class ImagePreview {
       }
 
       const stat = fs.statSync(imagePath);
-      const cacheKey = `${imagePath}:${targetWidth}`;
+      // targetHeight is measured in terminal rows; half-block cells use 2 pixels each.
+      const pixelHeight = targetHeight % 2 === 0 ? targetHeight : targetHeight + 1;
+      const cacheKey = `${imagePath}:${targetWidth}x${pixelHeight}`;
       const cached = this.cache.get(cacheKey);
-      if (cached && cached.mtime === stat.mtimeMs && cached.width === targetWidth) {
+      if (
+        cached &&
+        cached.mtime === stat.mtimeMs &&
+        cached.width === targetWidth &&
+        cached.height === pixelHeight
+      ) {
         return [...cached.lines];
       }
 
-      // Ensure even height for half-block cells (2 pixels per terminal row)
-      const adjustedHeight = targetHeight % 2 === 0 ? targetHeight : targetHeight + 1;
-
-      const buf = execSync(
-        `magick "${imagePath}" -resize ${targetWidth}x${adjustedHeight}! rgb:-`,
+      // Fit inside the target box without distortion, then pad with black bars.
+      const buf = execFileSync(
+        "magick",
+        [
+          imagePath,
+          "-auto-orient",
+          "-filter",
+          "Lanczos",
+          "-resize",
+          `${targetWidth}x${pixelHeight}`,
+          "-background",
+          "black",
+          "-gravity",
+          "center",
+          "-extent",
+          `${targetWidth}x${pixelHeight}`,
+          "rgb:-",
+        ],
         {
-          timeout: 800,
-          maxBuffer: 1024 * 1024,
+          timeout: 1500,
+          maxBuffer: 4 * 1024 * 1024,
           stdio: ["ignore", "pipe", "ignore"],
         }
-      );
+      ) as Buffer;
 
       const rows: string[] = [];
-      for (let y = 0; y < adjustedHeight; y += 2) {
+      for (let y = 0; y < pixelHeight; y += 2) {
         let row = "";
         for (let x = 0; x < targetWidth; x++) {
           const topIdx = (y * targetWidth + x) * 3;
@@ -49,6 +72,7 @@ export class ImagePreview {
       this.cache.set(cacheKey, {
         mtime: stat.mtimeMs,
         width: targetWidth,
+        height: pixelHeight,
         lines: rows,
       });
 

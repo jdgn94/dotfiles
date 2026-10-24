@@ -484,7 +484,7 @@ export class Sidebar implements Component {
       )}`,
     ];
 
-    const previewLines = ImagePreview.render(image, safeWidth - 4, 8);
+    const previewLines = ImagePreview.render(image, safeWidth - 4, 36);
     for (const pLine of previewLines) {
       lines.push(`  ${pLine}`);
     }

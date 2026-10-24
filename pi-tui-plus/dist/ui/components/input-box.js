@@ -192,9 +192,8 @@ export class InputBox {
             .slice(0, 10);
     }
     getAttachedImageAtCursor() {
-        if (!this.text.trim()) {
-            return this.attachedImages[0]?.path ?? null;
-        }
+        if (!this.text.trim())
+            return null;
         const text = this.text;
         const cursor = this.cursor;
         // Extract word around cursor
