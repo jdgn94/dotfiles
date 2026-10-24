@@ -303,7 +303,10 @@ export class InputBox implements Component, Focusable {
     if (data.startsWith("\x1b[200~") && data.endsWith("\x1b[201~")) {
       const pasted = data.slice(6, -6);
       if (!pasted) {
-        this.addImageFromClipboard();
+        if (!this.addImageFromClipboard()) {
+          const text = readClipboardText();
+          if (text) this.insertTextAtCursor(text);
+        }
       } else {
         this.handleBracketedPaste(pasted);
       }
