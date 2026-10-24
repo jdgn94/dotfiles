@@ -25,9 +25,14 @@ export const colors = {
     bgSurface: "\x1b[48;2;30;30;46m", // #1e1e2e
     bgHeader: "\x1b[48;2;49;50;68m", // #313244
     bgHighlight: "\x1b[48;2;69;71;90m", // #45475a
+    bgFile: "\x1b[48;2;249;226;175m", // Yellow file/attachment chip (#f9e2af)
+    onFile: "\x1b[38;2;30;30;46m", // Dark text on yellow
 };
 export function style(text, ...ansiCodes) {
     return `${ansiCodes.join("")}${text}${colors.reset}`;
+}
+export function highlightFileTokens(text) {
+    return text.replace(/(\[Image \d+\]|@[^\s]+)/g, (match) => style(match, colors.bold, colors.bgFile, colors.onFile));
 }
 export function pad(text, targetWidth, align = "left") {
     // Strip ANSI to measure visual length

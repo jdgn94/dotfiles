@@ -1,5 +1,5 @@
 import { visibleWidth } from "@earendil-works/pi-tui";
-import { colors, highlightCodeLine, renderWavePulse, style } from "../theme.js";
+import { colors, highlightCodeLine, highlightFileTokens, renderWavePulse, style } from "../theme.js";
 import { TetrisLogo } from "./tetris-logo.js";
 export class ChatView {
     agent;
@@ -175,12 +175,14 @@ export class ChatView {
                 target.push(`${style(verticalChar + " ", borderColor)}${" ".repeat(innerWidth)}${style(" " + verticalChar, borderColor)}`);
             }
             else {
-                const lineToRender = inCodeBlock ? highlightCodeLine(rawLine) : rawLine;
-                const wrapped = this.wrapText(lineToRender, innerWidth);
+                const wrapped = inCodeBlock
+                    ? this.wrapText(highlightCodeLine(rawLine), innerWidth)
+                    : this.wrapText(rawLine, innerWidth);
                 for (const w of wrapped) {
-                    const paddingDiff = innerWidth - this.visualLength(w);
+                    const rendered = inCodeBlock ? w : highlightFileTokens(w);
+                    const paddingDiff = innerWidth - this.visualLength(rendered);
                     const pad = paddingDiff > 0 ? " ".repeat(paddingDiff) : "";
-                    target.push(`${style(verticalChar + " ", borderColor)}${w}${pad}${style(" " + verticalChar, borderColor)}`);
+                    target.push(`${style(verticalChar + " ", borderColor)}${rendered}${pad}${style(" " + verticalChar, borderColor)}`);
                 }
             }
         }
@@ -188,7 +190,9 @@ export class ChatView {
         target.push(bottom);
     }
     wrapText(text, maxWidth) {
-        const words = text.split(" ");
+        // Keep [Image N] together while wrapping: its space must not split the token.
+        const protectedText = text.replace(/\[Image (\d+)\]/g, (match) => match.replace(/ /g, "\u0000"));
+        const words = protectedText.split(" ");
         const lines = [];
         let currentLine = "";
         for (const word of words) {
@@ -211,7 +215,7 @@ export class ChatView {
         if (currentLine.length > 0) {
             lines.push(currentLine);
         }
-        return lines;
+        return lines.map((line) => line.replace(/\u0000/g, " "));
     }
     visualLength(str) {
         return str.replace(/\x1b\[[0-9;]*m/g, "").length;

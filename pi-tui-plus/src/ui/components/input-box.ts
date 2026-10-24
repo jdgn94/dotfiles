@@ -1,5 +1,5 @@
 import { matchesKey, visibleWidth, type Component, type Focusable } from "@earendil-works/pi-tui";
-import { colors, style, truncate } from "../theme.js";
+import { colors, highlightFileTokens, style, truncate } from "../theme.js";
 import {
   type ChatImage,
   discardImage,
@@ -182,11 +182,40 @@ export class InputBox implements Component, Focusable {
     return [...this.attachedImages];
   }
 
-  public removeLastImage(): boolean {
+  private removeLastImage(): boolean {
     const image = this.attachedImages.pop();
     if (!image) return false;
     discardImage(image);
     return true;
+  }
+
+  private findMentionTokenAt(
+    cursor: number,
+    mode: "back" | "delete"
+  ): { start: number; end: number } | null {
+    const regex = /@[^\s]+/g;
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(this.text)) !== null) {
+      const start = match.index;
+      const end = start + match[0].length;
+      if (mode === "back" && cursor > start && cursor <= end) {
+        return { start, end };
+      }
+      if (mode === "delete" && cursor >= start && cursor < end) {
+        return { start, end };
+      }
+      if (start > cursor) break;
+    }
+    return null;
+  }
+
+  private removeMentionToken(token: { start: number; end: number }): void {
+    let start = token.start;
+    let end = token.end;
+    if (this.text[start - 1] === " ") start--;
+    if (this.text[end] === " ") end++;
+    this.text = this.text.slice(0, start) + this.text.slice(end);
+    this.cursor = start;
   }
 
   public addImagePath(candidate: string): boolean {
@@ -426,6 +455,11 @@ export class InputBox implements Component, Focusable {
         this.removeLastImage();
         return;
       }
+      const mention = this.findMentionTokenAt(this.cursor, "back");
+      if (mention) {
+        this.removeMentionToken(mention);
+        return;
+      }
       if (this.cursor > 0) {
         this.text = this.text.slice(0, this.cursor - 1) + this.text.slice(this.cursor);
         this.cursor--;
@@ -452,6 +486,11 @@ export class InputBox implements Component, Focusable {
       return;
     }
     if (matchesKey(data, "delete")) {
+      const mention = this.findMentionTokenAt(this.cursor, "delete");
+      if (mention) {
+        this.removeMentionToken(mention);
+        return;
+      }
       if (this.cursor < this.text.length) {
         this.text = this.text.slice(0, this.cursor) + this.text.slice(this.cursor + 1);
       }
@@ -524,9 +563,11 @@ export class InputBox implements Component, Focusable {
 
     if (this.attachedImages.length > 0) {
       const labels = this.attachedImages
-        .map((_image, index) => `[Image ${index + 1}]`)
-        .join(" ");
-      lines.push(style(` 📎 ${labels}`, colors.accent));
+        .map((_image, index) =>
+          style(` [Image ${index + 1}] `, colors.bold, colors.bgFile, colors.onFile)
+        )
+        .join("");
+      lines.push(` ${style("📎", colors.accent)}${labels}`);
     }
 
     // --- @ Mentions Autocomplete Popup (@files / @agents) ---
@@ -671,7 +712,7 @@ export class InputBox implements Component, Focusable {
           const before = rawLine.slice(0, curColIdx);
           const at = rawLine[curColIdx] || " ";
           const after = rawLine.slice(curColIdx + 1);
-          lineDisplay = `${before}\x1b[7m${at}\x1b[27m${after}`;
+          lineDisplay = `${highlightFileTokens(before)}\x1b[7m${at}\x1b[27m${highlightFileTokens(after)}`;
         } else {
           lineDisplay = rawLine;
         }
@@ -708,7 +749,7 @@ export class InputBox implements Component, Focusable {
         const atCursor = visibleSub[visibleCursor] || " ";
         const afterCursor = visibleSub.slice(visibleCursor + 1);
 
-        contentDisplay = `${beforeCursor}\x1b[7m${atCursor}\x1b[27m${afterCursor}`;
+        contentDisplay = `${highlightFileTokens(beforeCursor)}\x1b[7m${atCursor}\x1b[27m${highlightFileTokens(afterCursor)}`;
       }
 
       const textLen =

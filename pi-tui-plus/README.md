@@ -62,6 +62,9 @@ Built on `@earendil-works/pi-tui` and `@earendil-works/pi-coding-agent`.
 | `Ctrl + V` | Attach an image from the system clipboard |
 | Drag & drop an image | Paste its path to attach it to the prompt |
 | `Backspace` at input start / `Ctrl + Backspace` | Remove the last attached image as one block |
+| `Backspace` / `Delete` inside `@file` | Remove the whole file mention token |
+
+`@file` mentions and `[Image N]` attachments use a yellow background. They are atomic: deleting any part of the token removes the whole element.
 | Hover an image in chat | Show its preview at the bottom of the right sidebar |
 | `Ctrl + C` | Cancel active response generation or exit cleanly |
 

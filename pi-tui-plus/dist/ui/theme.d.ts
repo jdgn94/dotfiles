@@ -23,8 +23,11 @@ export declare const colors: {
     bgSurface: string;
     bgHeader: string;
     bgHighlight: string;
+    bgFile: string;
+    onFile: string;
 };
 export declare function style(text: string, ...ansiCodes: string[]): string;
+export declare function highlightFileTokens(text: string): string;
 export declare function pad(text: string, targetWidth: number, align?: "left" | "right" | "center"): string;
 export declare function truncate(text: string, maxWidth: number): string;
 /**

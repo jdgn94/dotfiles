@@ -1,6 +1,6 @@
 import { visibleWidth, type Component } from "@earendil-works/pi-tui";
 import { type AgentManager } from "../../state/agent-manager.js";
-import { colors, highlightCodeLine, renderWavePulse, style } from "../theme.js";
+import { colors, highlightCodeLine, highlightFileTokens, renderWavePulse, style } from "../theme.js";
 import { TetrisLogo } from "./tetris-logo.js";
 
 export class ChatView implements Component {
@@ -269,13 +269,15 @@ export class ChatView implements Component {
           )}`
         );
       } else {
-        const lineToRender = inCodeBlock ? highlightCodeLine(rawLine) : rawLine;
-        const wrapped = this.wrapText(lineToRender, innerWidth);
+        const wrapped = inCodeBlock
+          ? this.wrapText(highlightCodeLine(rawLine), innerWidth)
+          : this.wrapText(rawLine, innerWidth);
         for (const w of wrapped) {
-          const paddingDiff = innerWidth - this.visualLength(w);
+          const rendered = inCodeBlock ? w : highlightFileTokens(w);
+          const paddingDiff = innerWidth - this.visualLength(rendered);
           const pad = paddingDiff > 0 ? " ".repeat(paddingDiff) : "";
           target.push(
-            `${style(verticalChar + " ", borderColor)}${w}${pad}${style(
+            `${style(verticalChar + " ", borderColor)}${rendered}${pad}${style(
               " " + verticalChar,
               borderColor
             )}`
@@ -292,7 +294,11 @@ export class ChatView implements Component {
   }
 
   private wrapText(text: string, maxWidth: number): string[] {
-    const words = text.split(" ");
+    // Keep [Image N] together while wrapping: its space must not split the token.
+    const protectedText = text.replace(/\[Image (\d+)\]/g, (match) =>
+      match.replace(/ /g, "\u0000")
+    );
+    const words = protectedText.split(" ");
     const lines: string[] = [];
     let currentLine = "";
 
@@ -316,7 +322,7 @@ export class ChatView implements Component {
       lines.push(currentLine);
     }
 
-    return lines;
+    return lines.map((line) => line.replace(/\u0000/g, " "));
   }
 
   private visualLength(str: string): number {
