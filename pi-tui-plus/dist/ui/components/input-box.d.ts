@@ -48,9 +48,11 @@ export declare class InputBox implements Component, Focusable {
     setText(val: string): void;
     clear(): void;
     getAttachedImages(): ChatImage[];
+    private attachImage;
     private removeLastImage;
-    private findMentionTokenAt;
-    private removeMentionToken;
+    private findAtomicTokenAt;
+    private renumberImageTokens;
+    private removeAtomicToken;
     addImagePath(candidate: string): boolean;
     addImageFromClipboard(): boolean;
     private getMatchingCommands;

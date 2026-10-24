@@ -60,13 +60,13 @@ Built on `@earendil-works/pi-tui` and `@earendil-works/pi-coding-agent`.
 | `PageUp` / `PageDown` / mouse wheel | Scroll chat history |
 | Click `↓ Jump to end` | Return to the latest message (appears when scrolled up) |
 | `Ctrl + V` | Attach an image from the system clipboard |
-| Drag & drop an image | Paste its path to attach it to the prompt |
-| `Backspace` at input start / `Ctrl + Backspace` | Remove the last attached image as one block |
-| `Backspace` / `Delete` inside `@file` | Remove the whole file mention token |
-
-`@file` mentions and `[Image N]` attachments use a yellow background. They are atomic: deleting any part of the token removes the whole element.
+| Drag & drop an image | Paste its path to attach it inline to the prompt |
+| `Backspace` / `Delete` inside `[Image N]` or `@file` | Remove the whole token and its image |
+| `Ctrl + Backspace` | Remove the last attached image token |
 | Hover an image in chat | Show its preview at the bottom of the right sidebar |
 | `Ctrl + C` | Cancel active response generation or exit cleanly |
+
+`@file` mentions and `[Image N]` attachments are inserted inline with a yellow background. They are atomic: deleting any part of the token removes the whole element.
 
 ---
 

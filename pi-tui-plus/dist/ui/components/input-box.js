@@ -142,56 +142,86 @@ export class InputBox {
     getAttachedImages() {
         return [...this.attachedImages];
     }
+    attachImage(image) {
+        if (this.attachedImages.some((existing) => existing.path === image.path)) {
+            return true;
+        }
+        this.attachedImages.push(image);
+        const number = this.attachedImages.length;
+        const prefix = this.cursor > 0 && !/\s/.test(this.text[this.cursor - 1] ?? "") ? " " : "";
+        this.insertTextAtCursor(`${prefix}[Image ${number}] `);
+        return true;
+    }
     removeLastImage() {
+        const imageTokens = [...this.text.matchAll(/\[Image \d+\]/g)];
+        const last = imageTokens.at(-1);
+        if (last?.index !== undefined) {
+            this.removeAtomicToken({
+                start: last.index,
+                end: last.index + last[0].length,
+                text: last[0],
+            });
+            return true;
+        }
         const image = this.attachedImages.pop();
         if (!image)
             return false;
         discardImage(image);
         return true;
     }
-    findMentionTokenAt(cursor, mode) {
-        const regex = /@[^\s]+/g;
+    findAtomicTokenAt(cursor, mode) {
+        const regex = /(@[^\s]+|\[Image \d+\])/g;
         let match;
         while ((match = regex.exec(this.text)) !== null) {
             const start = match.index;
             const end = start + match[0].length;
-            if (mode === "back" && cursor > start && cursor <= end) {
-                return { start, end };
+            const backEnd = this.text[end] === " " ? end + 1 : end;
+            if (mode === "back" && cursor > start && cursor <= backEnd) {
+                return { start, end, text: match[0] };
             }
             if (mode === "delete" && cursor >= start && cursor < end) {
-                return { start, end };
+                return { start, end, text: match[0] };
             }
             if (start > cursor)
                 break;
         }
         return null;
     }
-    removeMentionToken(token) {
+    renumberImageTokens() {
+        let number = 0;
+        this.text = this.text.replace(/\[Image \d+\]/g, () => `[Image ${++number}]`);
+    }
+    removeAtomicToken(token) {
         let start = token.start;
         let end = token.end;
+        const imageMatch = token.text.match(/^\[Image (\d+)\]$/);
+        if (imageMatch) {
+            const index = Number(imageMatch[1]) - 1;
+            if (index >= 0 && index < this.attachedImages.length) {
+                const [image] = this.attachedImages.splice(index, 1);
+                if (image)
+                    discardImage(image);
+            }
+        }
         if (this.text[start - 1] === " ")
             start--;
         if (this.text[end] === " ")
             end++;
         this.text = this.text.slice(0, start) + this.text.slice(end);
         this.cursor = start;
+        if (imageMatch)
+            this.renumberImageTokens();
     }
     addImagePath(candidate) {
         const image = loadImageAttachment(candidate);
         if (!image)
             return false;
-        if (!this.attachedImages.some((existing) => existing.path === image.path)) {
-            this.attachedImages.push(image);
-        }
-        return true;
+        return this.attachImage(image);
     }
     addImageFromClipboard() {
         const image = readClipboardImage();
         if (image) {
-            if (!this.attachedImages.some((existing) => existing.path === image.path)) {
-                this.attachedImages.push(image);
-            }
-            return true;
+            return this.attachImage(image);
         }
         const text = readClipboardText();
         if (!text)
@@ -372,12 +402,16 @@ export class InputBox {
                     finalSubmission = `/${chosen.name}`;
                 }
             }
-            if (finalSubmission) {
-                this.history.push(this.text);
+            const cleanSubmission = finalSubmission
+                .replace(/\[Image \d+\]/g, "")
+                .replace(/\s+/g, " ")
+                .trim();
+            if (cleanSubmission) {
+                this.history.push(cleanSubmission);
             }
-            if (finalSubmission || this.attachedImages.length > 0) {
+            if (cleanSubmission || this.attachedImages.length > 0) {
                 if (this.onSubmitCallback) {
-                    this.onSubmitCallback(finalSubmission, this.getAttachedImages());
+                    this.onSubmitCallback(cleanSubmission, this.getAttachedImages());
                 }
                 this.clear();
             }
@@ -390,13 +424,13 @@ export class InputBox {
         }
         // Backspace
         if (data === "\x7f" || data === "\b") {
-            if (this.attachedImages.length > 0 && (this.text.length === 0 || this.cursor === 0)) {
+            if (this.attachedImages.length > 0 && this.text.length === 0) {
                 this.removeLastImage();
                 return;
             }
-            const mention = this.findMentionTokenAt(this.cursor, "back");
+            const mention = this.findAtomicTokenAt(this.cursor, "back");
             if (mention) {
-                this.removeMentionToken(mention);
+                this.removeAtomicToken(mention);
                 return;
             }
             if (this.cursor > 0) {
@@ -424,9 +458,9 @@ export class InputBox {
             return;
         }
         if (matchesKey(data, "delete")) {
-            const mention = this.findMentionTokenAt(this.cursor, "delete");
+            const mention = this.findAtomicTokenAt(this.cursor, "delete");
             if (mention) {
-                this.removeMentionToken(mention);
+                this.removeAtomicToken(mention);
                 return;
             }
             if (this.cursor < this.text.length) {
@@ -498,12 +532,6 @@ export class InputBox {
         const safeWidth = Math.max(20, width);
         const borderColor = this.focused ? this.activeAgentColor : colors.border;
         const lines = [];
-        if (this.attachedImages.length > 0) {
-            const labels = this.attachedImages
-                .map((_image, index) => style(` [Image ${index + 1}] `, colors.bold, colors.bgFile, colors.onFile))
-                .join("");
-            lines.push(` ${style("📎", colors.accent)}${labels}`);
-        }
         // --- @ Mentions Autocomplete Popup (@files / @agents) ---
         const activeMention = this.getActiveMention();
         const matchingMentions = activeMention ? this.getMatchingMentions() : [];
