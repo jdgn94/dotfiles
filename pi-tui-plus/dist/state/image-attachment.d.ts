@@ -10,5 +10,6 @@ export declare function imageMimeFromPath(imagePath: string): string | null;
 export declare function imageMimeFromBuffer(buffer: Buffer): string | null;
 export declare function loadImageAttachment(candidate: string): ChatImage | null;
 export declare function saveImageBuffer(buffer: Buffer, mimeType: string, prefix?: string): ChatImage | null;
+export declare function discardImage(image: ChatImage): void;
 export declare function readClipboardText(): string;
 export declare function readClipboardImage(): ChatImage | null;

@@ -1,6 +1,6 @@
 import { matchesKey, visibleWidth } from "@earendil-works/pi-tui";
 import { colors, style, truncate } from "../theme.js";
-import { loadImageAttachment, normalizeImagePath, readClipboardImage, readClipboardText, } from "../../state/image-attachment.js";
+import { discardImage, loadImageAttachment, normalizeImagePath, readClipboardImage, readClipboardText, } from "../../state/image-attachment.js";
 const CORE_COMMANDS = [
     { name: "new", description: "Start a fresh session with a completely clean context" },
     { name: "clear", description: "Clear conversation messages from view without resetting session" },
@@ -141,6 +141,13 @@ export class InputBox {
     }
     getAttachedImages() {
         return [...this.attachedImages];
+    }
+    removeLastImage() {
+        const image = this.attachedImages.pop();
+        if (!image)
+            return false;
+        discardImage(image);
+        return true;
     }
     addImagePath(candidate) {
         const image = loadImageAttachment(candidate);
@@ -349,10 +356,15 @@ export class InputBox {
             }
             return;
         }
+        // Ctrl+Backspace / Ctrl+Delete: remove the last image attachment as one block.
+        if (data === "\x17" || data === "\x1b[3;5~") {
+            if (this.removeLastImage())
+                return;
+        }
         // Backspace
         if (data === "\x7f" || data === "\b") {
-            if (this.text.length === 0 && this.cursor === 0 && this.attachedImages.length > 0) {
-                this.attachedImages.pop();
+            if (this.attachedImages.length > 0 && (this.text.length === 0 || this.cursor === 0)) {
+                this.removeLastImage();
                 return;
             }
             if (this.cursor > 0) {

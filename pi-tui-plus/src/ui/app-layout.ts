@@ -434,7 +434,10 @@ export class AppLayout implements Component, Focusable {
     if (y < this.lastChatTop || y >= this.lastChatTop + this.lastChatHeight) {
       return null;
     }
-    return this.chatView.getImageAtLine(this.lastChatStartIndex + (y - this.lastChatTop));
+    return this.chatView.getImageAtPosition(
+      this.lastChatStartIndex + (y - this.lastChatTop),
+      x
+    );
   }
 
   private setHoveredImage(imagePath: string | null): void {

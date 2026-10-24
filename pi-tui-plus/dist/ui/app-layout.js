@@ -374,7 +374,7 @@ export class AppLayout {
         if (y < this.lastChatTop || y >= this.lastChatTop + this.lastChatHeight) {
             return null;
         }
-        return this.chatView.getImageAtLine(this.lastChatStartIndex + (y - this.lastChatTop));
+        return this.chatView.getImageAtPosition(this.lastChatStartIndex + (y - this.lastChatTop), x);
     }
     setHoveredImage(imagePath) {
         this.hoveredImage = imagePath;

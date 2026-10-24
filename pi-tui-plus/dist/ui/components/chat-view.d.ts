@@ -15,7 +15,7 @@ export declare class ChatView implements Component {
     isLogoComplete(): boolean;
     isAutoScroll(): boolean;
     getCachedHeight(): number;
-    getImageAtLine(line: number): string | null;
+    getImageAtPosition(line: number, col: number): string | null;
     render(width: number): string[];
     private renderBox;
     private wrapText;

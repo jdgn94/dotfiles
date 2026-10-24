@@ -31,10 +31,13 @@ export class ChatView {
     getCachedHeight() {
         return this.cachedHeight;
     }
-    getImageAtLine(line) {
+    getImageAtPosition(line, col) {
         for (const range of this.imageRanges) {
-            if (line >= range.start && line <= range.end)
+            if (line === range.line &&
+                col >= range.startCol - 3 &&
+                col <= range.endCol + 3) {
                 return range.path;
+            }
         }
         return null;
     }
@@ -72,25 +75,25 @@ export class ChatView {
         // Render historical messages
         for (const msg of messages) {
             if (msg.role === "user") {
-                const parts = [];
                 const imageMarkers = [];
                 (msg.images ?? []).forEach((image, index) => {
-                    const marker = `[Image ${index + 1}]`;
-                    parts.push(marker);
-                    imageMarkers.push({ marker, path: image.path });
+                    imageMarkers.push({ marker: `[Image ${index + 1}]`, path: image.path });
                 });
-                if (msg.text)
-                    parts.push(msg.text);
-                if (parts.length > 0) {
+                const labels = imageMarkers.map((image) => image.marker).join(" ");
+                const content = [labels, msg.text].filter(Boolean).join(" ");
+                if (content) {
                     const start = allLines.length;
-                    this.renderBox(allLines, "You", parts.join("\n\n"), colors.accent, safeWidth);
+                    this.renderBox(allLines, "You", content, colors.accent, safeWidth);
                     for (const { marker, path } of imageMarkers) {
                         const lineIndex = allLines.findIndex((line, index) => index >= start &&
                             line.replace(/\x1b\[[0-9;]*m/g, "").includes(marker));
                         if (lineIndex >= 0) {
+                            const plainLine = allLines[lineIndex].replace(/\x1b\[[0-9;]*m/g, "");
+                            const startCol = plainLine.indexOf(marker);
                             this.imageRanges.push({
-                                start: lineIndex,
-                                end: lineIndex,
+                                line: lineIndex,
+                                startCol,
+                                endCol: startCol + marker.length,
                                 path,
                             });
                         }

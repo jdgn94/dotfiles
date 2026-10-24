@@ -118,6 +118,17 @@ export function saveImageBuffer(buffer: Buffer, mimeType: string, prefix = "imag
   return { path: file, mimeType, data: buffer.toString("base64") };
 }
 
+export function discardImage(image: ChatImage): void {
+  const tempDir = path.resolve(os.tmpdir(), "pi-tui-plus-images");
+  const imagePath = path.resolve(image.path);
+  if (!imagePath.startsWith(`${tempDir}${path.sep}`)) return;
+  try {
+    fs.unlinkSync(imagePath);
+  } catch {
+    // Already gone or not removable.
+  }
+}
+
 export function readClipboardText(): string {
   const commands: Array<[string, string[]]> = [
     ["wl-paste", ["--no-newline"]],

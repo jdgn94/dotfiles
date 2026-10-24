@@ -2,6 +2,7 @@ import { matchesKey, visibleWidth, type Component, type Focusable } from "@earen
 import { colors, style, truncate } from "../theme.js";
 import {
   type ChatImage,
+  discardImage,
   loadImageAttachment,
   normalizeImagePath,
   readClipboardImage,
@@ -179,6 +180,13 @@ export class InputBox implements Component, Focusable {
 
   public getAttachedImages(): ChatImage[] {
     return [...this.attachedImages];
+  }
+
+  public removeLastImage(): boolean {
+    const image = this.attachedImages.pop();
+    if (!image) return false;
+    discardImage(image);
+    return true;
   }
 
   public addImagePath(candidate: string): boolean {
@@ -407,10 +415,15 @@ export class InputBox implements Component, Focusable {
       return;
     }
 
+    // Ctrl+Backspace / Ctrl+Delete: remove the last image attachment as one block.
+    if (data === "\x17" || data === "\x1b[3;5~") {
+      if (this.removeLastImage()) return;
+    }
+
     // Backspace
     if (data === "\x7f" || data === "\b") {
-      if (this.text.length === 0 && this.cursor === 0 && this.attachedImages.length > 0) {
-        this.attachedImages.pop();
+      if (this.attachedImages.length > 0 && (this.text.length === 0 || this.cursor === 0)) {
+        this.removeLastImage();
         return;
       }
       if (this.cursor > 0) {

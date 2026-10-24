@@ -9,7 +9,12 @@ export class ChatView implements Component {
   private scrollOffset = 0;
   private autoScroll = true;
   private cachedHeight = 20;
-  private imageRanges: Array<{ start: number; end: number; path: string }> = [];
+  private imageRanges: Array<{
+    line: number;
+    startCol: number;
+    endCol: number;
+    path: string;
+  }> = [];
 
   constructor(agent: AgentManager) {
     this.agent = agent;
@@ -42,9 +47,15 @@ export class ChatView implements Component {
     return this.cachedHeight;
   }
 
-  public getImageAtLine(line: number): string | null {
+  public getImageAtPosition(line: number, col: number): string | null {
     for (const range of this.imageRanges) {
-      if (line >= range.start && line <= range.end) return range.path;
+      if (
+        line === range.line &&
+        col >= range.startCol - 3 &&
+        col <= range.endCol + 3
+      ) {
+        return range.path;
+      }
     }
     return null;
   }
@@ -107,18 +118,16 @@ export class ChatView implements Component {
     // Render historical messages
     for (const msg of messages) {
       if (msg.role === "user") {
-        const parts: string[] = [];
         const imageMarkers: Array<{ marker: string; path: string }> = [];
         (msg.images ?? []).forEach((image, index) => {
-          const marker = `[Image ${index + 1}]`;
-          parts.push(marker);
-          imageMarkers.push({ marker, path: image.path });
+          imageMarkers.push({ marker: `[Image ${index + 1}]`, path: image.path });
         });
-        if (msg.text) parts.push(msg.text);
+        const labels = imageMarkers.map((image) => image.marker).join(" ");
+        const content = [labels, msg.text].filter(Boolean).join(" ");
 
-        if (parts.length > 0) {
+        if (content) {
           const start = allLines.length;
-          this.renderBox(allLines, "You", parts.join("\n\n"), colors.accent, safeWidth);
+          this.renderBox(allLines, "You", content, colors.accent, safeWidth);
           for (const { marker, path } of imageMarkers) {
             const lineIndex = allLines.findIndex(
               (line, index) =>
@@ -126,9 +135,12 @@ export class ChatView implements Component {
                 line.replace(/\x1b\[[0-9;]*m/g, "").includes(marker)
             );
             if (lineIndex >= 0) {
+              const plainLine = allLines[lineIndex]!.replace(/\x1b\[[0-9;]*m/g, "");
+              const startCol = plainLine.indexOf(marker);
               this.imageRanges.push({
-                start: lineIndex,
-                end: lineIndex,
+                line: lineIndex,
+                startCol,
+                endCol: startCol + marker.length,
                 path,
               });
             }
