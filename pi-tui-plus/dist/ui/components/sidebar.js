@@ -1,5 +1,6 @@
 import * as path from "node:path";
 import { colors, style, truncate } from "../theme.js";
+import { SixelOverlay } from "../sixel-overlay.js";
 import { ImagePreview } from "./image-preview.js";
 function formatTokens(count) {
     if (count >= 1000000) {
@@ -335,21 +336,36 @@ export class Sidebar {
         // --- 12. IMAGE PREVIEW is rendered by the layout as a bottom overlay ---
         return lines;
     }
+    /** `sixel` is relative to the returned lines: 0-based line and column. */
     renderHoveredImagePreview(width) {
         const image = this.hoveredImage ?? this.inputBox?.getAttachedImageAtCursor();
         if (!image)
-            return [];
+            return { lines: [] };
         const safeWidth = Math.max(26, width);
         const filename = path.basename(image);
         const lines = [
             style("─".repeat(safeWidth), colors.border),
             ` ${style("󰋩 Image Preview:", colors.bold, colors.accent)} ${style(truncate(filename, safeWidth - 18), colors.secondary)}`,
         ];
+        const sixel = SixelOverlay.isSupported()
+            ? ImagePreview.renderSixel(image, safeWidth - 4, 36)
+            : null;
+        if (sixel) {
+            const placement = {
+                line: lines.length,
+                col: 2 + Math.floor((safeWidth - 4 - sixel.columns) / 2),
+                rows: sixel.rows,
+                data: sixel.data,
+            };
+            for (let i = 0; i < sixel.rows; i++)
+                lines.push("");
+            return { lines, sixel: placement };
+        }
         const previewLines = ImagePreview.render(image, safeWidth - 4, 36);
         for (const pLine of previewLines) {
             lines.push(`  ${pLine}`);
         }
-        return lines;
+        return { lines };
     }
     renderBar(label, percent, width, fillColor) {
         const clamped = Math.max(0, Math.min(100, percent));

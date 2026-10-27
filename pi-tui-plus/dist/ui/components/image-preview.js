@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
+import { allocateImageId, getCapabilities, getCellDimensions, getPngDimensions, renderImage, } from "@earendil-works/pi-tui";
 export class ImagePreview {
     static cache = new Map();
     static render(imagePath, targetWidth = 34, targetHeight = 10) {
@@ -8,6 +9,9 @@ export class ImagePreview {
                 return ["[Image not found]"];
             }
             const stat = fs.statSync(imagePath);
+            if (getCapabilities().images === "kitty") {
+                return this.renderKitty(imagePath, stat.mtimeMs, targetWidth, targetHeight);
+            }
             // targetHeight is measured in terminal rows; half-block cells use 2 pixels each.
             const pixelHeight = targetHeight % 2 === 0 ? targetHeight : targetHeight + 1;
             const cacheKey = `${imagePath}:${targetWidth}x${pixelHeight}`;
@@ -73,6 +77,81 @@ export class ImagePreview {
                 return ["[Attached image]"];
             }
         }
+    }
+    /** Real-pixel preview: the first line carries the Kitty sequence, the rest reserve its rows. */
+    static renderKitty(imagePath, mtime, targetWidth, targetHeight) {
+        const cell = getCellDimensions();
+        const cacheKey = `${imagePath}:kitty:${targetWidth}x${targetHeight}:${cell.widthPx}x${cell.heightPx}`;
+        const cached = this.cache.get(cacheKey);
+        if (cached && cached.mtime === mtime) {
+            return [...cached.lines];
+        }
+        // Kitty only accepts PNG.
+        const png = this.fitPng(imagePath, targetWidth, targetHeight).toString("base64");
+        const dimensions = getPngDimensions(png);
+        const result = dimensions &&
+            renderImage(png, dimensions, {
+                maxWidthCells: targetWidth,
+                maxHeightCells: targetHeight,
+                imageId: allocateImageId(),
+                moveCursor: false,
+            });
+        if (!result)
+            throw new Error("Kitty image render failed");
+        const leftPad = " ".repeat(Math.floor((targetWidth - result.columns) / 2));
+        const lines = [`${leftPad}${result.sequence}`];
+        for (let i = 1; i < result.rows; i++)
+            lines.push("");
+        this.cache.set(cacheKey, { mtime, width: targetWidth, height: targetHeight, lines });
+        return [...lines];
+    }
+    static sixelCache = new Map();
+    /** Sixel preview for terminals like Windows Terminal; null when the image cannot be encoded. */
+    static renderSixel(imagePath, targetWidth, targetHeight) {
+        try {
+            const mtime = fs.statSync(imagePath).mtimeMs;
+            const cell = getCellDimensions();
+            const cacheKey = `${imagePath}:${targetWidth}x${targetHeight}:${cell.widthPx}x${cell.heightPx}`;
+            const cached = this.sixelCache.get(cacheKey);
+            if (cached && cached.mtime === mtime) {
+                return cached.image;
+            }
+            const png = this.fitPng(imagePath, targetWidth, targetHeight);
+            const dimensions = getPngDimensions(png.toString("base64"));
+            if (!dimensions)
+                return null;
+            const data = execFileSync("magick", ["png:-", "sixel:-"], {
+                input: png,
+                timeout: 1500,
+                maxBuffer: 16 * 1024 * 1024,
+                stdio: ["pipe", "pipe", "ignore"],
+            }).toString("latin1");
+            const image = {
+                data,
+                columns: Math.ceil(dimensions.widthPx / cell.widthPx),
+                rows: Math.ceil(dimensions.heightPx / cell.heightPx),
+            };
+            this.sixelCache.set(cacheKey, { mtime, image });
+            return image;
+        }
+        catch {
+            return null;
+        }
+    }
+    /** Downscale to the box size in pixels so the escape payload stays small. */
+    static fitPng(imagePath, targetWidth, targetHeight) {
+        const cell = getCellDimensions();
+        return execFileSync("magick", [
+            imagePath,
+            "-auto-orient",
+            "-resize",
+            `${targetWidth * cell.widthPx}x${targetHeight * cell.heightPx}>`,
+            "png:-",
+        ], {
+            timeout: 1500,
+            maxBuffer: 16 * 1024 * 1024,
+            stdio: ["ignore", "pipe", "ignore"],
+        });
     }
 }
 //# sourceMappingURL=image-preview.js.map

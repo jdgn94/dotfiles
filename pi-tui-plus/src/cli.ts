@@ -10,6 +10,7 @@ import { SpecGraphWatcher } from "./state/spec-graph-watcher.js";
 import { TodoTracker } from "./state/todo-tracker.js";
 import { ToolLogger } from "./state/tool-logger.js";
 import { AppLayout } from "./ui/app-layout.js";
+import { SixelOverlay } from "./ui/sixel-overlay.js";
 
 async function resolveSessionManager(cwd: string): Promise<SessionManager | undefined> {
   const args = process.argv.slice(2);
@@ -105,6 +106,10 @@ async function main() {
   tui.setLayoutRoot(layout);
   tui.setFocus(layout);
 
+  // Sixel previews are painted onto each frame the TUI writes.
+  const writeFrame = terminal.write.bind(terminal);
+  terminal.write = (data: string) => writeFrame(SixelOverlay.inject(data));
+
   // Clean exit handlers
   let cleaned = false;
   const cleanup = () => {
@@ -158,6 +163,7 @@ async function main() {
   await gitWatcher.init();
   await specGraphWatcher.init();
   tui.start();
+  SixelOverlay.probe(tui, terminal);
 
   // Initialize agent session
   try {

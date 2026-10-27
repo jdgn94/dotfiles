@@ -12,6 +12,7 @@ import { ModelPopup } from "./components/model-popup.js";
 import { SessionModal } from "./components/session-modal.js";
 import { Sidebar } from "./components/sidebar.js";
 import { StatusBar } from "./components/status-bar.js";
+import { SixelOverlay } from "./sixel-overlay.js";
 import { colors, style } from "./theme.js";
 export class AppLayout {
     focused = true;
@@ -780,6 +781,7 @@ export class AppLayout {
         this.jumpButtonRect = null;
         this.lastChatTop = headerLines.length;
         this.lastChatHeight = 0;
+        let sixelPlacement;
         // Compute split columns
         let centerLines = [];
         // If AgentPopup is open, render it centered in the primary center area
@@ -947,11 +949,20 @@ export class AppLayout {
                 }
             }
             // Pin the image preview to the bottom of the sidebar, above the input.
-            const previewLines = this.sidebar.renderHoveredImagePreview(sbWidth);
+            const preview = this.sidebar.renderHoveredImagePreview(sbWidth);
+            const previewLines = preview.lines;
             if (previewLines.length > 0) {
                 const previewStart = Math.max(0, centerHeight - previewLines.length);
                 for (let i = 0; i < previewLines.length && previewStart + i < visibleSidebarLines.length; i++) {
                     visibleSidebarLines[previewStart + i] = this.padTo(previewLines[i], sbWidth);
+                }
+                if (preview.sixel && previewStart + preview.sixel.line + preview.sixel.rows <= chatHeight) {
+                    sixelPlacement = {
+                        row: headerLines.length + previewStart + preview.sixel.line + 1,
+                        col: chatWidth + 1 + preview.sixel.col + 1,
+                        rows: preview.sixel.rows,
+                        data: preview.sixel.data,
+                    };
                 }
             }
             // Composite side by side with vertical border
@@ -1022,6 +1033,7 @@ export class AppLayout {
             ...inputBoxLines,
             ...statusLines,
         ];
+        SixelOverlay.place(sixelPlacement);
         if (finalLines.length > termHeight) {
             return finalLines.slice(0, termHeight);
         }

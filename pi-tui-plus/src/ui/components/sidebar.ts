@@ -7,6 +7,7 @@ import { type SpecGraphWatcher } from "../../state/spec-graph-watcher.js";
 import { type TodoTracker } from "../../state/todo-tracker.js";
 import { type ToolLogger } from "../../state/tool-logger.js";
 import { colors, style, truncate } from "../theme.js";
+import { SixelOverlay } from "../sixel-overlay.js";
 import { ImagePreview } from "./image-preview.js";
 import { type InputBox } from "./input-box.js";
 
@@ -470,9 +471,13 @@ export class Sidebar implements Component {
     return lines;
   }
 
-  public renderHoveredImagePreview(width: number): string[] {
+  /** `sixel` is relative to the returned lines: 0-based line and column. */
+  public renderHoveredImagePreview(width: number): {
+    lines: string[];
+    sixel?: { line: number; col: number; rows: number; data: string };
+  } {
     const image = this.hoveredImage ?? this.inputBox?.getAttachedImageAtCursor();
-    if (!image) return [];
+    if (!image) return { lines: [] };
 
     const safeWidth = Math.max(26, width);
     const filename = path.basename(image);
@@ -484,11 +489,25 @@ export class Sidebar implements Component {
       )}`,
     ];
 
+    const sixel = SixelOverlay.isSupported()
+      ? ImagePreview.renderSixel(image, safeWidth - 4, 36)
+      : null;
+    if (sixel) {
+      const placement = {
+        line: lines.length,
+        col: 2 + Math.floor((safeWidth - 4 - sixel.columns) / 2),
+        rows: sixel.rows,
+        data: sixel.data,
+      };
+      for (let i = 0; i < sixel.rows; i++) lines.push("");
+      return { lines, sixel: placement };
+    }
+
     const previewLines = ImagePreview.render(image, safeWidth - 4, 36);
     for (const pLine of previewLines) {
       lines.push(`  ${pLine}`);
     }
-    return lines;
+    return { lines };
   }
 
   private renderBar(

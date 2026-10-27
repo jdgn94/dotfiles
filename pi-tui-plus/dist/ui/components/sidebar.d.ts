@@ -34,7 +34,16 @@ export declare class Sidebar implements Component {
     isPlanExpanded(): boolean;
     handleClick(sidebarRowIndex: number): SidebarClickAction | null;
     render(width: number): string[];
-    renderHoveredImagePreview(width: number): string[];
+    /** `sixel` is relative to the returned lines: 0-based line and column. */
+    renderHoveredImagePreview(width: number): {
+        lines: string[];
+        sixel?: {
+            line: number;
+            col: number;
+            rows: number;
+            data: string;
+        };
+    };
     private renderBar;
     private spaceBetween;
 }
