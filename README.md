@@ -140,6 +140,10 @@ Always-on rules live in `shared/AGENTS.md`: mandatory skill triggers, where inst
 - **`agent-reach`**: Internet research and platform reading (X/Twitter, Reddit, YouTube, Bilibili, XiaoHongShu, LinkedIn, V2EX, RSS) with Tavily as the web-search backend.
 - **`ponytail`**: Lazy-senior YAGNI ladder for the smallest complete change and anti-over-engineering.
 - **`backlog` / `story` / `pair`**: XP-inspired flow from idea to vertical stories, acceptance criteria, and test-first pair programming (MIT, from `nschurmann/hola-ai`).
+- **`ui-ux-pro-max`**: Local UI/UX design intelligence across web, mobile, desktop, design systems, accessibility, and stack-specific implementation.
+- **`frontend-design`**: Distinctive visual direction, typography, and layout for new or reshaped interfaces.
+- **`emil-design-eng`**: Emil Kowalski's UI polish, component design, motion, and interaction craft.
+- **`huashu-design`**: HTML-native prototypes, slides, animations, infographics, design variants, and reviews.
 
 ---
 

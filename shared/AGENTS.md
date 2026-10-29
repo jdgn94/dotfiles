@@ -16,6 +16,7 @@ Load the named skill before acting when the trigger matches; otherwise do not lo
 - Internet research or reading social/video platforms → `agent-reach`
 - Simplest/YAGNI solution or over-engineering complaint → `ponytail`
 - Backlog refinement, story specs, or pair programming → `backlog`, `story`, `pair`
+- UI/UX, frontend visual design, motion craft, or HTML design output → `ui-ux-pro-max`, `frontend-design`, `emil-design-eng`, `huashu-design`
 
 When a skill becomes mandatory, name it here in the same change; a skill nobody names is dead weight.
 

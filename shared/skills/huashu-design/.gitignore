@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Video render temp (render-video.js product)
+.video-tmp-*/
+**/.video-tmp-*/
+
+# Personal asset index (real personal data, only retain .example.json template)
+assets/personal-asset-index.json
+
+# Environment variables (sensitive information such as API key, only retain the .env.example template)
+.env
+.env.local
+
+# Local upstream mirror used by maintainer sync tooling
+tools/sync-upstream/.upstream-clone/
+
+# Voiceover working directory (TTS mp3, timeline.json temporary products, can be regenerated)
+**/_narration/
+**/_narration_*/
+
+# Node / editor / OS
+node_modules/
+*.swp
+.idea/
+.vscode/
+Thumbs.db
+
+# Verification artifacts (screenshots, temporary test scripts)
+demos/_frames_*.png
+demos/_verify.js
+demos/_verify.mjs
