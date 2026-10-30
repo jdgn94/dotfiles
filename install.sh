@@ -308,6 +308,11 @@ if [ "$HAS_CLAUDE" = true ]; then
     chmod +x "$CLAUDE_DIR/hooks/"*.sh 2>/dev/null || true
   fi
 
+  if [ -d "$DOTS_DIR/harnesses/claude/agents" ]; then
+    mkdir -p "$CLAUDE_DIR/agents"
+    cp -r "$DOTS_DIR/harnesses/claude/agents/"* "$CLAUDE_DIR/agents/" 2>/dev/null || true
+  fi
+
   # Claude reads AGENTS.md, and CLAUDE.md is the entrypoint that points to it.
   cp "$DOTS_DIR/harnesses/claude/AGENTS.md" "$CLAUDE_DIR/AGENTS.md"
   cp "$DOTS_DIR/harnesses/claude/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"

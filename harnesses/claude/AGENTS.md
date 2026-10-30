@@ -5,6 +5,17 @@ Importing shared cross-agent rules and parity standards:
 @~/.agents/rules/AGENTS.md
 @~/.agents/rules/COMMON_RULES.md
 
+## Model Delegation (Claude Code only)
+
+When the active model is **Opus** or **Fable**:
+
+- Any task that requires **writing or editing code, files, configuration, or implementation commands** must be delegated to the `sonnet-coder` subagent. It runs Sonnet with `effort: high`.
+- Give the subagent the complete task, relevant paths, constraints, and verification requirements. Then review its report and ensure the checks were actually run.
+- The powerful model keeps research, architecture, planning, review, and explanation.
+- The powerful model may write or edit directly **only when the user explicitly asks it to do so** (for example: "you write it", "do not delegate", "use Opus/Fable for this edit").
+
+When the active model is Sonnet or another non-powerful model, implement normally.
+
 ## 🧠 Skills Integration: Read First, Standard Paths Only
 
 You operate in a unified multi-agent environment where all skills are shared identically across Claude, Pi, OpenCode, Hermes, and Antigravity.

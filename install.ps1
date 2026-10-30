@@ -327,6 +327,10 @@ if ($HasClaude) {
     }
 
     New-Item -ItemType Directory -Path (Join-Path $ClaudeDir "rules") -Force | Out-Null
+    if (Test-Path (Join-Path $DOTS_DIR "harnesses" "claude" "agents")) {
+        New-Item -ItemType Directory -Path (Join-Path $ClaudeDir "agents") -Force | Out-Null
+        Copy-Item -Path "$DOTS_DIR\harnesses\claude\agents\*" -Destination (Join-Path $ClaudeDir "agents") -Recurse -Force
+    }
     Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "claude" "AGENTS.md") -Destination (Join-Path $ClaudeDir "AGENTS.md") -Force
     Copy-Item -Path (Join-Path $DOTS_DIR "harnesses" "claude" "CLAUDE.md") -Destination (Join-Path $ClaudeDir "CLAUDE.md") -Force
     Link-OrCopy -Source (Join-Path $ClaudeDir "AGENTS.md") -Destination (Join-Path $ClaudeDir "rules" "AGENTS.md")
